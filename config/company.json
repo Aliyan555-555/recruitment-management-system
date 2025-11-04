@@ -1,0 +1,372 @@
+{
+  "name": "Recruitment Management System",
+  "organization": {
+    "name": "RMS Organization",
+    "alias": "RMS",
+    "legalName": "Recruitment Management System Organization",
+    "taxId": "",
+    "registrationNumber": "",
+    "establishedYear": 2024,
+    "website": "https://example.com",
+    "logo": "/logo.png"
+  },
+  "contact": {
+    "email": "info@example.com",
+    "phone": "+92-XXX-XXXXXXX",
+    "address": {
+      "street": "123 Main Street",
+      "city": "Karachi",
+      "state": "Sindh",
+      "country": "Pakistan",
+      "zipCode": "75000"
+    }
+  },
+  "departments": [
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "description": "Software development and technical roles",
+      "isActive": true
+    },
+    {
+      "id": "hr",
+      "name": "Human Resources",
+      "description": "HR and recruitment roles",
+      "isActive": true
+    },
+    {
+      "id": "sales",
+      "name": "Sales",
+      "description": "Sales and business development roles",
+      "isActive": true
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "description": "Marketing and communications roles",
+      "isActive": true
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "description": "Finance and accounting roles",
+      "isActive": true
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "description": "Operations and administration roles",
+      "isActive": true
+    },
+    {
+      "id": "customer-support",
+      "name": "Customer Support",
+      "description": "Customer service and support roles",
+      "isActive": true
+    },
+    {
+      "id": "product",
+      "name": "Product",
+      "description": "Product management and design roles",
+      "isActive": true
+    },
+    {
+      "id": "legal",
+      "name": "Legal",
+      "description": "Legal and compliance roles",
+      "isActive": true
+    },
+    {
+      "id": "it",
+      "name": "Information Technology",
+      "description": "IT infrastructure and support roles",
+      "isActive": true
+    }
+  ],
+  "countries": [
+    {
+      "code": "PK",
+      "name": "Pakistan",
+      "isDefault": true,
+      "regions": [
+        {
+          "name": "Punjab",
+          "cities": [
+            "Lahore",
+            "Faisalabad",
+            "Rawalpindi",
+            "Multan",
+            "Gujranwala",
+            "Sialkot",
+            "Bahawalpur",
+            "Sargodha",
+            "Sahiwal",
+            "Jhelum"
+          ]
+        },
+        {
+          "name": "Sindh",
+          "cities": [
+            "Karachi",
+            "Hyderabad",
+            "Sukkur",
+            "Larkana",
+            "Nawabshah",
+            "Mirpur Khas",
+            "Jacobabad",
+            "Shikarpur",
+            "Dadu",
+            "Thatta"
+          ]
+        },
+        {
+          "name": "Khyber Pakhtunkhwa",
+          "cities": [
+            "Peshawar",
+            "Mardan",
+            "Abbottabad",
+            "Kohat",
+            "Bannu",
+            "Swat",
+            "Dera Ismail Khan",
+            "Charsadda",
+            "Nowshera",
+            "Mansehra"
+          ]
+        },
+        {
+          "name": "Balochistan",
+          "cities": [
+            "Quetta",
+            "Turbat",
+            "Chaman",
+            "Zhob",
+            "Gwadar",
+            "Lasbela",
+            "Sibi",
+            "Kalat",
+            "Khuzdar",
+            "Mastung"
+          ]
+        },
+        {
+          "name": "Islamabad Capital Territory",
+          "cities": [
+            "Islamabad"
+          ]
+        },
+        {
+          "name": "Gilgit-Baltistan",
+          "cities": [
+            "Gilgit",
+            "Skardu",
+            "Chilas",
+            "Hunza",
+            "Ghanche"
+          ]
+        },
+        {
+          "name": "Azad Jammu and Kashmir",
+          "cities": [
+            "Muzaffarabad",
+            "Mirpur",
+            "Kotli",
+            "Rawalakot",
+            "Bhimber"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "US",
+      "name": "United States",
+      "isDefault": false,
+      "regions": [
+        {
+          "name": "California",
+          "cities": [
+            "Los Angeles",
+            "San Francisco",
+            "San Diego",
+            "Sacramento",
+            "San Jose"
+          ]
+        },
+        {
+          "name": "New York",
+          "cities": [
+            "New York City",
+            "Buffalo",
+            "Rochester",
+            "Albany",
+            "Syracuse"
+          ]
+        },
+        {
+          "name": "Texas",
+          "cities": [
+            "Houston",
+            "Dallas",
+            "Austin",
+            "San Antonio",
+            "Fort Worth"
+          ]
+        }
+      ]
+    },
+    {
+      "code": "UK",
+      "name": "United Kingdom",
+      "isDefault": false,
+      "regions": [
+        {
+          "name": "England",
+          "cities": [
+            "London",
+            "Manchester",
+            "Birmingham",
+            "Liverpool",
+            "Leeds"
+          ]
+        },
+        {
+          "name": "Scotland",
+          "cities": [
+            "Edinburgh",
+            "Glasgow",
+            "Aberdeen",
+            "Dundee",
+            "Inverness"
+          ]
+        }
+      ]
+    }
+  ],
+  "jobTypes": [
+    {
+      "id": "full-time",
+      "name": "Full-time",
+      "description": "Permanent full-time employment",
+      "isActive": true
+    },
+    {
+      "id": "part-time",
+      "name": "Part-time",
+      "description": "Part-time employment",
+      "isActive": true
+    },
+    {
+      "id": "contract",
+      "name": "Contract",
+      "description": "Contract-based employment",
+      "isActive": true
+    },
+    {
+      "id": "internship",
+      "name": "Internship",
+      "description": "Internship positions",
+      "isActive": true
+    },
+    {
+      "id": "freelance",
+      "name": "Freelance",
+      "description": "Freelance work",
+      "isActive": true
+    },
+    {
+      "id": "temporary",
+      "name": "Temporary",
+      "description": "Temporary employment",
+      "isActive": true
+    }
+  ],
+  "workLocations": [
+    {
+      "id": "onsite",
+      "name": "Onsite",
+      "description": "Work from office location",
+      "isActive": true
+    },
+    {
+      "id": "remote",
+      "name": "Remote",
+      "description": "Work from home/remote location",
+      "isActive": true
+    },
+    {
+      "id": "hybrid",
+      "name": "Hybrid",
+      "description": "Combination of onsite and remote work",
+      "isActive": true
+    }
+  ],
+  "workShifts": [
+    {
+      "id": "morning",
+      "name": "Morning",
+      "description": "Morning shift (9 AM - 5 PM)",
+      "startTime": "09:00",
+      "endTime": "17:00",
+      "isActive": true
+    },
+    {
+      "id": "evening",
+      "name": "Evening",
+      "description": "Evening shift (5 PM - 1 AM)",
+      "startTime": "17:00",
+      "endTime": "01:00",
+      "isActive": true
+    },
+    {
+      "id": "night",
+      "name": "Night",
+      "description": "Night shift (10 PM - 6 AM)",
+      "startTime": "22:00",
+      "endTime": "06:00",
+      "isActive": true
+    },
+    {
+      "id": "flexible",
+      "name": "Flexible",
+      "description": "Flexible working hours",
+      "isActive": true
+    }
+  ],
+  "employmentTypes": [
+    {
+      "id": "permanent",
+      "name": "Permanent",
+      "description": "Permanent employment",
+      "isActive": true
+    },
+    {
+      "id": "contractual",
+      "name": "Contractual",
+      "description": "Contract-based employment",
+      "isActive": true
+    },
+    {
+      "id": "probationary",
+      "name": "Probationary",
+      "description": "Probation period employment",
+      "isActive": true
+    }
+  ],
+  "timezone": {
+    "default": "Asia/Karachi",
+    "name": "Pakistan Standard Time (PKT)",
+    "utcOffset": "+05:00"
+  },
+  "settings": {
+    "allowRemoteWork": true,
+    "allowHybridWork": true,
+    "defaultJobPostingDays": 30,
+    "maxJobPostingDays": 365,
+    "slotBookingAdvanceDays": 7,
+    "slotCancellationHours": 24,
+    "interviewReminderHours": 24,
+    "interviewReminderEmail": true,
+    "interviewReminderSMS": false
+  }
+}
+
