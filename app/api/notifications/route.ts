@@ -39,7 +39,13 @@ export async function GET(request: Request) {
     ])
 
     return NextResponse.json({
-      notifications,
+      notifications: notifications.map(n => ({
+        ...n,
+        id: n.id.toString(),
+        userId: n.userId.toString(),
+        entityId: n.entityId ? n.entityId.toString() : null,
+        createdAt: n.createdAt.toString(),
+      })),
       total,
       page,
       totalPages: Math.ceil(total / limit),

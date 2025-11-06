@@ -4,6 +4,41 @@ import { prisma } from "@/lib/prisma"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 
+export async function GET(req: NextRequest) {
+  try {
+    const session = await auth()
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const userId = BigInt(session.user.id)
+
+    const cvs = await prisma.cvManagerCv.findMany({
+      where: {
+        userId,
+        deletedAt: null
+      },
+      orderBy: { updatedAt: "desc" }
+    })
+
+    return NextResponse.json({
+      cvs: cvs.map(cv => ({
+        id: cv.id.toString(),
+        filename: cv.filename,
+        filepath: cv.filepath,
+        status: cv.status
+      }))
+    })
+  } catch (error: any) {
+    console.error("CV fetch error:", error)
+    return NextResponse.json(
+      { error: error.message || "Failed to fetch CVs" },
+      { status: 500 }
+    )
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()

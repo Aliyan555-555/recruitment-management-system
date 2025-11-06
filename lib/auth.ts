@@ -1,7 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
-import { compare } from "bcryptjs"
 import { z } from "zod"
 
 const loginSchema = z.object({
@@ -42,6 +41,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null
           }
 
+          // Dynamic import to avoid bundling bcryptjs for Edge Runtime
+          const { compare } = await import("bcryptjs")
           const isPasswordValid = await compare(password, user.password)
 
           if (!isPasswordValid) {

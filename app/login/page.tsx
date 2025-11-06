@@ -37,7 +37,30 @@ export default function LoginPage() {
         return
       }
 
-      router.push("/")
+      // Wait a moment for session to be available, then get user role
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Get the user's role from session to redirect appropriately
+      try {
+        const response = await fetch("/api/auth/session")
+        const session = await response.json()
+        const userRole = session?.user?.role
+
+        // Redirect based on role
+        if (userRole === "ADMIN") {
+          router.push("/admin/dashboard")
+        } else if (userRole === "INTERVIEWER") {
+          router.push("/interviewer/dashboard")
+        } else {
+          // CANDIDATE or default
+          router.push("/")
+        }
+      } catch (err) {
+        // If session fetch fails, redirect to home page
+        console.error("Error fetching session:", err)
+        router.push("/")
+      }
+      
       router.refresh()
     } catch (error) {
       setError("An error occurred. Please try again.")

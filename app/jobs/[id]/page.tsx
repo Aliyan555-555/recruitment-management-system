@@ -1,69 +1,180 @@
-import { auth } from "@/lib/auth"
-import { redirect } from "next/navigation"
-import { prisma } from "@/lib/prisma"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter, useParams } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Navbar } from "@/components/Navbar"
 import { JobDetails } from "@/components/JobDetails"
+import { Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
-export default async function JobDetailsPage({
-  params
-}: {
-  params: { id: string }
-}) {
-  const session = await auth()
+interface JobLocation {
+  city: string
+  country: string | null
+}
 
-  if (!session?.user?.id) {
-    redirect("/login")
+interface Job {
+  id: string
+  title: string
+  company: string
+  shortDescription: string
+  description: string
+  city?: string
+  country?: string
+  locations?: JobLocation[]
+  employmentType: string
+  employmentShift: string | null
+  minimumExperience: string | null
+  certification?: string
+  minimumSalary?: string
+  benefits?: string
+  totalPositions?: number
+  jobCode?: string
+  postFrom: string
+  postTo: string
+  skills: string[]
+  minimumEducation?: string
+  createdBy: string
+  creatorEmail: string
+}
+
+interface Application {
+  id: string
+  status: string
+  appliedAt: string
+  cv: {
+    id: string
+    filename: string
+  }
+}
+
+interface UserCv {
+  id: string
+  filename: string
+  filepath: string
+}
+
+export default function JobDetailsPage() {
+  const router = useRouter()
+  const params = useParams()
+  const { data: session, status } = useSession()
+  const [job, setJob] = useState<Job | null>(null)
+  const [hasApplied, setHasApplied] = useState(false)
+  const [application, setApplication] = useState<Application | null>(null)
+  const [userCvs, setUserCvs] = useState<UserCv[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+      return
+    }
+
+    if (status === "authenticated" && params.id) {
+      fetchJobDetails()
+      fetchUserCvs()
+    }
+  }, [status, router, params.id])
+
+  const fetchJobDetails = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/jobs/${params.id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          router.push("/jobs")
+          return
+        }
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+          errorData.error || `Failed to fetch job: ${response.statusText}`
+        )
+      }
+
+      const data = await response.json()
+      setJob(data.job)
+      setHasApplied(data.hasApplied)
+      setApplication(data.application)
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch job details"
+      console.error("Error fetching job:", err)
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const jobId = BigInt(params.id)
+  const fetchUserCvs = async () => {
+    try {
+      const response = await fetch("/api/profile/cv", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
 
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      skills: true,
-      educationRequirements: {
-        include: {
-          educationLevel: true
-        }
-      },
-      locations: {
-        select: {
-          city: true,
-          country: true
-        }
-      },
-      creator: {
-        select: {
-          firstname: true,
-          lastname: true,
-          email: true
-        }
-      },
-      applications: {
-        where: { userId: BigInt(session.user.id) },
-        include: {
-          cv: true
-        }
+      if (response.ok) {
+        const data = await response.json()
+        setUserCvs(data.cvs || [])
       }
+    } catch (err) {
+      console.error("Error fetching CVs:", err)
+      // Don't set error state for CVs, just log it
     }
-  })
+  }
+
+  // Show loading state while checking authentication
+  if (status === "loading" || loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-destructive mb-2">
+              Error Loading Job
+            </h3>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <div className="flex gap-2">
+              <Button onClick={fetchJobDetails} variant="outline">
+                Try Again
+              </Button>
+              <Button onClick={() => router.push("/jobs")} variant="outline">
+                Back to Jobs
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   if (!job) {
-    redirect("/jobs")
+    return null
   }
-
-  // Check if user has already applied
-  const hasApplied = job.applications.length > 0
-  const userApplication = hasApplied ? job.applications[0] : null
-
-  // Get user's CVs for application
-  const userCvs = await prisma.cvManagerCv.findMany({
-    where: {
-      userId: BigInt(session.user.id),
-      deletedAt: null
-    },
-    orderBy: { updatedAt: "desc" }
-  })
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
@@ -71,45 +182,18 @@ export default async function JobDetailsPage({
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <JobDetails
           job={{
-            id: job.id.toString(),
-            title: job.title,
-            company: job.company,
-            shortDescription: job.shortDescription || "",
-            description: job.description || "",
-            locations: job.locations?.map(loc => ({ city: loc.city, country: loc.country })),
-            employmentType: job.employmentType,
-            employmentShift: job.employmentShift,
-            minimumExperience: job.minimumExperience,
-            certification: job.certification || undefined,
-            minimumSalary: job.minimumSalary || undefined,
-            benefits: job.benefits || undefined,
-            totalPositions: job.totalPositions || undefined,
-            jobCode: job.jobCode || undefined,
-            postFrom: job.postFrom,
-            postTo: job.postTo,
-            skills: job.skills.map((s: any) => s.skillName),
-            minimumEducation: job.educationRequirements?.[0]?.educationLevel?.name || undefined,
-            createdBy: `${job.creator.firstname} ${job.creator.lastname}`,
-            creatorEmail: job.creator.email
+            ...job,
+            postFrom: new Date(job.postFrom),
+            postTo: new Date(job.postTo),
           }}
           hasApplied={hasApplied}
-          application={userApplication ? {
-            id: userApplication.id.toString(),
-            status: userApplication.status,
-            appliedAt: userApplication.appliedAt,
-            cv: {
-              id: userApplication.cv.id.toString(),
-              filename: userApplication.cv.filename
-            }
+          application={application ? {
+            ...application,
+            appliedAt: BigInt(application.appliedAt),
           } : null}
-          userCvs={userCvs.map(cv => ({
-            id: cv.id.toString(),
-            filename: cv.filename,
-            filepath: cv.filepath
-          }))}
+          userCvs={userCvs}
         />
       </main>
     </div>
   )
 }
-

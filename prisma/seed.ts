@@ -1,5 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, EmploymentType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { seedJobs } from './jobSeeder'
 
 const prisma = new PrismaClient()
 
@@ -10,6 +11,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10)
   const now = BigInt(Math.floor(Date.now() / 1000))
 
+  // =================== USER SEEDING ===================
   // Upsert three demo users: Admin, Interviewer, Candidate
   console.log('👤 Creating users...')
   const admin = await prisma.user.upsert({
@@ -27,7 +29,6 @@ async function main() {
       updatedAt: now
     }
   })
-
   const interviewer = await prisma.user.upsert({
     where: { email: 'interviewer@recruitment.com' },
     update: { username: 'interviewer', firstname: 'Ivy', lastname: 'Nguyen', password: hashedPassword, role: 'INTERVIEWER', updatedAt: now },
@@ -43,7 +44,6 @@ async function main() {
       updatedAt: now
     }
   })
-
   const candidate = await prisma.user.upsert({
     where: { email: 'candidate@recruitment.com' },
     update: { username: 'candidate', firstname: 'Sara', lastname: 'Lee', password: hashedPassword, role: 'CANDIDATE', updatedAt: now },
@@ -59,6 +59,10 @@ async function main() {
       updatedAt: now
     }
   })
+  console.log('\n🎉 Users seeded successfully!')
+
+  // ======== Call external (separate) job seeder with users ========
+  await seedJobs(prisma, { admin, interviewer, candidate, now });
 
   console.log('\n🎉 Users seeded successfully!\n')
   console.log('Login credentials:')

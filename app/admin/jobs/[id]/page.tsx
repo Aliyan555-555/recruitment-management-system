@@ -161,10 +161,7 @@ export default function JobDetailPage() {
         </div>
 
         {job.description && (
-          <div className="mt-4">
-            <label className="text-sm text-gray-500">Description</label>
-            <p className="text-gray-900 mt-1 whitespace-pre-wrap">{job.description}</p>
-          </div>
+         <div className="prose-lg mt-4" dangerouslySetInnerHTML={{ __html: job.description }}></div>
         )}
 
         {job.skills.length > 0 && (

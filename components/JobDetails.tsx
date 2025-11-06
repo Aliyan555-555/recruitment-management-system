@@ -165,14 +165,11 @@ export function JobDetails({
       )}
 
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Job Description</CardTitle>
-        </CardHeader>
+      <Card className="pt-4">
         <CardContent>
           {job.description ? (
-            <div className="prose max-w-none">
-              <p className="whitespace-pre-wrap">{job.description}</p>
+            <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: job.description }}>
+    
             </div>
           ) : (
             <p className="text-muted-foreground">No description provided</p>

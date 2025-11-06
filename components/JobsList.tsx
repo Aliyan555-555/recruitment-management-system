@@ -5,35 +5,22 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Briefcase, MapPin, Calendar, Users } from "lucide-react"
 import Link from "next/link"
+import { JobCardSkeleton } from "@/components/JobCardSkeleton";
+import type { Job } from "@/store/useJobsStore";
 
-interface JobLocation {
-  city: string
-  country: string
+interface JobsListProps {
+  jobs: Job[];
+  loading?: boolean;
 }
 
-interface Job {
-  id: string
-  title: string
-  company: string
-  description?: string
-  city?: string
-  country?: string
-  locations?: JobLocation[]
-  shortDescription: string;
-  employmentType: string
-  postFrom: Date
-  postTo: Date
-  skills: string[]
-  minimumEducation?: string
-  createdBy: string
-  applicationCount: number
-}
-
-export function JobsList({ jobs }: { jobs: Job[] }) {
+export function JobsList({ jobs, loading = false }: JobsListProps) {
 
   return (
     <div className="space-y-4">
-      {jobs.length === 0 ? (
+      {loading ? (
+        // Render 3 skeleton cards
+        Array.from({ length: 3 }).map((_, idx) => <JobCardSkeleton key={idx} />)
+      ) : jobs.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">

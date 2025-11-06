@@ -16,31 +16,30 @@ export async function GET(req: NextRequest) {
     const jobs = await prisma.job.findMany({
       where: {
         deletedAt: null,
-        status: true
-      },
-      select: {
-        id: true,
-        jobCode: true,
-        title: true,
-        description: true,
-        company: true,
-        postFrom: true,
-        postTo: true,
         status: true,
-        industry: true,
-        employmentType: true,
-        employmentShift: true,
-        shortDescription:true,
-        totalPositions: true,
-        minimumExperience: true,
-        minimumSalary: true,
+        postTo: {
+          gte: new Date()
+        }
+      },
+      include: {
+        skills: true,
+        educationRequirements: {
+          include: {
+            educationLevel: true
+          }
+        },
         locations: {
           select: {
             city: true,
             country: true
           }
         },
-        createdAt: true,
+        creator: {
+          select: {
+            firstname: true,
+            lastname: true
+          }
+        },
         _count: {
           select: {
             applications: true
@@ -48,19 +47,28 @@ export async function GET(req: NextRequest) {
         }
       },
       orderBy: {
-        createdAt: 'desc'
+        createdAt: "desc"
       }
     })
 
     return NextResponse.json({
       jobs: jobs.map(job => ({
-        ...job,
         id: job.id.toString(),
-        jobCode: job.jobCode,
-        postFrom: job.postFrom.toISOString().split('T')[0],
-        postTo: job.postTo.toISOString().split('T')[0],
-        createdAt: job.createdAt.toString(),
-        locations: job.locations
+        title: job.title,
+        company: job.company,
+        shortDescription: job.shortDescription || "",
+        description: job.description || undefined,
+        locations: job.locations?.map((loc) => ({
+          city: loc.city,
+          country: loc.country || ""
+        })),
+        employmentType: job.employmentType,
+        postFrom: job.postFrom.toISOString(),
+        postTo: job.postTo.toISOString(),
+        skills: job.skills.map((s) => s.skillName),
+        minimumEducation: job.educationRequirements?.[0]?.educationLevel?.name || undefined,
+        createdBy: `${job.creator.firstname} ${job.creator.lastname}`,
+        applicationCount: job._count.applications
       }))
     })
   } catch (error: any) {
