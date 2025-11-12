@@ -404,7 +404,7 @@ model WorkflowStep {
   updatedAt       BigInt    @map("updated_at")
   evaluationSchema Json?
   capacityPerSlot  Int?
-  stepMetadata     Json?  @map("step_metadata") // Stores stepType, durationMins, deadline, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
+  stepMetadata     Json?  @map("step_metadata") // Stores stepType, durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
   
   workflow        JobWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   interviewer     User?        @relation("StepInterviewer", fields: [interviewerId], references: [id])

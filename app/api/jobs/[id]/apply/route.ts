@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { notifyAdminNewApplication } from "@/lib/notifications"
+import { notifyAdminNewApplication, notifyInterviewerAssignment } from "@/lib/notifications"
+import { sendApplicationConfirmationEmail, sendInterviewerAssignmentEmail, sendAdminNewApplicationEmail } from "@/lib/email"
 
 export async function POST(
   req: NextRequest,
@@ -50,6 +51,7 @@ export async function POST(
         job: {
           select: {
             title: true,
+            company: true,
             workflow: {
               include: {
                 steps: true
@@ -60,7 +62,8 @@ export async function POST(
         user: {
           select: {
             firstname: true,
-            lastname: true
+            lastname: true,
+            email: true
           }
         },
         cv: {
@@ -71,11 +74,26 @@ export async function POST(
       }
     })
 
+    const candidateName = `${application.user.firstname} ${application.user.lastname}`
+    const jobTitle = application.job.title
+    const jobCompany = application.job.company || ""
+
     // Create pipeline if job has a workflow
     if (application.job.workflow && application.job.workflow.steps.length > 0) {
       const workflow = application.job.workflow
       
-      // Create pipeline with all workflow steps
+      // Find step 1
+      const firstStep = workflow.steps.find(step => step.stepOrder === 1)
+      
+      if (!firstStep) {
+        return NextResponse.json(
+          { error: "Workflow must have a step 1" },
+          { status: 400 }
+        )
+      }
+
+      // Create pipeline with ONLY step 1 initially
+      // Next steps will be created when previous step is completed
       await (prisma as any).candidatePipeline.create({
         data: {
           candidateId: userIdBig,
@@ -86,29 +104,79 @@ export async function POST(
           lockState: "NONE",
           startedAt: now,
           steps: {
-            create: workflow.steps.map((step) => ({
-              workflowStepId: step.id,
-              stepOrder: step.stepOrder,
-              status: step.stepOrder === 1 ? "PENDING" : "PENDING",
-              interviewerId: step.interviewerId,
-              startedAt: step.stepOrder === 1 ? now : undefined,
-            }))
+            create: {
+              workflowStepId: firstStep.id,
+              stepOrder: 1,
+              status: "PENDING",
+              interviewerId: firstStep.interviewerId,
+              startedAt: now,
+            }
           }
         }
       })
 
-      // Notify all admins
-      const admins = await prisma.user.findMany({
-        where: { role: "ADMIN" },
-        select: { id: true }
-      })
-
-      const candidateName = `${application.user.firstname} ${application.user.lastname}`
-
-      await Promise.all(
-        admins.map(admin => 
-          notifyAdminNewApplication(admin.id, candidateName, application.job.title)
+      // Notify interviewer if assigned
+      if (firstStep.interviewerId) {
+        await notifyInterviewerAssignment(
+          firstStep.interviewerId,
+          candidateName,
+          firstStep.stepName,
+          jobTitle
         )
+
+        const interviewer = await prisma.user.findUnique({
+          where: { id: firstStep.interviewerId },
+          select: {
+            email: true,
+            firstname: true,
+            lastname: true
+          }
+        })
+
+        if (interviewer?.email) {
+          await sendInterviewerAssignmentEmail(
+            interviewer.email,
+            `${interviewer.firstname} ${interviewer.lastname}`,
+            candidateName,
+            firstStep.stepName,
+            jobTitle,
+            jobCompany
+          )
+        }
+      }
+    }
+
+    // Notify all admins (in-app notification + email)
+    const admins = await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true, email: true, firstname: true, lastname: true }
+    })
+
+    await Promise.all(
+      admins.map(async (admin) => {
+        await notifyAdminNewApplication(admin.id, candidateName, jobTitle)
+
+        if (admin.email) {
+          await sendAdminNewApplicationEmail(
+            admin.email,
+            `${admin.firstname} ${admin.lastname}`,
+            candidateName,
+            jobTitle,
+            jobCompany,
+            application.id.toString()
+          )
+        }
+      })
+    )
+
+    // Send confirmation to candidate
+    if (application.user.email) {
+      await sendApplicationConfirmationEmail(
+        application.user.email,
+        candidateName,
+        jobTitle,
+        jobCompany,
+        application.id.toString()
       )
     }
 

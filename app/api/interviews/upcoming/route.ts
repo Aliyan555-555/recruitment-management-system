@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
           return {
             bookingId: booking.id.toString(),
             slotId: slot.id.toString(),
+            stepId: slot.step.id.toString(),
             stepName: slot.step.stepName,
             stepOrder: slot.step.stepOrder,
             startsAt: slot.startsAt.toISOString(),
@@ -86,6 +87,7 @@ export async function GET(req: NextRequest) {
             interviewerName: slot.interviewer ? `${slot.interviewer.firstname} ${slot.interviewer.lastname}` : null,
             jobTitle: slot.step.workflow.job.title,
             jobCompany: slot.step.workflow.job.company,
+            jobId: slot.step.workflow.job.id.toString(),
             applicationId: booking.application.id.toString()
           }
         })
@@ -142,6 +144,7 @@ export async function GET(req: NextRequest) {
           
           return {
             slotId: slot.id.toString(),
+            stepId: slot.step.id.toString(),
             stepName: slot.step.stepName,
             stepOrder: slot.step.stepOrder,
             startsAt: slot.startsAt.toISOString(),
@@ -149,6 +152,7 @@ export async function GET(req: NextRequest) {
             meetingLink: metadata.meetingLink,
             jobTitle: slot.step.workflow.job.title,
             jobCompany: slot.step.workflow.job.company,
+            jobId: slot.step.workflow.job.id.toString(),
             bookings: slot.bookings.map((booking: any) => ({
               bookingId: booking.id.toString(),
               candidateName: `${booking.candidate.firstname} ${booking.candidate.lastname}`,

@@ -52,35 +52,49 @@ export default function Page({ params }: { params: { id: string } }) {
 
   const fetchBookedSlot = useCallback(async (assignmentData?: any) => {
     const assignmentToUse = assignmentData || assignment
-    if (!assignmentToUse?.pipeline?.candidate?.email) return
+    if (!assignmentToUse?.pipeline?.candidate?.email || !assignmentToUse?.workflowStep?.id) return
     
     try {
       const res = await fetch("/api/interviews/upcoming")
       if (res.ok) {
         const data = await res.json()
-        // Find slot with booking for this assignment's candidate
         const candidateEmail = assignmentToUse.pipeline.candidate.email
-        const slotWithBooking = data.upcoming?.find((slot: any) => {
-          return slot.bookings?.some((b: any) => 
-            b.candidateEmail === candidateEmail
-          )
+        const stepId = assignmentToUse.workflowStep.id
+        const jobId = assignmentToUse.pipeline.job.id
+        const upcomingSlots = Array.isArray(data.upcoming) ? data.upcoming : []
+        
+        const slotWithBooking = upcomingSlots.find((slot: any) => {
+          const matchesStep =
+            slot.stepId === stepId ||
+            slot.workflowStepId === stepId ||
+            slot.stepName === assignmentToUse.workflowStep.stepName ||
+            slot.stepOrder === assignmentToUse.stepOrder
+          const matchesJob =
+            slot.jobId === jobId ||
+            slot.jobTitle === assignmentToUse.pipeline.job.title
+          const bookings = Array.isArray(slot.bookings) ? slot.bookings : []
+          const matchesCandidate = bookings.some((b: any) => b.candidateEmail === candidateEmail)
+          return matchesStep && matchesJob && matchesCandidate
         })
+        
         if (slotWithBooking) {
-          // Find the specific booking for this candidate
-          const booking = slotWithBooking.bookings.find((b: any) => 
-            b.candidateEmail === candidateEmail
-          )
-          if (booking) {
-            setBookedSlot({
-              ...slotWithBooking,
-              candidateName: booking.candidateName,
-              bookingId: booking.bookingId
-            })
-          }
+          const booking = Array.isArray(slotWithBooking.bookings)
+            ? slotWithBooking.bookings.find((b: any) => b.candidateEmail === candidateEmail)
+            : null
+
+          setBookedSlot({
+            ...slotWithBooking,
+            candidateName: booking?.candidateName ?? assignmentToUse.pipeline.candidate.name,
+            bookingId: booking?.bookingId ?? slotWithBooking.bookingId,
+            candidateEmail,
+          })
+          return
         }
+        setBookedSlot(null)
       }
     } catch (error) {
       console.error("Error fetching booked slot:", error)
+      setBookedSlot(null)
     }
   }, [assignment])
 

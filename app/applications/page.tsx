@@ -9,12 +9,14 @@ interface Application {
   id: string
   jobTitle: string
   jobCompany: string
-  appliedAt: string
+  appliedAt: number
   status: string
   pipeline?: {
     id: string
     currentStep: number
     totalSteps: number
+    completedSteps: number
+    progressPercent?: number
     overallStatus: string
     steps: Array<{
       stepName: string
@@ -93,6 +95,21 @@ export default function ApplicationsPage() {
       default:
         return "bg-gray-300"
     }
+  }
+
+  const getPipelineProgress = (pipeline: NonNullable<Application["pipeline"]>) => {
+    if (typeof pipeline.progressPercent === "number") {
+      return Math.min(100, Math.max(0, Math.round(pipeline.progressPercent)))
+    }
+
+    const totalSteps = pipeline.totalSteps || pipeline.steps.length
+    if (!totalSteps) {
+      return pipeline.overallStatus === "COMPLETED" ? 100 : 0
+    }
+
+    const completed = pipeline.completedSteps ?? pipeline.steps.filter(step => step.status === "COMPLETED").length
+
+    return Math.min(100, Math.max(0, Math.round((completed / totalSteps) * 100)))
   }
 
   return (
@@ -194,18 +211,18 @@ export default function ApplicationsPage() {
                           <span className="text-sm font-semibold text-gray-700">Application Progress</span>
                         </div>
                         <span className="text-sm font-bold text-blue-600">
-                          Step {application.pipeline.currentStep} of {application.pipeline.totalSteps}
+                          Step {Math.min(application.pipeline.currentStep, Math.max(application.pipeline.totalSteps, 1))} of {application.pipeline.totalSteps || application.pipeline.steps.length || 1}
                         </span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
                         <div
                           className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500 shadow-md flex items-center justify-end pr-2"
                           style={{
-                            width: `${(application.pipeline.currentStep / application.pipeline.totalSteps) * 100}%`,
+                            width: `${getPipelineProgress(application.pipeline)}%`,
                           }}
                         >
                           <span className="text-xs text-white font-bold">
-                            {Math.round((application.pipeline.currentStep / application.pipeline.totalSteps) * 100)}%
+                            {getPipelineProgress(application.pipeline)}%
                           </span>
                         </div>
                       </div>

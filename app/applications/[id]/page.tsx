@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -20,9 +20,13 @@ interface PipelineDetail {
     description: string
   }
   status: string
+  lockState?: string
   currentStep: number
   startedAt: string
   completedAt?: string
+  totalSteps: number
+  completedSteps: number
+  progressPercent: number
   steps: Array<{
     id: string
     stepName: string
@@ -35,7 +39,6 @@ interface PipelineDetail {
     completedAt?: string
     stepType?: string
     durationMins?: number
-    deadline?: string
     interviewMode?: string
     meetingLink?: string
     candidateInstructions?: string
@@ -64,67 +67,90 @@ export default function ApplicationDetailPage() {
   const [bookingSlot, setBookingSlot] = useState<string | null>(null)
   const [bookedSlot, setBookedSlot] = useState<any>(null)
 
-  useEffect(() => {
-    if (authStatus !== "authenticated") return
-    const fetchPipeline = async () => {
-      try {
-        const res = await fetch(`/api/applications/${params.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          setPipeline(data.pipeline)
-          
-          // Fetch available slots for current pending step
-          if (data.pipeline?.status === "IN_PROGRESS") {
-            fetchAvailableSlots(data.pipeline.id)
-            fetchBookedSlot(data.pipeline.id)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching pipeline:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchPipeline()
-  }, [authStatus, params.id])
-
-  const fetchAvailableSlots = async (pipelineId: string) => {
+  const fetchAvailableSlots = useCallback(async (pipelineId: string) => {
     setLoadingSlots(true)
     try {
       const res = await fetch(`/api/candidate/pipelines/${pipelineId}/pending-stage`)
       if (res.ok) {
         const data = await res.json()
         setAvailableSlots(data.slots || [])
+      } else {
+        setAvailableSlots([])
       }
     } catch (error) {
       console.error("Error fetching slots:", error)
+      setAvailableSlots([])
     } finally {
       setLoadingSlots(false)
     }
-  }
+  }, [])
 
-  const fetchBookedSlot = useCallback(async (pipelineId: string) => {
+  const fetchBookedSlot = useCallback(async (pipelineId: string, pipelineData?: PipelineDetail | null) => {
+    const pipelineToUse = pipelineData ?? pipeline
+    if (!pipelineToUse) return
+
     try {
       const res = await fetch("/api/interviews/upcoming")
       if (res.ok) {
         const data = await res.json()
-        // Find booking for this pipeline's current step
-        const currentStep = pipeline?.steps.find(s => s.stepOrder === pipeline?.currentStep)
+        const currentStep = pipelineToUse.steps.find(s => s.stepOrder === pipelineToUse.currentStep)
         if (currentStep) {
           const booking = data.upcoming?.find((u: any) => {
-            // Match by applicationId if available
-            return u.applicationId === pipeline?.applicationId || 
-                   u.stepName === currentStep.stepName
+            return u.applicationId === pipelineToUse.applicationId || u.stepName === currentStep.stepName
           })
           if (booking) {
             setBookedSlot(booking)
+            return
           }
         }
+        setBookedSlot(null)
+      } else {
+        setBookedSlot(null)
       }
     } catch (error) {
       console.error("Error fetching booked slot:", error)
+      setBookedSlot(null)
     }
   }, [pipeline])
+
+  const hydrateSlots = useCallback((pipelineData: PipelineDetail | null) => {
+    if (!pipelineData || pipelineData.status !== "IN_PROGRESS" || pipelineData.lockState === "LOCKED_REJECTED") {
+      setAvailableSlots([])
+      setBookedSlot(null)
+      return
+    }
+
+    fetchAvailableSlots(pipelineData.id)
+    fetchBookedSlot(pipelineData.id, pipelineData)
+  }, [fetchAvailableSlots, fetchBookedSlot])
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return
+
+    const loadPipeline = async () => {
+      try {
+        const res = await fetch(`/api/applications/${params.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setPipeline(data.pipeline)
+          hydrateSlots(data.pipeline)
+        } else {
+          setPipeline(null)
+          setAvailableSlots([])
+          setBookedSlot(null)
+        }
+      } catch (error) {
+        console.error("Error fetching pipeline:", error)
+        setPipeline(null)
+        setAvailableSlots([])
+        setBookedSlot(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadPipeline()
+  }, [authStatus, params.id, hydrateSlots])
 
   const handleBookSlot = async (slotId: string) => {
     if (!pipeline) return
@@ -143,12 +169,13 @@ export default function ApplicationDetailPage() {
       if (res.ok) {
         alert("Slot booked successfully!")
         // Refresh pipeline and slots
-        fetchAvailableSlots(pipeline.id)
-        fetchBookedSlot(pipeline.id)
         const pipelineRes = await fetch(`/api/applications/${params.id}`)
         if (pipelineRes.ok) {
           const data = await pipelineRes.json()
           setPipeline(data.pipeline)
+          hydrateSlots(data.pipeline)
+        } else {
+          hydrateSlots(pipeline)
         }
       } else {
         const data = await res.json()
@@ -217,6 +244,24 @@ export default function ApplicationDetailPage() {
     }
   }
 
+  const getBookedSlotForStep = (step: PipelineDetail["steps"][number]) => {
+    if (!bookedSlot) return null
+
+    if (bookedSlot.stepOrder === step.stepOrder) {
+      return bookedSlot
+    }
+
+    if (bookedSlot.stepName && bookedSlot.stepName === step.stepName) {
+      return bookedSlot
+    }
+
+    if (pipeline?.currentStep === step.stepOrder && bookedSlot.applicationId === pipeline.applicationId) {
+      return bookedSlot
+    }
+
+    return null
+  }
+
   console.log(pipeline)
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
@@ -270,13 +315,19 @@ export default function ApplicationDetailPage() {
           <div className="mt-6">
             <div className="flex justify-between text-sm text-gray-600 mb-2">
               <span>Overall Progress</span>
-              <span>Step {pipeline.currentStep} of {pipeline.steps.length}</span>
+              <span>
+                {pipeline.totalSteps > 0
+                  ? `Step ${Math.min(pipeline.currentStep, pipeline.totalSteps)} of ${pipeline.totalSteps}`
+                  : pipeline.status === "COMPLETED"
+                    ? "Completed"
+                    : "No steps"}
+              </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
                 className="bg-blue-600 h-3 rounded-full transition-all"
                 style={{
-                  width: `${(pipeline.currentStep / pipeline.steps.length) * 100}%`,
+                  width: `${Math.min(100, Math.max(0, pipeline.progressPercent))}%`,
                 }}
               ></div>
             </div>
@@ -302,7 +353,11 @@ export default function ApplicationDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-6">Interview Process</h2>
           
           <div className="space-y-6">
-            {pipeline.steps.map((step, index) => (
+            {pipeline.steps.map((step, index) => {
+              const matchedSlot = getBookedSlotForStep(step)
+              const shouldShowStartingDate = matchedSlot && step.status !== "COMPLETED" && step.status !== "REJECTED"
+
+              return (
               <div key={step.id} className="relative">
                 {/* Connector Line */}
                 {index < pipeline.steps.length - 1 && (
@@ -362,11 +417,6 @@ export default function ApplicationDetailPage() {
                             <span className="font-medium">Duration:</span> {step.durationMins} minutes
                           </p>
                         )}
-                        {step.deadline && (
-                          <p className="text-sm text-gray-600">
-                            <span className="font-medium">Deadline:</span> {new Date(step.deadline).toLocaleDateString()}
-                          </p>
-                        )}
                         {step.interviewMode && (
                           <p className="text-sm text-gray-600">
                             <span className="font-medium">Mode:</span> {step.interviewMode}
@@ -408,14 +458,14 @@ export default function ApplicationDetailPage() {
 
                       {/* Dates */}
                       <div className="mt-4 pt-3 border-t border-gray-200">
-                        {step.startedAt && (
+                        {shouldShowStartingDate && matchedSlot?.startsAt && (
                           <p className="text-sm text-gray-600">
-                            Started: {new Date(step.startedAt).toLocaleDateString()}
+                            Starting: {new Date(matchedSlot.startsAt).toLocaleString([], { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         )}
                         {step.completedAt && (
                           <p className="text-sm text-gray-600">
-                            Completed: {new Date(step.completedAt).toLocaleDateString()}
+                            Completed: {new Date(Number(step.completedAt) * 1000).toLocaleDateString()}
                           </p>
                         )}
                       </div>
@@ -440,7 +490,7 @@ export default function ApplicationDetailPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 

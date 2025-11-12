@@ -24,6 +24,8 @@ interface RecentPipeline {
   status: string
   currentStep: number
   totalSteps: number
+  completedSteps: number
+  progressPercent: number
   startedAt: string
 }
 
@@ -238,12 +240,16 @@ export default function AdminDashboard() {
                           <div
                             className="bg-primary h-2 rounded-full transition-all"
                             style={{
-                              width: `${(pipeline.currentStep / pipeline.totalSteps) * 100}%`,
+                              width: `${Math.min(100, Math.max(0, pipeline.progressPercent))}%`,
                             }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {pipeline.currentStep}/{pipeline.totalSteps}
+                          {pipeline.totalSteps > 0
+                            ? `${pipeline.currentStep}/${pipeline.totalSteps}`
+                            : pipeline.status === "COMPLETED"
+                              ? "Completed"
+                              : "No steps"}
                         </span>
                       </div>
                     </div>

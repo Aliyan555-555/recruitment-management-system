@@ -30,8 +30,26 @@ interface Application {
     id: string
     currentStep: number
     totalSteps: number
+    completedSteps: number
+    progressPercent: number
     overallStatus: string
   } | null
+}
+
+const getPipelineProgress = (pipeline: Application["pipeline"]) => {
+  if (!pipeline) return 0
+
+  if (pipeline.progressPercent !== undefined) {
+    return Math.min(100, Math.max(0, Math.round(pipeline.progressPercent)))
+  }
+
+  const { totalSteps, completedSteps, overallStatus } = pipeline
+
+  if (!totalSteps || totalSteps <= 0) {
+    return overallStatus === "COMPLETED" ? 100 : 0
+  }
+
+  return Math.min(100, Math.round((completedSteps / totalSteps) * 100))
 }
 
 export default function AdminApplicationsPage() {
@@ -300,12 +318,19 @@ export default function AdminApplicationsPage() {
                           <div
                             className="bg-primary h-2 rounded-full transition-all"
                             style={{
-                              width: `${(application.pipeline.currentStep / application.pipeline.totalSteps) * 100}%`,
+                              width: `${getPipelineProgress(application.pipeline)}%`,
                             }}
                           />
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          Step {application.pipeline.currentStep}/{application.pipeline.totalSteps}
+                          {application.pipeline.totalSteps > 0
+                            ? `Step ${Math.min(
+                                Math.max(application.pipeline.currentStep, 1),
+                                application.pipeline.totalSteps
+                              )}/${application.pipeline.totalSteps}`
+                            : application.pipeline.overallStatus === "COMPLETED"
+                              ? "Completed"
+                              : "No steps"}
                         </span>
                       </div>
                     )}

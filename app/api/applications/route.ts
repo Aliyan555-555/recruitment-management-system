@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,7 +25,21 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             title: true,
-            company: true
+            company: true,
+            workflow: {
+              select: {
+                steps: {
+                  select: {
+                    id: true,
+                    stepName: true,
+                    stepOrder: true
+                  },
+                  orderBy: {
+                    stepOrder: "asc"
+                  }
+                }
+              }
+            }
           }
         },
         pipeline: {
@@ -35,43 +50,61 @@ export async function GET(req: NextRequest) {
             lockState: true,
             steps: {
               select: {
-                // stepName: true,
                 stepOrder: true,
-                status: true
+                status: true,
+                workflowStep: {
+                  select: {
+                    stepName: true
+                  }
+                }
               },
               orderBy: {
-                stepOrder: 'asc'
-              }
-            },
-            _count: {
-              select: {
-                steps: true
+                stepOrder: "asc"
               }
             }
           }
         }
       },
       orderBy: {
-        appliedAt: 'desc'
+        appliedAt: "desc"
       }
     })
 
     return NextResponse.json({
-      applications: applications.map(app => ({
-        id: app.id.toString(),
-        jobTitle: app.job.title,
-        jobCompany: app.job.company,
-        appliedAt: app.appliedAt.toString(),
-        status: app.status,
-        pipeline: app.pipeline ? {
-          id: app.pipeline.id.toString(),
-          currentStep: app.pipeline.currentStepOrder,
-          totalSteps: app.pipeline._count.steps,
-          overallStatus: app.pipeline.overallStatus,
-          lockState: (app.pipeline as any).lockState || 'NONE',
-          steps: app.pipeline.steps
-        } : null
-      }))
+      applications: applications.map(app => {
+        const workflowSteps = app.job.workflow?.steps ?? []
+        const pipelineSteps = app.pipeline?.steps ?? []
+        const metrics = calculatePipelineMetrics({
+          totalWorkflowSteps: workflowSteps.length,
+          pipelineSteps,
+          currentStepOrder: app.pipeline?.currentStepOrder,
+          overallStatus: app.pipeline?.overallStatus,
+        })
+
+        return {
+          id: app.id.toString(),
+          jobTitle: app.job.title,
+          jobCompany: app.job.company,
+          appliedAt: Number(app.appliedAt) * 1000,
+          status: app.status,
+          pipeline: app.pipeline
+            ? {
+                id: app.pipeline.id.toString(),
+                currentStep: metrics.currentStep,
+                totalSteps: metrics.totalSteps,
+                completedSteps: metrics.completedSteps,
+                progressPercent: metrics.progressPercent,
+                overallStatus: app.pipeline.overallStatus,
+                lockState: (app.pipeline as any).lockState || "NONE",
+                steps: pipelineSteps.map(step => ({
+                  stepName: step.workflowStep?.stepName ?? `Step ${step.stepOrder}`,
+                  stepOrder: step.stepOrder,
+                  status: step.status
+                }))
+              }
+            : null
+        }
+      })
     })
   } catch (error: any) {
     console.error("Error fetching applications:", error)

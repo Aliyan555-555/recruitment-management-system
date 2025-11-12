@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireInterviewer } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { InterviewRecommendation } from "@prisma/client"
+import { advanceToNextStep, handleStepRejection } from "@/lib/pipeline-helpers"
 
 export async function GET(
   _req: NextRequest,
@@ -75,7 +76,6 @@ export async function GET(
           // Step metadata
           stepType: metadata.stepType,
           durationMins: metadata.durationMins,
-          deadline: metadata.deadline,
           interviewMode: metadata.interviewMode,
           meetingLink: metadata.meetingLink,
           interviewerInstructions: metadata.interviewerInstructions,
@@ -221,6 +221,30 @@ export async function PUT(
         data,
       })
     })
+
+    // If step is completed, advance to next step
+    if (action === "complete" && updated.status === "COMPLETED") {
+      const advanceResult = await advanceToNextStep(
+        step.pipelineId,
+        step.stepOrder
+      )
+      
+      if (!advanceResult.success && advanceResult.error) {
+        console.warn("Failed to advance to next step:", advanceResult.error)
+      }
+    }
+
+    // If step is rejected, handle rejection
+    if (action === "reject" && updated.status === "REJECTED") {
+      const rejectionResult = await handleStepRejection(
+        step.pipelineId,
+        step.stepOrder
+      )
+      
+      if (!rejectionResult.success && rejectionResult.error) {
+        console.warn("Failed to handle step rejection:", rejectionResult.error)
+      }
+    }
 
     return NextResponse.json({
       success: true,

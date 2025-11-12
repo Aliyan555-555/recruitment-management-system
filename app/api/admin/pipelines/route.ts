@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
+import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,7 +43,16 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             title: true,
-            company: true
+            company: true,
+            workflow: {
+              select: {
+                steps: {
+                  select: {
+                    id: true
+                  }
+                }
+              }
+            }
           }
         },
         application: {
@@ -52,9 +62,13 @@ export async function GET(req: NextRequest) {
             appliedAt: true
           }
         },
-        _count: {
+        steps: {
           select: {
-            steps: true
+            status: true,
+            stepOrder: true
+          },
+          orderBy: {
+            stepOrder: 'asc'
           }
         }
       },
@@ -64,17 +78,30 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({
-      pipelines: pipelines.map(p => ({
-        id: p.id.toString(),
-        candidateName: `${p.candidate.firstname} ${p.candidate.lastname}`,
-        candidateEmail: p.candidate.email,
-        jobTitle: p.job.title,
-        jobCompany: p.job.company,
-        status: p.overallStatus,
-        currentStep: p.currentStepOrder,
-        totalSteps: p._count.steps,
-        startedAt: p.startedAt.toString()
-      }))
+      pipelines: pipelines.map(p => {
+        const pipelineSteps = p.steps ?? []
+        const totalWorkflowSteps = p.job.workflow?.steps.length ?? 0
+        const metrics = calculatePipelineMetrics({
+          totalWorkflowSteps,
+          pipelineSteps,
+          currentStepOrder: p.currentStepOrder,
+          overallStatus: p.overallStatus,
+        })
+
+        return {
+          id: p.id.toString(),
+          candidateName: `${p.candidate.firstname} ${p.candidate.lastname}`,
+          candidateEmail: p.candidate.email,
+          jobTitle: p.job.title,
+          jobCompany: p.job.company,
+          status: p.overallStatus,
+          currentStep: metrics.currentStep,
+          totalSteps: metrics.totalSteps,
+          completedSteps: metrics.completedSteps,
+          progressPercent: metrics.progressPercent,
+          startedAt: p.startedAt.toString()
+        }
+      })
     })
   } catch (error: any) {
     console.error("Error fetching pipelines:", error)

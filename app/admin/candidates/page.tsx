@@ -12,6 +12,8 @@ interface CandidatePipeline {
   status: string
   currentStep: number
   totalSteps: number
+  completedSteps: number
+  progressPercent: number
   startedAt: string
 }
 
@@ -114,12 +116,16 @@ export default function AdminCandidatesPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      Step {pipeline.currentStep} of {pipeline.totalSteps}
+                      {pipeline.totalSteps > 0
+                        ? `Step ${pipeline.currentStep}/${pipeline.totalSteps}`
+                        : pipeline.status === "COMPLETED"
+                          ? "Completed"
+                          : "No steps configured"}
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
                       <div
                         className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${(pipeline.currentStep / pipeline.totalSteps) * 100}%` }}
+                        style={{ width: `${Math.min(100, Math.max(0, pipeline.progressPercent))}%` }}
                       ></div>
                     </div>
                   </td>

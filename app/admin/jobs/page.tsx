@@ -10,6 +10,7 @@ interface Job {
   status: boolean
   postFrom: string
   postTo: string
+  applicationCount?: number
   _count?: {
     applications: number
   }
@@ -106,7 +107,7 @@ export default function AdminJobsPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      {job._count?.applications || 0}
+                      {job._count?.applications ?? (job as any).applicationCount ?? 0}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
         id: job.id.toString(),
         title: job.title,
         company: job.company,
+        status: job.status,
         shortDescription: job.shortDescription || "",
         description: job.description || undefined,
         locations: job.locations?.map((loc) => ({
@@ -68,7 +69,10 @@ export async function GET(req: NextRequest) {
         skills: job.skills.map((s) => s.skillName),
         minimumEducation: job.educationRequirements?.[0]?.educationLevel?.name || undefined,
         createdBy: `${job.creator.firstname} ${job.creator.lastname}`,
-        applicationCount: job._count.applications
+        applicationCount: job._count.applications,
+        _count: {
+          applications: job._count.applications,
+        },
       }))
     })
   } catch (error: any) {

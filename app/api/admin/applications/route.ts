@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
+import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
 
 export async function GET(req: NextRequest) {
   try {
@@ -42,7 +43,16 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             title: true,
-            company: true
+            company: true,
+            workflow: {
+              select: {
+                steps: {
+                  select: {
+                    id: true
+                  }
+                }
+              }
+            }
           }
         },
         pipeline: {
@@ -50,9 +60,13 @@ export async function GET(req: NextRequest) {
             id: true,
             currentStepOrder: true,
             overallStatus: true,
-            _count: {
+            steps: {
               select: {
-                steps: true
+                status: true,
+                stepOrder: true
+              },
+              orderBy: {
+                stepOrder: 'asc'
               }
             }
           }
@@ -64,21 +78,34 @@ export async function GET(req: NextRequest) {
     })
 
     return NextResponse.json({
-      applications: applications.map(app => ({
-        id: app.id.toString(),
-        candidateName: `${app.user.firstname} ${app.user.lastname}`,
-        candidateEmail: app.user.email,
-        jobTitle: app.job.title,
-        jobCompany: app.job.company,
-        status: app.status,
-        appliedAt: app.appliedAt.toString(),
-        pipeline: app.pipeline ? {
-          id: app.pipeline.id.toString(),
-          currentStep: app.pipeline.currentStepOrder,
-          totalSteps: app.pipeline._count.steps,
-          overallStatus: app.pipeline.overallStatus
-        } : null
-      }))
+      applications: applications.map(app => {
+        const pipelineSteps = app.pipeline?.steps ?? []
+        const totalWorkflowSteps = app.job.workflow?.steps.length ?? 0
+        const metrics = calculatePipelineMetrics({
+          totalWorkflowSteps,
+          pipelineSteps,
+          currentStepOrder: app.pipeline?.currentStepOrder,
+          overallStatus: app.pipeline?.overallStatus,
+        })
+
+        return {
+          id: app.id.toString(),
+          candidateName: `${app.user.firstname} ${app.user.lastname}`,
+          candidateEmail: app.user.email,
+          jobTitle: app.job.title,
+          jobCompany: app.job.company,
+          status: app.status,
+          appliedAt: app.appliedAt.toString(),
+          pipeline: app.pipeline ? {
+            id: app.pipeline.id.toString(),
+            currentStep: metrics.currentStep,
+            totalSteps: metrics.totalSteps,
+            completedSteps: metrics.completedSteps,
+            progressPercent: metrics.progressPercent,
+            overallStatus: app.pipeline.overallStatus
+          } : null
+        }
+      })
     })
   } catch (error: any) {
     console.error("Error fetching applications:", error)

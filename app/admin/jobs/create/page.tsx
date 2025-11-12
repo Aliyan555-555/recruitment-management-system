@@ -17,7 +17,6 @@ interface WorkflowStep {
   stepType?: string
   skipReason?: string
   durationMins?: number
-  deadline?: string
   weightage?: number
   scoreThreshold?: number
   interviewMode?: string
@@ -167,7 +166,7 @@ export default function CreateJobPage() {
         }))
 
         // Remove client-only file objects from payload
-        const { attachments: _clientAttachments, ...rest } = step as any
+        const { attachments: _clientAttachments, deadline: _deadline, ...rest } = step as any
         return { ...rest, attachments }
       })
 
@@ -716,38 +715,6 @@ export default function CreateJobPage() {
                     min={0}
                     value={step.durationMins ?? ""}
                     onChange={(e) => handleStepChange(index, "durationMins", Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
-                  <input
-                    type="date"
-                    value={step.deadline || ""}
-                    onChange={(e) => handleStepChange(index, "deadline", e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Weightage</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={step.weightage ?? ""}
-                    onChange={(e) => handleStepChange(index, "weightage", Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Score Threshold</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={step.scoreThreshold ?? ""}
-                    onChange={(e) => handleStepChange(index, "scoreThreshold", Number(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md"
                   />
                 </div>

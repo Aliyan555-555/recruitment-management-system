@@ -13,7 +13,6 @@ interface WorkflowStepInput {
   stepType?: string
   skipReason?: string
   durationMins?: number
-  deadline?: string
   weightage?: number
   scoreThreshold?: number
   interviewMode?: string
@@ -271,7 +270,6 @@ export async function POST(req: NextRequest) {
               if (step.stepType) stepMetadata.stepType = step.stepType
               if (step.skipReason) stepMetadata.skipReason = step.skipReason
               if (step.durationMins !== undefined) stepMetadata.durationMins = step.durationMins
-              if (step.deadline) stepMetadata.deadline = step.deadline
               if (step.weightage !== undefined) stepMetadata.weightage = step.weightage
               if (step.scoreThreshold !== undefined) stepMetadata.scoreThreshold = step.scoreThreshold
               if (step.interviewMode) stepMetadata.interviewMode = step.interviewMode
