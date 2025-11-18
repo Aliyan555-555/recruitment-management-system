@@ -311,12 +311,14 @@ export default function InterviewerDashboard() {
                           {new Date(slot.startsAt).toLocaleDateString()}
                         </p>
                         <Badge variant="secondary" className="text-xs">
-                          {new Date(slot.startsAt).toLocaleTimeString([], { 
+                          {new Date(slot.startsAt).toLocaleTimeString('en-GB', { 
                             hour: '2-digit', 
-                            minute: '2-digit' 
-                          })} - {new Date(slot.endsAt).toLocaleTimeString([], { 
+                            minute: '2-digit',
+                            hour12: false
+                          })} - {new Date(slot.endsAt).toLocaleTimeString('en-GB', { 
                             hour: '2-digit', 
-                            minute: '2-digit' 
+                            minute: '2-digit',
+                            hour12: false
                           })}
                         </Badge>
                       </div>

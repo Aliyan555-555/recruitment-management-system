@@ -63,6 +63,12 @@ model User {
   slotInterviewer         InterviewSlot[]         @relation("SlotInterviewer")
   slotBookings            SlotBooking[]
   stageEvaluations        StageEvaluation[]
+  
+  // Batch Relations
+  batchesCreated          Batch[]                 @relation("BatchCreator")
+  batchCandidatesEvaluated BatchCandidateEvaluation[]
+  batchCandidates         BatchCandidate[]        @relation("BatchCandidateEvaluator")
+  batchCandidatesEvaluatedBy BatchCandidate[]     @relation("BatchCandidateEvaluatorUser")
 
   @@index([role])
   @@index([userStatus])
@@ -135,6 +141,8 @@ model Job {
   postFrom             DateTime          @map("post_from") @db.Date
   postTo               DateTime          @map("post_to") @db.Date
   status               Boolean           @default(true)
+  jobType              JobType           @default(NORMAL) @map("job_type")
+  jobStatus            JobStatus         @default(ACTIVE) @map("job_status")
   industry             String?           @db.VarChar(255)
   employmentType       EmploymentType    @map("employment_type")
   employmentShift      String?           @db.VarChar(50)
@@ -159,12 +167,15 @@ model Job {
   pipelines            CandidatePipeline[]
   locations            JobLocation[]
   educationRequirements JobEducationRequirement[]
+  batches              Batch[]
 
   @@index([createdBy])
   @@index([updatedBy])
   @@index([status])
   @@index([jobCode])
   @@index([deletedAt])
+  @@index([jobType])
+  @@index([jobStatus])
   @@map("jobs")
 }
 
@@ -172,6 +183,17 @@ enum EmploymentType {
   Permanent
   PartTime   @map("Part Time")
   Contract
+}
+
+enum JobType {
+  NORMAL
+  BULK
+}
+
+enum JobStatus {
+  ACTIVE
+  ADMIN_SHORTLISTING
+  CLOSED
 }
 
 model JobSkill {
@@ -231,6 +253,7 @@ model JobsApplied {
   appliedAt        BigInt              @map("applied_at")
   statusUpdatedAt  BigInt?             @map("status_updated_at")
   note             String?             @db.Text
+  batchId          BigInt?             @map("batch_id")
 
   // Relations
   job              Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -238,11 +261,14 @@ model JobsApplied {
   cv               CvManagerCv         @relation(fields: [cvId], references: [id])
   pipeline         CandidatePipeline?
   slotBookings     SlotBooking[]
+  batch            Batch?              @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batchCandidates  BatchCandidate[]
 
   @@unique([jobId, userId])
   @@index([jobId])
   @@index([userId])
   @@index([cvId])
+  @@index([batchId])
   @@map("jobs_applied")
 }
 
@@ -251,6 +277,8 @@ enum ApplicationStatus {
   BOOKMARKED
   REMOVED
   SUBMITTED
+  SHORTLISTED
+  BATCH_ASSIGNED
 }
 
 model JobsBookmark {
@@ -410,6 +438,7 @@ model WorkflowStep {
   interviewer     User?        @relation("StepInterviewer", fields: [interviewerId], references: [id])
   pipelineSteps   CandidatePipelineStep[]
   slots           InterviewSlot[]
+  batches         Batch[]
 
   @@index([workflowId])
   @@index([interviewerId])
@@ -489,6 +518,7 @@ model CandidatePipeline {
   startedAt       BigInt         @map("started_at")
   completedAt     BigInt?        @map("completed_at")
   lockState       PipelineLock   @default(NONE) @map("lock_state")
+  pipelineMode    PipelineMode   @default(INDIVIDUAL) @map("pipeline_mode")
   
   candidate       User             @relation("CandidatePipelines", fields: [candidateId], references: [id], onDelete: Cascade)
   job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -500,12 +530,18 @@ model CandidatePipeline {
   @@index([candidateId])
   @@index([jobId])
   @@index([overallStatus])
+  @@index([pipelineMode])
   @@map("candidate_pipeline")
 }
 
 enum PipelineLock {
   NONE
   LOCKED_REJECTED
+}
+
+enum PipelineMode {
+  INDIVIDUAL
+  BATCH
 }
 
 model CandidatePipelineStep {
@@ -520,10 +556,12 @@ model CandidatePipelineStep {
   completedAt     BigInt?            @map("completed_at")
   skippedAt       BigInt?            @map("skipped_at")
   skippedBy       BigInt?            @map("skipped_by")
+  batchId         BigInt?            @map("batch_id")
   
   pipeline        CandidatePipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   workflowStep    WorkflowStep       @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
   interviewer     User?              @relation("StepInterviewerInstance", fields: [interviewerId], references: [id])
+  batch           Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
   interviews      Interview[]
   stageEvaluations StageEvaluation[]
 
@@ -531,6 +569,7 @@ model CandidatePipelineStep {
   @@index([workflowStepId])
   @@index([status])
   @@index([interviewerId])
+  @@index([batchId])
   @@map("candidate_pipeline_step")
 }
 
@@ -595,5 +634,91 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@map("notification")
+}
+
+// ============================================
+// Bulk Hiring Batch System
+// ============================================
+
+model Batch {
+  id              BigInt         @id @default(autoincrement())
+  jobId           BigInt         @map("job_id")
+  workflowStepId BigInt         @map("workflow_step_id")
+  batchNumber     Int            @map("batch_number")
+  batchName       String?        @db.VarChar(255) @map("batch_name")
+  status          BatchStatus    @default(PENDING_ADMIN) @map("status")
+  createdBy       BigInt         @map("created_by")
+  createdAt       BigInt         @map("created_at")
+  updatedAt       BigInt         @map("updated_at")
+
+  // Relations
+  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workflowStep    WorkflowStep   @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  creator         User           @relation("BatchCreator", fields: [createdBy], references: [id])
+  batchCandidates BatchCandidate[]
+  pipelineSteps   CandidatePipelineStep[]
+  applications    JobsApplied[]
+
+  @@index([jobId])
+  @@index([workflowStepId])
+  @@index([status])
+  @@index([createdBy])
+  @@map("batch")
+}
+
+enum BatchStatus {
+  PENDING_ADMIN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model BatchCandidate {
+  id              BigInt                    @id @default(autoincrement())
+  batchId         BigInt                    @map("batch_id")
+  applicationId  BigInt                    @map("application_id")
+  candidateId     BigInt                    @map("candidate_id")
+  currentStatus   BatchCandidateStatus      @default(PENDING) @map("current_status")
+  evaluatedAt     BigInt?                   @map("evaluated_at")
+  evaluatedBy     BigInt?                   @map("evaluated_by")
+
+  // Relations
+  batch           Batch                     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  application     JobsApplied               @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  candidate       User                      @relation("BatchCandidateEvaluator", fields: [candidateId], references: [id], onDelete: Cascade)
+  evaluator       User?                     @relation("BatchCandidateEvaluatorUser", fields: [evaluatedBy], references: [id], onDelete: SetNull)
+  evaluations     BatchCandidateEvaluation[]
+
+  @@unique([batchId, candidateId])
+  @@index([batchId])
+  @@index([applicationId])
+  @@index([candidateId])
+  @@index([currentStatus])
+  @@map("batch_candidate")
+}
+
+enum BatchCandidateStatus {
+  PENDING
+  SELECTED
+  REJECTED
+  REVIEW
+}
+
+model BatchCandidateEvaluation {
+  id                BigInt                @id @default(autoincrement())
+  batchCandidateId BigInt                @map("batch_candidate_id")
+  interviewerId     BigInt                @map("interviewer_id")
+  status            BatchCandidateStatus
+  feedback          String?               @db.Text
+  rating            Int?
+  submittedAt       BigInt                @map("submitted_at")
+
+  // Relations
+  batchCandidate   BatchCandidate        @relation(fields: [batchCandidateId], references: [id], onDelete: Cascade)
+  interviewer      User                  @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@index([batchCandidateId])
+  @@index([interviewerId])
+  @@map("batch_candidate_evaluation")
 }
 

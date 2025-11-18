@@ -53,6 +53,7 @@ interface CreateJobRequest {
   company: string
   postFrom: string
   postTo: string
+  jobType?: "NORMAL" | "BULK"
   industry?: string
   employmentType: string
   employmentShift?: string
@@ -183,6 +184,8 @@ export async function POST(req: NextRequest) {
           postFrom: new Date(body.postFrom),
           postTo: new Date(body.postTo),
           status: body.status !== undefined ? !!body.status : true,
+          jobType: (body.jobType || "NORMAL") as any,
+          jobStatus: "ACTIVE",
           industry: body.industry,
           employmentType: body.employmentType as any,
           employmentShift: body.employmentShift,

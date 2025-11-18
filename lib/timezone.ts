@@ -33,10 +33,15 @@ export function toPKT(date: Date | string): Date {
  */
 export function formatPKTDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
-  return dateObj.toLocaleString('en-US', {
+  // Default to 24-hour format if hour and minute are specified but hour12 is not
+  const defaultOptions: Intl.DateTimeFormatOptions = {
     timeZone: PKT_TIMEZONE,
+    ...(options?.hour !== undefined && options?.minute !== undefined && options?.hour12 === undefined
+      ? { hour12: false }
+      : {}),
     ...options
-  })
+  }
+  return dateObj.toLocaleString('en-GB', defaultOptions)
 }
 
 /**
@@ -44,11 +49,15 @@ export function formatPKTDate(date: Date | string, options?: Intl.DateTimeFormat
  */
 export function formatPKTDateString(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
-  return formatPKTDate(dateObj, {
+  // Use Intl.DateTimeFormat to get parts in PKT timezone, then format as YYYY-MM-DD
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: PKT_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit'
-  }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2') // Convert MM/DD/YYYY to YYYY-MM-DD
+  })
+  // en-CA locale returns YYYY-MM-DD format directly
+  return formatter.format(dateObj)
 }
 
 /**
@@ -76,7 +85,7 @@ export function formatPKTDateTime(date: Date | string): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true,
+    hour12: false,
     timeZone: PKT_TIMEZONE
   })
 }

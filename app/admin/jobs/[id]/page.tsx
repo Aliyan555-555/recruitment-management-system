@@ -12,6 +12,8 @@ interface JobDetails {
   postFrom: string
   postTo: string
   status: boolean
+  jobType?: "NORMAL" | "BULK"
+  jobStatus?: "ACTIVE" | "ADMIN_SHORTLISTING" | "CLOSED"
   city?: string
   country?: string
   locations?: Array<{ city: string; country: string }>

@@ -229,7 +229,7 @@ export function SlotCreator({ stepDurationMins, onSubmit, onCancel }: SlotCreato
                     </div>
                   </div>
                   <div className="text-xs text-gray-600">
-                    {slot.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {slot.endsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {slot.startsAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} - {slot.endsAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                   </div>
                   <Button
                     type="button"

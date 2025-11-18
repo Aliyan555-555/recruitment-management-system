@@ -70,6 +70,26 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    // Fetch batch information for applications with batchId
+    const batchIds = applications
+      .filter(app => app.batchId)
+      .map(app => app.batchId!)
+      .filter((id, index, self) => self.indexOf(id) === index) // unique
+
+    const batches = batchIds.length > 0
+      ? await Promise.all(
+          batchIds.map(async (id) => {
+            const batch = await (prisma as any).batch.findUnique({
+              where: { id },
+              select: { id: true, status: true, batchNumber: true, batchName: true }
+            })
+            return batch ? { id: id.toString(), ...batch } : null
+          })
+        )
+      : []
+
+    const batchMap = new Map(batches.filter(b => b).map(b => [b!.id, b]))
+
     return NextResponse.json({
       applications: applications.map(app => {
         const workflowSteps = app.job.workflow?.steps ?? []
@@ -80,6 +100,8 @@ export async function GET(req: NextRequest) {
           currentStepOrder: app.pipeline?.currentStepOrder,
           overallStatus: app.pipeline?.overallStatus,
         })
+
+        const batchInfo = app.batchId ? batchMap.get(app.batchId.toString()) : null
 
         return {
           id: app.id.toString(),
@@ -96,13 +118,20 @@ export async function GET(req: NextRequest) {
                 progressPercent: metrics.progressPercent,
                 overallStatus: app.pipeline.overallStatus,
                 lockState: (app.pipeline as any).lockState || "NONE",
+                pipelineMode: (app.pipeline as any).pipelineMode || "INDIVIDUAL",
                 steps: pipelineSteps.map(step => ({
                   stepName: step.workflowStep?.stepName ?? `Step ${step.stepOrder}`,
                   stepOrder: step.stepOrder,
                   status: step.status
                 }))
               }
-            : null
+            : null,
+          batchId: app.batchId?.toString() || null,
+          batchInfo: batchInfo ? {
+            batchNumber: batchInfo.batchNumber,
+            batchName: batchInfo.batchName,
+            status: batchInfo.status
+          } : null
         }
       })
     })

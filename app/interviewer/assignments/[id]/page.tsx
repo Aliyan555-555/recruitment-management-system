@@ -514,7 +514,7 @@ export default function Page({ params }: { params: { id: string } }) {
                           <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {new Date(slot.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(slot.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(slot.startsAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })} - {new Date(slot.endsAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </div>
                       </div>
                       {slot.isBlocked && (
@@ -736,59 +736,6 @@ export default function Page({ params }: { params: { id: string } }) {
           </div>
         </Card>
 
-        {/* Previous Submissions */}
-        <Card className="p-6 shadow-lg border border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">Previous Submissions</h3>
-          </div>
-          <div className="space-y-4">
-            {assignment.interviews?.length ? assignment.interviews.map((iv: any) => (
-              <Card key={iv.id} className="p-5 bg-gray-50 border border-gray-200 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Submitted: {iv.submittedAt ? new Date(Number(iv.submittedAt) * 1000).toLocaleString() : "-"}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {iv.rating && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                        ⭐ {iv.rating}/5
-                      </span>
-                    )}
-                    {iv.recommendation && (
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        iv.recommendation === "STRONG_HIRE" || iv.recommendation === "HIRE" ? "bg-green-100 text-green-800" :
-                        "bg-red-100 text-red-800"
-                      }`}>
-                        {iv.recommendation.replace(/_/g, " ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {iv.feedback && (
-                  <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{iv.feedback}</p>
-                  </div>
-                )}
-              </Card>
-            )) : (
-              <div className="text-center py-8 text-gray-500">
-                <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-sm font-medium">No submissions yet.</p>
-                <p className="text-xs text-gray-400 mt-1">Submit your evaluation to see it here.</p>
-              </div>
-            )}
-          </div>
-        </Card>
       </div>
     </div>
   )

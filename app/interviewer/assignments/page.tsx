@@ -296,6 +296,94 @@ export default function AssignmentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Batches Section */}
+      <BatchesSection />
     </div>
+  )
+}
+
+function BatchesSection() {
+  const [batches, setBatches] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchBatches()
+  }, [])
+
+  async function fetchBatches() {
+    try {
+      const res = await fetch("/api/interviewer/batches?status=IN_PROGRESS")
+      if (res.ok) {
+        const data = await res.json()
+        setBatches(data.batches || [])
+      }
+    } catch (error) {
+      console.error("Error fetching batches:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Bulk Hiring Batches</CardTitle>
+          <CardDescription>Evaluate candidates in batches</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (batches.length === 0) {
+    return null
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Bulk Hiring Batches</CardTitle>
+        <CardDescription>Evaluate candidates in batches</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {batches.map((batch) => (
+            <div
+              key={batch.id}
+              className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">
+                    {batch.batchName || `Batch ${batch.batchNumber}`}
+                  </p>
+                  <Badge className="bg-blue-100 text-blue-800">
+                    {batch.status.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">
+                  {batch.job.title} • {batch.job.company}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Step {batch.workflowStep.stepOrder}: {batch.workflowStep.stepName} • {batch.candidateCount} candidate(s)
+                </p>
+              </div>
+              <Link href={`/interviewer/batches/${batch.id}`}>
+                <Button variant="ghost" size="sm">
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

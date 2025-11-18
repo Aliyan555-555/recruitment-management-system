@@ -1,0 +1,342 @@
+import { prisma } from "@/lib/prisma"
+import { createBatch } from "./batch-service"
+
+/**
+ * Handle bulk job application - creates application with status "applied" (no pipeline)
+ */
+export async function handleBulkApplication(
+  jobId: bigint,
+  userId: bigint,
+  cvId: bigint
+): Promise<bigint> {
+  const now = BigInt(Math.floor(Date.now() / 1000))
+
+  // Check if job end date has passed
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: {
+      postTo: true,
+      jobStatus: true,
+      jobType: true
+    }
+  })
+
+  if (!job) {
+    throw new Error("Job not found")
+  }
+
+  if (job.jobType !== "BULK") {
+    throw new Error("This function is only for bulk jobs")
+  }
+
+  const endDate = new Date(job.postTo)
+  endDate.setHours(23, 59, 59, 999)
+  const nowDate = new Date()
+
+  if (nowDate > endDate) {
+    throw new Error("Application deadline has passed")
+  }
+
+  // Check if already applied
+  const existing = await prisma.jobsApplied.findUnique({
+    where: {
+      jobId_userId: {
+        jobId,
+        userId
+      }
+    }
+  })
+
+  if (existing) {
+    throw new Error("You have already applied for this job")
+  }
+
+  // Create application with status "APPLIED" (not SUBMITTED)
+  const application = await prisma.jobsApplied.create({
+    data: {
+      jobId,
+      userId,
+      cvId,
+      status: "APPLIED",
+      appliedAt: now
+    }
+  })
+
+  return application.id
+}
+
+/**
+ * Admin shortlisting - select or reject candidates
+ */
+export async function shortlistCandidates(
+  jobId: bigint,
+  candidateIds: bigint[],
+  action: "select" | "reject"
+): Promise<void> {
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  const newStatus = action === "select" ? "SHORTLISTED" : "REMOVED"
+
+  await prisma.jobsApplied.updateMany({
+    where: {
+      jobId,
+      userId: {
+        in: candidateIds
+      },
+      status: "APPLIED"
+    },
+    data: {
+      status: newStatus,
+      statusUpdatedAt: now
+    }
+  })
+}
+
+/**
+ * Create initial batch (Batch 1) from shortlisted candidates
+ */
+export async function createInitialBatch(
+  jobId: bigint,
+  shortlistedIds: bigint[],
+  createdBy: bigint
+): Promise<bigint> {
+  // Get job workflow to find step 1
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      workflow: {
+        include: {
+          steps: {
+            where: {
+              stepOrder: 1
+            }
+          }
+        }
+      }
+    }
+  })
+
+  if (!job || !job.workflow) {
+    throw new Error("Job workflow not found")
+  }
+
+  const firstStep = job.workflow.steps[0]
+  if (!firstStep) {
+    throw new Error("Workflow must have a step 1")
+  }
+
+  // Verify candidates are shortlisted
+  const applications = await prisma.jobsApplied.findMany({
+    where: {
+      jobId,
+      userId: {
+        in: shortlistedIds
+      },
+      status: "SHORTLISTED"
+    },
+    select: {
+      userId: true
+    }
+  })
+
+  if (applications.length !== shortlistedIds.length) {
+    throw new Error("Some candidates are not shortlisted")
+  }
+
+  // Create batch 1
+  return await createBatch({
+    jobId,
+    workflowStepId: firstStep.id,
+    candidateIds: shortlistedIds,
+    batchNumber: 1,
+    batchName: "Batch 1",
+    createdBy
+  })
+}
+
+/**
+ * Process batch evaluation from interviewer
+ */
+export async function processBatchEvaluation(
+  batchId: bigint,
+  evaluations: Array<{
+    candidateId: bigint
+    status: "SELECTED" | "REJECTED" | "REVIEW"
+    feedback?: string
+    rating?: number
+  }>,
+  interviewerId: bigint
+): Promise<void> {
+  const now = BigInt(Math.floor(Date.now() / 1000))
+
+  await prisma.$transaction(async (tx) => {
+    for (const evalData of evaluations) {
+      // Find batch candidate
+      const batchCandidate = await (tx as any).batchCandidate.findFirst({
+        where: {
+          batchId,
+          candidateId: evalData.candidateId
+        }
+      })
+
+      if (!batchCandidate) {
+        throw new Error(`Batch candidate not found for candidate ${evalData.candidateId}`)
+      }
+
+      // Update batch candidate status
+      await (tx as any).batchCandidate.update({
+        where: { id: batchCandidate.id },
+        data: {
+          currentStatus: evalData.status,
+          evaluatedAt: now,
+          evaluatedBy: interviewerId,
+          updatedAt: now
+        }
+      })
+
+      // Create evaluation record
+      await (tx as any).batchCandidateEvaluation.create({
+        data: {
+          batchCandidateId: batchCandidate.id,
+          interviewerId: interviewerId,
+          status: evalData.status,
+          feedback: evalData.feedback || null,
+          rating: evalData.rating || null,
+          submittedAt: now
+        }
+      })
+    }
+
+    // Check if all candidates are evaluated
+    const batch = await (tx as any).batch.findUnique({
+      where: { id: batchId },
+      include: {
+        _count: {
+          select: {
+            batchCandidates: true
+          }
+        },
+        batchCandidates: {
+          select: {
+            currentStatus: true
+          }
+        }
+      }
+    })
+
+    const totalCandidates = batch._count.batchCandidates
+    const evaluatedCount = batch.batchCandidates.filter(
+      (bc: any) => bc.currentStatus !== "PENDING"
+    ).length
+
+    // If all evaluated, update batch status to PENDING_ADMIN
+    if (evaluatedCount === totalCandidates) {
+      await (tx as any).batch.update({
+        where: { id: batchId },
+        data: {
+          status: "PENDING_ADMIN",
+          updatedAt: now
+        }
+      })
+    }
+  })
+}
+
+/**
+ * Advance to next batch step - create next batch from selected candidates
+ */
+export async function advanceToNextBatchStep(
+  jobId: bigint,
+  currentBatchId: bigint,
+  nextStepId: bigint,
+  createdBy: bigint,
+  candidateOverrides?: bigint[]
+): Promise<bigint> {
+  const { createNextBatchFromPrevious } = await import("./batch-service")
+  return await createNextBatchFromPrevious(
+    jobId,
+    currentBatchId,
+    nextStepId,
+    createdBy,
+    candidateOverrides
+  )
+}
+
+/**
+ * Get final selected candidates after all steps
+ */
+export async function getFinalSelectedCandidates(jobId: bigint): Promise<Array<{
+  candidateId: bigint
+  candidateName: string
+  email: string
+  finalBatchId: bigint
+}>> {
+  // Get job workflow to find last step
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: {
+      workflow: {
+        include: {
+          steps: {
+            orderBy: {
+              stepOrder: "desc"
+            },
+            take: 1
+          }
+        }
+      }
+    }
+  })
+
+  if (!job || !job.workflow || job.workflow.steps.length === 0) {
+    return []
+  }
+
+  const lastStep = job.workflow.steps[0]
+
+  // Get all batches for last step
+  const batches = await (prisma as any).batch.findMany({
+    where: {
+      jobId,
+      workflowStepId: lastStep.id,
+      status: "COMPLETED"
+    },
+    include: {
+      batchCandidates: {
+        where: {
+          currentStatus: "SELECTED"
+        },
+        include: {
+          candidate: {
+            select: {
+              id: true,
+              firstname: true,
+              lastname: true,
+              email: true
+            }
+          }
+        }
+      }
+    }
+  })
+
+  const selected: Array<{
+    candidateId: bigint
+    candidateName: string
+    email: string
+    finalBatchId: bigint
+  }> = []
+
+  for (const batch of batches) {
+    for (const bc of batch.batchCandidates) {
+      selected.push({
+        candidateId: bc.candidateId,
+        candidateName: `${bc.candidate.firstname} ${bc.candidate.lastname}`,
+        email: bc.candidate.email,
+        finalBatchId: batch.id
+      })
+    }
+  }
+
+  return selected
+}
+

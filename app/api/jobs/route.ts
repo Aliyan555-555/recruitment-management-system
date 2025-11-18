@@ -57,6 +57,8 @@ export async function GET(req: NextRequest) {
         title: job.title,
         company: job.company,
         status: job.status,
+        jobType: (job as any).jobType || "NORMAL",
+        jobStatus: (job as any).jobStatus || "ACTIVE",
         shortDescription: job.shortDescription || "",
         description: job.description || undefined,
         locations: job.locations?.map((loc) => ({

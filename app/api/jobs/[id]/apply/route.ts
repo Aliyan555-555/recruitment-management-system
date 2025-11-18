@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { notifyAdminNewApplication, notifyInterviewerAssignment } from "@/lib/notifications"
 import { sendApplicationConfirmationEmail, sendInterviewerAssignmentEmail, sendAdminNewApplicationEmail } from "@/lib/email"
+import { handleBulkApplication } from "@/lib/services/bulk-hiring-service"
+import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
 
 export async function POST(
   req: NextRequest,
@@ -21,6 +23,26 @@ export async function POST(
     const userIdBig = BigInt(userId)
     const now = BigInt(Math.floor(Date.now() / 1000))
 
+    // Ensure job status is current
+    await ensureJobStatusCurrent(jobId)
+
+    // Get job to check type
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      select: {
+        jobType: true,
+        jobStatus: true,
+        postTo: true
+      }
+    })
+
+    if (!job) {
+      return NextResponse.json(
+        { error: "Job not found" },
+        { status: 404 }
+      )
+    }
+
     // Check if already applied
     const existing = await prisma.jobsApplied.findUnique({
       where: {
@@ -38,7 +60,98 @@ export async function POST(
       )
     }
 
-    // Create application
+    // Handle bulk hiring differently
+    if (job.jobType === "BULK") {
+      // Check if job is still accepting applications
+      if (job.jobStatus === "ADMIN_SHORTLISTING" || job.jobStatus === "CLOSED") {
+        return NextResponse.json(
+          { error: "Application deadline has passed" },
+          { status: 400 }
+        )
+      }
+
+      // Use bulk application handler
+      try {
+        const applicationId = await handleBulkApplication(jobId, userIdBig, BigInt(body.cvId))
+        
+        const application = await prisma.jobsApplied.findUnique({
+          where: { id: applicationId },
+          include: {
+            job: {
+              select: {
+                title: true,
+                company: true
+              }
+            },
+            user: {
+              select: {
+                firstname: true,
+                lastname: true,
+                email: true
+              }
+            }
+          }
+        })
+
+        if (!application) {
+          throw new Error("Application not found after creation")
+        }
+
+        const candidateName = `${application.user.firstname} ${application.user.lastname}`
+        const jobTitle = application.job.title
+        const jobCompany = application.job.company || ""
+
+        // Notify all admins
+        const admins = await prisma.user.findMany({
+          where: { role: "ADMIN" },
+          select: { id: true, email: true, firstname: true, lastname: true }
+        })
+
+        await Promise.all(
+          admins.map(async (admin) => {
+            await notifyAdminNewApplication(admin.id, candidateName, jobTitle)
+
+            if (admin.email) {
+              await sendAdminNewApplicationEmail(
+                admin.email,
+                `${admin.firstname} ${admin.lastname}`,
+                candidateName,
+                jobTitle,
+                jobCompany,
+                application.id.toString()
+              )
+            }
+          })
+        )
+
+        // Send confirmation to candidate
+        if (application.user.email) {
+          await sendApplicationConfirmationEmail(
+            application.user.email,
+            candidateName,
+            jobTitle,
+            jobCompany,
+            application.id.toString()
+          )
+        }
+
+        return NextResponse.json({
+          success: true,
+          application: {
+            id: application.id.toString(),
+            status: application.status,
+            appliedAt: application.appliedAt.toString()
+          }
+        })
+      } catch (error: any) {
+        return NextResponse.json(
+          { error: error.message || "Failed to submit application" },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Normal hiring - create application and pipeline
     const application = await prisma.jobsApplied.create({
       data: {
         jobId,
@@ -102,6 +215,7 @@ export async function POST(
           currentStepOrder: 1,
           overallStatus: "IN_PROGRESS",
           lockState: "NONE",
+          pipelineMode: "INDIVIDUAL",
           startedAt: now,
           steps: {
             create: {
