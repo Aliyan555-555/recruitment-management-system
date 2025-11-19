@@ -21,8 +21,54 @@ export async function PATCH(
     const data: any = { updatedAt: now }
     if (typeof body.isBlocked === 'boolean') data.isBlocked = body.isBlocked
     if (typeof body.capacity === 'number' && body.capacity > 0) data.capacity = body.capacity
-    if (body.startsAt) data.startsAt = new Date(body.startsAt)
-    if (body.endsAt) data.endsAt = new Date(body.endsAt)
+    
+    // If updating time, validate conflicts
+    let newStarts = body.startsAt ? new Date(body.startsAt) : new Date(slot.startsAt)
+    let newEnds = body.endsAt ? new Date(body.endsAt) : new Date(slot.endsAt)
+    
+    if (body.startsAt || body.endsAt) {
+      // Validate time range
+      if (newEnds <= newStarts) {
+        return NextResponse.json({ error: "Invalid time range: end time must be after start time" }, { status: 400 })
+      }
+      
+      // Validate: Slot cannot be in the past
+      if (newStarts < new Date()) {
+        return NextResponse.json({ error: "Slot start time cannot be in the past" }, { status: 400 })
+      }
+      
+      // Check for time conflicts with other slots (excluding current slot)
+      const existingSlots = await (prisma as any).interviewSlot.findMany({
+        where: {
+          interviewerId: BigInt(user.id),
+          id: { not: slotId }, // Exclude current slot
+          isBlocked: false,
+          OR: [
+            {
+              startsAt: { lte: newEnds },
+              endsAt: { gte: newStarts }
+            }
+          ]
+        }
+      })
+      
+      // Check for actual time overlap
+      const hasConflict = existingSlots.some((existingSlot: any) => {
+        const existingStarts = new Date(existingSlot.startsAt)
+        const existingEnds = new Date(existingSlot.endsAt)
+        return newStarts < existingEnds && newEnds > existingStarts
+      })
+      
+      if (hasConflict) {
+        return NextResponse.json({ 
+          error: "Time conflict: You already have a slot scheduled during this time. Please choose a different time slot.",
+          conflictDetails: "This slot overlaps with an existing slot in your schedule."
+        }, { status: 409 })
+      }
+      
+      data.startsAt = newStarts
+      data.endsAt = newEnds
+    }
 
     await (prisma as any).interviewSlot.update({ where: { id: slotId }, data })
     return NextResponse.json({ success: true })

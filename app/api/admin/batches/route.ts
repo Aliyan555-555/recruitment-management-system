@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { jobId, workflowStepId, candidateIds, batchNumber, batchName } = body
+    const { jobId, workflowStepId, candidateIds, batchNumber, batchName, candidateStatuses } = body
 
     if (!jobId || !workflowStepId || !Array.isArray(candidateIds) || candidateIds.length === 0) {
       return NextResponse.json(
@@ -24,13 +24,23 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Process candidate statuses if provided
+    let processedStatuses: Array<{ candidateId: bigint; status: "SELECTED" | "REJECTED" | "PENDING" }> | undefined
+    if (Array.isArray(candidateStatuses) && candidateStatuses.length > 0) {
+      processedStatuses = candidateStatuses.map((cs: any) => ({
+        candidateId: BigInt(cs.candidateId),
+        status: cs.status
+      }))
+    }
+
     const batchId = await createBatch({
       jobId: BigInt(jobId),
       workflowStepId: BigInt(workflowStepId),
       candidateIds: candidateIds.map((id: string) => BigInt(id)),
       batchNumber: batchNumber || 1,
       batchName: batchName || null,
-      createdBy: BigInt(user.id)
+      createdBy: BigInt(user.id),
+      candidateStatuses: processedStatuses
     })
 
     return NextResponse.json({

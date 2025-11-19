@@ -130,3 +130,42 @@ export async function notifyPipelineCompletion(
   })
 }
 
+/**
+ * Notify interviewer when a batch is created and ready for evaluation
+ */
+export async function notifyInterviewerBatchCreated(
+  interviewerId: bigint,
+  batchName: string,
+  stepName: string,
+  jobTitle: string,
+  candidateCount: number,
+  batchId: bigint
+) {
+  return await createNotification({
+    userId: interviewerId,
+    title: "New Batch Ready for Evaluation",
+    message: `Batch "${batchName}" for ${stepName} in ${jobTitle} is ready. ${candidateCount} candidate(s) need evaluation. Please create interview slots.`,
+    type: "ASSIGNMENT",
+    entityType: "batch",
+    entityId: batchId,
+  })
+}
+
+/**
+ * Notify candidate when interview slots become available
+ */
+export async function notifyCandidateSlotsAvailable(
+  candidateId: bigint,
+  jobTitle: string,
+  stepName: string,
+  slotCount: number
+) {
+  return await createNotification({
+    userId: candidateId,
+    title: "Interview Slots Available",
+    message: `${slotCount} interview slot(s) are now available for ${stepName} in ${jobTitle}. Please book your preferred slot.`,
+    type: "ASSIGNMENT",
+    entityType: "slot",
+  })
+}
+

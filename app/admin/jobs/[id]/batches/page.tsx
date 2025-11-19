@@ -33,6 +33,7 @@ export default function BatchesPage() {
   const [selectedStep, setSelectedStep] = useState<string>("")
   const [shortlistedCandidates, setShortlistedCandidates] = useState<any[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
+  const [candidateStatuses, setCandidateStatuses] = useState<Record<string, "SELECTED" | "REJECTED" | "PENDING">>({})
 
   useEffect(() => {
     fetchBatches()
@@ -100,6 +101,12 @@ export default function BatchesPage() {
         ? Math.max(...existingBatches.map(b => b.batchNumber)) + 1
         : 1
 
+      // Prepare candidate statuses for initial batch
+      const statuses = Array.from(selectedCandidates).map(candidateId => ({
+        candidateId,
+        status: candidateStatuses[candidateId] || "PENDING"
+      })).filter(cs => cs.status !== "PENDING") // Only send SELECTED/REJECTED
+
       const res = await fetch("/api/admin/batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -108,13 +115,15 @@ export default function BatchesPage() {
           workflowStepId: selectedStep,
           candidateIds: Array.from(selectedCandidates),
           batchNumber,
-          batchName: `Batch ${batchNumber}`
+          batchName: `Batch ${batchNumber}`,
+          candidateStatuses: statuses.length > 0 ? statuses : undefined
         })
       })
 
       if (res.ok) {
         setShowCreateModal(false)
         setSelectedCandidates(new Set())
+        setCandidateStatuses({})
         setSelectedStep("")
         fetchBatches()
         alert("Batch created successfully")
@@ -297,35 +306,75 @@ export default function BatchesPage() {
 
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Select Candidates
+                  Select Candidates and Set Initial Status
+                  <span className="text-xs text-gray-500 ml-2">(For initial batch, mark as SELECTED or REJECTED)</span>
                 </label>
                 <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
-                  {shortlistedCandidates.map((candidate) => (
-                    <div
-                      key={candidate.candidateId}
-                      className="flex items-center gap-3 p-3 border-b border-gray-100 hover:bg-gray-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCandidates.has(candidate.candidateId)}
-                        onChange={(e) => {
-                          const newSelected = new Set(selectedCandidates)
-                          if (e.target.checked) {
-                            newSelected.add(candidate.candidateId)
-                          } else {
-                            newSelected.delete(candidate.candidateId)
-                          }
-                          setSelectedCandidates(newSelected)
-                        }}
-                        className="rounded border-gray-300"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{candidate.candidate.name}</div>
-                        <div className="text-sm text-gray-500">{candidate.candidate.email}</div>
+                  {shortlistedCandidates.map((candidate) => {
+                    const isSelected = selectedCandidates.has(candidate.candidateId)
+                    const status = candidateStatuses[candidate.candidateId] || "PENDING"
+                    return (
+                      <div
+                        key={candidate.candidateId}
+                        className={`flex items-center gap-3 p-3 border-b border-gray-100 hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const newSelected = new Set(selectedCandidates)
+                            if (e.target.checked) {
+                              newSelected.add(candidate.candidateId)
+                              // Default to SELECTED for initial batch
+                              setCandidateStatuses(prev => ({
+                                ...prev,
+                                [candidate.candidateId]: "SELECTED"
+                              }))
+                            } else {
+                              newSelected.delete(candidate.candidateId)
+                              const newStatuses = { ...candidateStatuses }
+                              delete newStatuses[candidate.candidateId]
+                              setCandidateStatuses(newStatuses)
+                            }
+                            setSelectedCandidates(newSelected)
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{candidate.candidate.name}</div>
+                          <div className="text-sm text-gray-500">{candidate.candidate.email}</div>
+                        </div>
+                        {isSelected && (
+                          <select
+                            value={status}
+                            onChange={(e) => {
+                              setCandidateStatuses(prev => ({
+                                ...prev,
+                                [candidate.candidateId]: e.target.value as "SELECTED" | "REJECTED" | "PENDING"
+                              }))
+                            }}
+                            className="px-2 py-1 text-sm border border-gray-300 rounded"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <option value="PENDING">Pending</option>
+                            <option value="SELECTED">Selected</option>
+                            <option value="REJECTED">Rejected</option>
+                          </select>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
+                {selectedCandidates.size > 0 && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <span className="font-medium">{selectedCandidates.size}</span> candidate(s) selected
+                    {Object.values(candidateStatuses).filter(s => s === "SELECTED").length > 0 && (
+                      <span className="ml-2 text-green-600">
+                        ({Object.values(candidateStatuses).filter(s => s === "SELECTED").length} selected, {Object.values(candidateStatuses).filter(s => s === "REJECTED").length} rejected)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2">
@@ -333,6 +382,7 @@ export default function BatchesPage() {
                   onClick={() => {
                     setShowCreateModal(false)
                     setSelectedCandidates(new Set())
+                    setCandidateStatuses({})
                     setSelectedStep("")
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"

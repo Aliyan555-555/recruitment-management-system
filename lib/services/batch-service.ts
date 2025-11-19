@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma"
+import { notifyInterviewerBatchCreated } from "@/lib/notifications"
+import { sendInterviewerBatchCreatedEmail } from "@/lib/email"
 
 export interface CreateBatchParams {
   jobId: bigint
@@ -7,6 +9,11 @@ export interface CreateBatchParams {
   batchNumber: number
   batchName?: string
   createdBy: bigint
+  // NEW: Allow specifying selected/rejected status for initial batch
+  candidateStatuses?: Array<{
+    candidateId: bigint
+    status: "SELECTED" | "REJECTED" | "PENDING"
+  }>
 }
 
 export interface BatchWithCandidates {
@@ -52,14 +59,22 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
         workflowStepId: params.workflowStepId,
         batchNumber: params.batchNumber,
         batchName: params.batchName || null,
-        status: "PENDING_ADMIN",
+        status: "IN_PROGRESS", // Changed: Start as IN_PROGRESS for initial batch
         createdBy: params.createdBy,
         createdAt: now,
         updatedAt: now
       }
     })
 
-    // Create batch candidates
+    // Create status map if provided
+    const statusMap = new Map<bigint, "SELECTED" | "REJECTED" | "PENDING">()
+    if (params.candidateStatuses) {
+      params.candidateStatuses.forEach(cs => {
+        statusMap.set(cs.candidateId, cs.status)
+      })
+    }
+
+    // Create batch candidates with proper status
     const batchCandidates = await Promise.all(
       params.candidateIds.map(async (candidateId) => {
         // Get application for this candidate and job
@@ -75,33 +90,128 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
           throw new Error(`Application not found for candidate ${candidateId} and job ${params.jobId}`)
         }
 
+        // Use provided status or default to PENDING
+        const initialStatus = statusMap.get(candidateId) || "PENDING"
+
         return (tx as any).batchCandidate.create({
           data: {
             batchId: newBatch.id,
             applicationId: application.id,
             candidateId: candidateId,
-            currentStatus: "PENDING"
+            currentStatus: initialStatus
           }
         })
       })
     )
 
-    // Update application statuses
-    await tx.jobsApplied.updateMany({
-      where: {
-        id: {
-          in: batchCandidates.map((bc: any) => bc.applicationId)
-        }
-      },
-      data: {
-        status: "BATCH_ASSIGNED",
-        batchId: newBatch.id,
-        statusUpdatedAt: now
-      }
+    // Update application statuses based on batch candidate status
+    const selectedCandidates = batchCandidates.filter((bc: any) => {
+      const status = statusMap.get(bc.candidateId) || "PENDING"
+      return status === "SELECTED"
     })
+
+    const rejectedCandidates = batchCandidates.filter((bc: any) => {
+      const status = statusMap.get(bc.candidateId) || "PENDING"
+      return status === "REJECTED"
+    })
+
+    // Update selected candidates
+    if (selectedCandidates.length > 0) {
+      await tx.jobsApplied.updateMany({
+        where: {
+          id: {
+            in: selectedCandidates.map((bc: any) => bc.applicationId)
+          }
+        },
+        data: {
+          status: "BATCH_ASSIGNED",
+          batchId: newBatch.id,
+          statusUpdatedAt: now
+        }
+      })
+    }
+
+    // Update rejected candidates
+    if (rejectedCandidates.length > 0) {
+      await tx.jobsApplied.updateMany({
+        where: {
+          id: {
+            in: rejectedCandidates.map((bc: any) => bc.applicationId)
+          }
+        },
+        data: {
+          status: "REMOVED",
+          statusUpdatedAt: now
+        }
+      })
+    }
 
     return newBatch.id
   })
+
+  // After batch creation, notify interviewer
+  try {
+    const batchData = await getBatchById(batch)
+    if (batchData) {
+      // Get workflow step and job info
+      const step = await prisma.workflowStep.findUnique({
+        where: { id: batchData.workflowStepId },
+        select: {
+          stepName: true,
+          interviewerId: true
+        }
+      })
+
+      const job = await prisma.job.findUnique({
+        where: { id: batchData.jobId },
+        select: {
+          title: true,
+          company: true
+        }
+      })
+
+      if (step && step.interviewerId && job) {
+        const interviewer = await prisma.user.findUnique({
+          where: { id: step.interviewerId },
+          select: {
+            id: true,
+            email: true,
+            firstname: true,
+            lastname: true
+          }
+        })
+
+        if (interviewer) {
+          // Notify interviewer
+          await notifyInterviewerBatchCreated(
+            interviewer.id,
+            batchData.batchName || `Batch ${batchData.batchNumber}`,
+            step.stepName,
+            job.title,
+            batchData.candidates.length,
+            batch
+          )
+
+          // Send email if available
+          if (interviewer.email) {
+            await sendInterviewerBatchCreatedEmail(
+              interviewer.email,
+              `${interviewer.firstname} ${interviewer.lastname}`,
+              batchData.batchName || `Batch ${batchData.batchNumber}`,
+              step.stepName,
+              job.title,
+              job.company || "Company",
+              batchData.candidates.length,
+              batch.toString()
+            )
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error notifying interviewer after batch creation:", error)
+    // Don't fail batch creation if notification fails
+  }
 
   return batch
 }

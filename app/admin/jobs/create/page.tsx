@@ -1565,91 +1565,9 @@ export default function CreateJobPage() {
 
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Route Visibility (roles)</label>
-                  <select
-                    multiple
-                    value={step.routeVisibility || []}
-                    onChange={(e) => {
-                      const options = Array.from(e.target.selectedOptions).map(o => o.value)
-                      handleStepChange(index, "routeVisibility", options)
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md h-24"
-                  >
-                    {roleOptions.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Evaluation Criteria</label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={step.evaluationCriteriaInput || ""}
-                      onChange={(e) => {
-                        const newSteps = [...workflowSteps]
-                        newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: e.target.value }
-                        setWorkflowSteps(newSteps)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          const value = step.evaluationCriteriaInput?.trim()
-                          if (value) {
-                            const current = step.evaluationCriteria || []
-                            if (!current.includes(value)) {
-                              handleStepChange(index, "evaluationCriteria", [...current, value])
-                              const newSteps = [...workflowSteps]
-                              newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: "" }
-                              setWorkflowSteps(newSteps)
-                            }
-                          }
-                        }
-                      }}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="e.g., Communication, Problem Solving"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const value = step.evaluationCriteriaInput?.trim()
-                        if (value) {
-                          const current = step.evaluationCriteria || []
-                          if (!current.includes(value)) {
-                            handleStepChange(index, "evaluationCriteria", [...current, value])
-                            const newSteps = [...workflowSteps]
-                            newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: "" }
-                            setWorkflowSteps(newSteps)
-                          }
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      Add
-                    </button>
+                  <div className="px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-500">
+                    Managed automatically for each workflow step.
                   </div>
-                  {step.evaluationCriteria && step.evaluationCriteria.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {step.evaluationCriteria.map((criteria, critIndex) => (
-                        <span
-                          key={critIndex}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                        >
-                          {criteria}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updated = step.evaluationCriteria?.filter((_, i) => i !== critIndex) || []
-                              handleStepChange(index, "evaluationCriteria", updated)
-                            }}
-                            className="ml-1 text-blue-600 hover:text-blue-800 font-bold"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
                 <div className="col-span-2">

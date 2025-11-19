@@ -113,6 +113,7 @@ export default function EditJobPage() {
   const roleOptions = ["ADMIN", "INTERVIEWER", "CANDIDATE"]
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
   // Load job data
   useEffect(() => {
@@ -205,6 +206,7 @@ export default function EditJobPage() {
       } catch (error) {
         console.error("Error loading job:", error)
         setErrors({ _general: "Failed to load job data. Please try again." })
+        setStatusMessage({ type: "error", message: "Failed to load job data. Please try again." })
       } finally {
         setLoading(false)
       }
@@ -437,6 +439,29 @@ export default function EditJobPage() {
     return undefined
   }
 
+const pruneNestedErrors = (obj: Record<string, any>): Record<string, any> => {
+  const result: Record<string, any> = {}
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") {
+      return
+    }
+    if (typeof value === "object" && !Array.isArray(value)) {
+      const cleaned = pruneNestedErrors(value)
+      if (Object.keys(cleaned).length > 0) {
+        result[key] = cleaned
+      }
+    } else {
+      result[key] = value
+    }
+  })
+  return result
+}
+
+const pruneFormErrors = (errors: FormErrors): FormErrors => {
+  const cleaned = pruneNestedErrors(errors as unknown as Record<string, any>)
+  return cleaned as FormErrors
+}
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
@@ -479,8 +504,9 @@ export default function EditJobPage() {
       }
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+  const cleanedErrors = pruneFormErrors(newErrors)
+  setErrors(cleanedErrors)
+  return Object.keys(cleanedErrors).length === 0
   }
 
   const handleBlur = (fieldName: string, value: any) => {
@@ -562,11 +588,9 @@ export default function EditJobPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    console.log("Form submitted, validating...")
+    setStatusMessage(null)
     
     if (!validateForm()) {
-      console.log("Validation failed", errors)
       const allTouched: Record<string, boolean> = {}
       Object.keys(formData).forEach(key => {
         allTouched[key] = true
@@ -577,11 +601,10 @@ export default function EditJobPage() {
       if (firstErrorField) {
         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
-      alert("Please fix all validation errors before submitting.")
+      setStatusMessage({ type: "error", message: "Please fix the highlighted errors before submitting." })
       return
     }
 
-    console.log("Validation passed, submitting...")
     setSaving(true)
 
     try {
@@ -648,9 +671,6 @@ export default function EditJobPage() {
         educationRequirements: formData.minEducation ? [ { educationLevelName: formData.minEducation, isRequired: true } ] : [],
       }
 
-      console.log("Sending request to:", `/api/admin/jobs/${jobId}`)
-      console.log("Request body:", requestBody)
-
       const response = await fetch(`/api/admin/jobs/${jobId}`, {
         method: "PUT",
         headers: {
@@ -659,26 +679,28 @@ export default function EditJobPage() {
         body: JSON.stringify(requestBody),
       })
 
-      console.log("Response status:", response.status)
-
       const data = await response.json()
-      console.log("Response data:", data)
 
       if (response.ok) {
-        alert("Job updated successfully!")
+        setStatusMessage({ type: "success", message: "Job updated successfully. Redirecting to jobs list..." })
         router.push("/admin/jobs")
       } else {
         if (data.error) {
           setErrors(prev => ({ ...prev, _general: data.error }))
-          alert(`Error: ${data.error}`)
+          setStatusMessage({ type: "error", message: data.error })
         } else {
-          alert("Failed to update job. Please check all fields and try again.")
+          const fallbackMessage = "Failed to update job. Please check all fields and try again."
+          setErrors(prev => ({ ...prev, _general: fallbackMessage }))
+          setStatusMessage({ type: "error", message: fallbackMessage })
         }
       }
     } catch (error) {
       console.error("Error updating job:", error)
       setErrors(prev => ({ ...prev, _general: "An unexpected error occurred. Please try again." }))
-      alert(`Failed to update job: ${error instanceof Error ? error.message : "Unknown error"}`)
+      setStatusMessage({
+        type: "error",
+        message: `Failed to update job: ${error instanceof Error ? error.message : "Unknown error"}`
+      })
     } finally {
       setSaving(false)
     }
@@ -718,6 +740,45 @@ export default function EditJobPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {statusMessage && (
+            <div
+              className={`rounded-lg border p-4 flex items-start gap-3 ${
+                statusMessage.type === "success"
+                  ? "bg-green-50 border-green-200 text-green-800"
+                  : "bg-red-50 border-red-200 text-red-800"
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              <svg
+                className="w-5 h-5 mt-0.5 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {statusMessage.type === "success" ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                )}
+              </svg>
+              <div className="flex-1 text-sm">
+                <p className="font-semibold">{statusMessage.type === "success" ? "Success" : "Attention"}</p>
+                <p>{statusMessage.message}</p>
+              </div>
+              <button
+                type="button"
+                className="text-current hover:opacity-75"
+                onClick={() => setStatusMessage(null)}
+              >
+                <span className="sr-only">Dismiss</span>
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           {/* General Error Display */}
           {errors._general && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
@@ -1014,37 +1075,6 @@ export default function EditJobPage() {
                 )}
               </div>
 
-              {/* Department */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Department
-                </label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Select Department</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="IT">IT</option>
-                  <option value="Software Development">Software Development</option>
-                  <option value="Data Science">Data Science</option>
-                  <option value="Product Management">Product Management</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Human Resources">Human Resources</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Operations">Operations</option>
-                  <option value="Customer Support">Customer Support</option>
-                  <option value="Quality Assurance">Quality Assurance</option>
-                  <option value="Design">Design</option>
-                  <option value="Business Development">Business Development</option>
-                  <option value="Legal">Legal</option>
-                  <option value="Administration">Administration</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
               {/* Salary Range */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1074,39 +1104,6 @@ export default function EditJobPage() {
                     {errors.minimumSalary}
                   </p>
                 )}
-              </div>
-
-              {/* Certification */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Certification
-                </label>
-                <input
-                  type="text"
-                  value={formData.certification}
-                  onChange={(e) => setFormData({ ...formData, certification: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="e.g., AWS Solutions Architect"
-                />
-              </div>
-
-              {/* Minimum Education */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Minimum Education
-                </label>
-                <select
-                  value={formData.minEducation}
-                  onChange={(e) => setFormData({ ...formData, minEducation: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Select minimum education</option>
-                  <option value="High School Diploma">High School Diploma</option>
-                  <option value="Associate Degree">Associate Degree</option>
-                  <option value="Bachelor&apos;s Degree">Bachelor&apos;s Degree</option>
-                  <option value="Master&apos;s Degree">Master&apos;s Degree</option>
-                  <option value="Doctorate / PhD">Doctorate / PhD</option>
-                </select>
               </div>
 
               {/* Description */}
@@ -1195,20 +1192,6 @@ export default function EditJobPage() {
                     ))}
                   </div>
                 )}
-              </div>
-
-              {/* Benefits */}
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Benefits
-                </label>
-                <textarea
-                  value={formData.benefits}
-                  onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Perks and benefits..."
-                />
               </div>
 
               {/* Status */}
@@ -1462,32 +1445,6 @@ export default function EditJobPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Weightage</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={step.weightage ?? ""}
-                      onChange={(e) => handleStepChange(index, "weightage", e.target.value === "" ? undefined : Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="0-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Score Threshold</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={step.scoreThreshold ?? ""}
-                      onChange={(e) => handleStepChange(index, "scoreThreshold", e.target.value === "" ? undefined : Number(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder="0-100"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Interview Mode</label>
                     <select
                       value={step.interviewMode || ""}
@@ -1536,95 +1493,6 @@ export default function EditJobPage() {
                         <option key={opt.id} value={opt.id}>{opt.name}</option>
                       ))}
                     </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Route Visibility (roles)</label>
-                    <select
-                      multiple
-                      value={step.routeVisibility || []}
-                      onChange={(e) => {
-                        const options = Array.from(e.target.selectedOptions).map(o => o.value)
-                        handleStepChange(index, "routeVisibility", options)
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md h-24"
-                    >
-                      {roleOptions.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Evaluation Criteria</label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={step.evaluationCriteriaInput || ""}
-                        onChange={(e) => {
-                          const newSteps = [...workflowSteps]
-                          newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: e.target.value }
-                          setWorkflowSteps(newSteps)
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            const value = step.evaluationCriteriaInput?.trim()
-                            if (value) {
-                              const current = step.evaluationCriteria || []
-                              if (!current.includes(value)) {
-                                handleStepChange(index, "evaluationCriteria", [...current, value])
-                                const newSteps = [...workflowSteps]
-                                newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: "" }
-                                setWorkflowSteps(newSteps)
-                              }
-                            }
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-                        placeholder="e.g., Communication, Problem Solving"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const value = step.evaluationCriteriaInput?.trim()
-                          if (value) {
-                            const current = step.evaluationCriteria || []
-                            if (!current.includes(value)) {
-                              handleStepChange(index, "evaluationCriteria", [...current, value])
-                              const newSteps = [...workflowSteps]
-                              newSteps[index] = { ...newSteps[index], evaluationCriteriaInput: "" }
-                              setWorkflowSteps(newSteps)
-                            }
-                          }
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        Add
-                      </button>
-                    </div>
-                    {step.evaluationCriteria && step.evaluationCriteria.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {step.evaluationCriteria.map((criteria, critIndex) => (
-                          <span
-                            key={critIndex}
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                          >
-                            {criteria}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = step.evaluationCriteria?.filter((_, i) => i !== critIndex) || []
-                                handleStepChange(index, "evaluationCriteria", updated)
-                              }}
-                              className="ml-1 text-blue-600 hover:text-blue-800 font-bold"
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
                   <div className="col-span-2">

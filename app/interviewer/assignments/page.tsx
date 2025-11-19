@@ -20,6 +20,7 @@ import {
 
 interface Assignment {
   id: string
+  type: "pipeline" | "batch"
   status: string
   stepOrder: number
   workflowStep: {
@@ -27,7 +28,7 @@ interface Assignment {
     stepName: string
     stepOrder: number
   }
-  pipeline: {
+  pipeline?: {
     id: string
     job: {
       id: string
@@ -38,6 +39,17 @@ interface Assignment {
       id: string
       name: string
       email: string
+    }
+  }
+  batch?: {
+    id: string
+    batchNumber: number
+    batchName?: string
+    candidateCount: number
+    job: {
+      id: string
+      title: string
+      company: string
     }
   }
 }
@@ -93,20 +105,25 @@ export default function AssignmentsPage() {
   const filterAssignments = () => {
     let filtered = [...assignments]
 
-    // Filter by status
     if (statusFilter !== "all") {
       filtered = filtered.filter(a => a.status === statusFilter)
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(a => 
-        a.pipeline.job.title.toLowerCase().includes(query) ||
-        a.pipeline.job.company.toLowerCase().includes(query) ||
-        a.pipeline.candidate.name.toLowerCase().includes(query) ||
-        a.workflowStep.stepName.toLowerCase().includes(query)
-      )
+      filtered = filtered.filter((assignment) => {
+        const jobTitle = assignment.pipeline?.job.title || assignment.batch?.job.title || ""
+        const jobCompany = assignment.pipeline?.job.company || assignment.batch?.job.company || ""
+        const candidateOrBatch =
+          assignment.pipeline?.candidate.name ||
+          assignment.batch?.batchName ||
+          (assignment.batch?.batchNumber ? `Batch ${assignment.batch.batchNumber}` : "")
+        const stepName = assignment.workflowStep.stepName || ""
+
+        return [jobTitle, jobCompany, candidateOrBatch, stepName].some((field) =>
+          field.toLowerCase().includes(query)
+        )
+      })
     }
 
     setFilteredAssignments(filtered)
@@ -255,6 +272,18 @@ export default function AssignmentsPage() {
             <div className="space-y-4">
               {filteredAssignments.map((assignment) => {
                 const StatusIcon = getStatusIcon(assignment.status)
+                const isBatch = assignment.type === "batch"
+                const displayName = isBatch
+                  ? assignment.batch?.batchName || (assignment.batch?.batchNumber ? `Batch ${assignment.batch.batchNumber}` : "Batch assignment")
+                  : assignment.pipeline?.candidate.name || "Unnamed candidate"
+                const jobTitle = assignment.pipeline?.job.title || assignment.batch?.job.title || "Untitled role"
+                const jobCompany = assignment.pipeline?.job.company || assignment.batch?.job.company || ""
+                const destination = isBatch
+                  ? `/interviewer/batches/${assignment.batch?.id}`
+                  : `/interviewer/assignments/${assignment.id}`
+                const description = isBatch
+                  ? `${assignment.batch?.candidateCount || 0} candidate(s)`
+                  : assignment.pipeline?.candidate.email
                 return (
                   <div
                     key={assignment.id}
@@ -263,19 +292,26 @@ export default function AssignmentsPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <StatusIcon className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm font-medium">{assignment.pipeline.candidate.name}</p>
+                        <p className="text-sm font-medium">{displayName}</p>
+                        {isBatch && (
+                          <Badge variant="outline" className="text-xs">
+                            Batch
+                          </Badge>
+                        )}
                         <Badge className={getStatusColor(assignment.status)}>
                           {assignment.status}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mb-1">
-                        {assignment.pipeline.job.title} • {assignment.pipeline.job.company}
+                        {jobTitle}
+                        {jobCompany ? ` • ${jobCompany}` : ""}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Step {assignment.stepOrder}: {assignment.workflowStep.stepName}
+                        {description ? ` • ${description}` : ""}
                       </p>
                     </div>
-                    <Link href={`/interviewer/assignments/${assignment.id}`}>
+                    <Link href={destination}>
                       <Button variant="ghost" size="sm">
                         <ArrowRight className="h-4 w-4" />
                       </Button>

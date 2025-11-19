@@ -256,6 +256,139 @@ export async function sendCandidateStepCompletionEmail(
 }
 
 /**
+ * Send notification email to interviewer when batch is created
+ */
+export async function sendInterviewerBatchCreatedEmail(
+  interviewerEmail: string,
+  interviewerName: string,
+  batchName: string,
+  stepName: string,
+  jobTitle: string,
+  companyName: string,
+  candidateCount: number,
+  batchId: string
+): Promise<void> {
+  const subject = `New Batch Ready: ${batchName} - ${jobTitle}`
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+        .button { display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📋 New Batch Ready for Evaluation</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${interviewerName},</p>
+          <p>A new batch has been created and is ready for your evaluation.</p>
+          
+          <div class="info-box">
+            <h3>Batch Details</h3>
+            <p><strong>Batch Name:</strong> ${batchName}</p>
+            <p><strong>Job Position:</strong> ${jobTitle}</p>
+            <p><strong>Company:</strong> ${companyName}</p>
+            <p><strong>Step:</strong> ${stepName}</p>
+            <p><strong>Candidates:</strong> ${candidateCount} candidate(s) need evaluation</p>
+          </div>
+
+          <p><strong>Next Steps:</strong></p>
+          <ol>
+            <li>Create interview slots for this job and step</li>
+            <li>Candidates will be notified when slots are available</li>
+            <li>Evaluate candidates after interviews</li>
+          </ol>
+
+          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/interviewer/batches/${batchId}" class="button">View Batch Details</a>
+
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            This is an automated notification from the Recruitment Management System.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: interviewerEmail,
+    subject,
+    html
+  })
+}
+
+/**
+ * Send notification email to candidate when slots are available
+ */
+export async function sendCandidateSlotsAvailableEmail(
+  candidateEmail: string,
+  candidateName: string,
+  jobTitle: string,
+  stepName: string,
+  slotCount: number,
+  jobId: string
+): Promise<void> {
+  const subject = `Interview Slots Available: ${stepName} - ${jobTitle}`
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .success-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #10b981; }
+        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📅 Interview Slots Available</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${candidateName},</p>
+          <p>Great news! Interview slots are now available for your application.</p>
+          
+          <div class="success-box">
+            <h3>Interview Details</h3>
+            <p><strong>Position:</strong> ${jobTitle}</p>
+            <p><strong>Step:</strong> ${stepName}</p>
+            <p><strong>Available Slots:</strong> ${slotCount} slot(s)</p>
+          </div>
+
+          <p>Please book your preferred interview slot as soon as possible. Slots are available on a first-come, first-served basis.</p>
+
+          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/jobs/${jobId}" class="button">Book Interview Slot</a>
+
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            This is an automated notification from the Recruitment Management System.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: candidateEmail,
+    subject,
+    html
+  })
+}
+
+/**
  * Send notification email to candidate about rejection
  */
 export async function sendCandidateRejectionEmail(
