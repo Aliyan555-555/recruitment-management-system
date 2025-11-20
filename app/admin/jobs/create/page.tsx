@@ -48,7 +48,6 @@ interface WorkflowStep {
   interviewMode?: string
   meetingLink?: string
   interviewerIds?: string[]
-  routeVisibility?: string[]
   evaluationCriteria?: string[]
   evaluationCriteriaInput?: string // Temporary input field for adding criteria
   candidateInstructions?: string
@@ -651,7 +650,7 @@ export default function CreateJobPage() {
             </div>
           )}
           
-          {/* Job Details */}
+          {/* Job Overview */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 md:p-8 transition-all duration-200 hover:shadow-xl">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
               <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -659,7 +658,7 @@ export default function CreateJobPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">Job Details</h3>
+              <h3 className="text-xl font-semibold text-gray-900">Job Overview</h3>
             </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -682,7 +681,7 @@ export default function CreateJobPage() {
                 className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 ${
                   errors.title ? "border-red-500 bg-red-50" : "border-gray-300"
                 }`}
-                placeholder="e.g., Senior Software Engineer"
+                placeholder="e.g., Senior Frontend Engineer"
               />
               {errors.title && (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
@@ -696,7 +695,7 @@ export default function CreateJobPage() {
 
             <div className="col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Short Description
+                Job Summary
               </label>
               <textarea
                 value={formData.shortDescription}
@@ -713,7 +712,7 @@ export default function CreateJobPage() {
                 className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 bg-white text-gray-900 placeholder:text-gray-400 resize-none ${
                   errors.shortDescription ? "border-red-500 bg-red-50" : "border-gray-300"
                 }`}
-                placeholder="A brief summary of the job (max 300 characters)..."
+                placeholder="Brief overview (max 300 characters)"
               />
               <div className="flex justify-between items-center mt-1">
                 <p className="text-xs text-gray-500">
@@ -732,7 +731,7 @@ export default function CreateJobPage() {
 
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Company <span className="text-red-500">*</span>
+                Hiring Organization <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -793,7 +792,7 @@ export default function CreateJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Shift
+                Work Shift
               </label>
               <select
                 value={formData.employmentShift}
@@ -809,7 +808,7 @@ export default function CreateJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Post From <span className="text-red-500">*</span>
+                Posting Start Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -828,6 +827,7 @@ export default function CreateJobPage() {
                 onBlur={(e) => handleBlur("postFrom", e.target.value)}
                 data-error={errors.postFrom ? "true" : "false"}
                 min={new Date().toISOString().split('T')[0]}
+                placeholder="Select opening date"
                 className={`w-full px-3 py-2 border rounded-md ${
                   errors.postFrom ? "border-red-500 bg-red-50" : "border-gray-300"
                 }`}
@@ -844,7 +844,7 @@ export default function CreateJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Post To <span className="text-red-500">*</span>
+                Posting End Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -859,6 +859,7 @@ export default function CreateJobPage() {
                 onBlur={(e) => handleBlur("postTo", e.target.value)}
                 data-error={errors.postTo ? "true" : "false"}
                 min={formData.postFrom || new Date().toISOString().split('T')[0]}
+                placeholder="Select closing date"
                 className={`w-full px-3 py-2 border rounded-md ${
                   errors.postTo ? "border-red-500 bg-red-50" : "border-gray-300"
                 }`}
@@ -875,7 +876,7 @@ export default function CreateJobPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Minimum Experience
+                Required Experience
               </label>
               <input
                 type="text"
@@ -891,7 +892,7 @@ export default function CreateJobPage() {
                 className={`w-full px-3 py-2 border rounded-md ${
                   errors.minimumExperience ? "border-red-500 bg-red-50" : "border-gray-300"
                 }`}
-                placeholder="e.g., 3-5 years"
+                placeholder="e.g., 3–5 years of SaaS experience"
               />
               {errors.minimumExperience && (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">

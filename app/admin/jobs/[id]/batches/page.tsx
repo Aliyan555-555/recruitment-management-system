@@ -29,11 +29,15 @@ export default function BatchesPage() {
   const [batches, setBatches] = useState<Batch[]>([])
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
   const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [creatingNextBatch, setCreatingNextBatch] = useState<string | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedStep, setSelectedStep] = useState<string>("")
   const [shortlistedCandidates, setShortlistedCandidates] = useState<any[]>([])
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
   const [candidateStatuses, setCandidateStatuses] = useState<Record<string, "SELECTED" | "REJECTED" | "PENDING">>({})
+  const [errors, setErrors] = useState<{ step?: string; candidates?: string; general?: string }>({})
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     fetchBatches()
@@ -81,19 +85,35 @@ export default function BatchesPage() {
   }
 
   async function handleCreateBatch() {
+    // Reset errors
+    setErrors({})
+    setSuccessMessage(null)
+
+    // Validation
     if (!selectedStep) {
-      alert("Please select a workflow step")
+      setErrors({ step: "Please select a workflow step" })
       return
     }
 
     if (selectedCandidates.size === 0) {
-      alert("Please select at least one candidate")
+      setErrors({ candidates: "Please select at least one candidate" })
       return
     }
 
+    // Prevent multiple submissions
+    if (creating) {
+      return
+    }
+
+    setCreating(true)
+
     try {
       const step = workflowSteps.find(s => s.id === selectedStep)
-      if (!step) return
+      if (!step) {
+        setErrors({ general: "Selected workflow step not found" })
+        setCreating(false)
+        return
+      }
 
       // Check if this is batch 1 (first step)
       const existingBatches = batches.filter(b => b.workflowStepId === selectedStep)
@@ -120,24 +140,40 @@ export default function BatchesPage() {
         })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
+        setSuccessMessage("Batch created successfully!")
         setShowCreateModal(false)
         setSelectedCandidates(new Set())
         setCandidateStatuses({})
         setSelectedStep("")
-        fetchBatches()
-        alert("Batch created successfully")
+        setErrors({})
+        await fetchBatches()
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null)
+        }, 3000)
       } else {
-        const data = await res.json()
-        alert(data.error || "Failed to create batch")
+        setErrors({ general: data.error || "Failed to create batch. Please try again." })
       }
     } catch (error) {
       console.error("Error creating batch:", error)
-      alert("Failed to create batch")
+      setErrors({ general: "An unexpected error occurred. Please try again." })
+    } finally {
+      setCreating(false)
     }
   }
 
   async function handleCreateNextBatch(currentBatchId: string, nextStepId: string) {
+    // Prevent multiple submissions
+    if (creatingNextBatch === currentBatchId) {
+      return
+    }
+
+    setCreatingNextBatch(currentBatchId)
+
     try {
       const res = await fetch(`/api/admin/batches/${currentBatchId}`, {
         method: "POST",
@@ -147,16 +183,30 @@ export default function BatchesPage() {
         })
       })
 
+      const data = await res.json()
+
       if (res.ok) {
-        fetchBatches()
-        alert("Next batch created successfully")
+        setSuccessMessage("Next batch created successfully!")
+        await fetchBatches()
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage(null)
+        }, 3000)
       } else {
-        const data = await res.json()
-        alert(data.error || "Failed to create next batch")
+        setErrors({ general: data.error || "Failed to create next batch. Please try again." })
+        setTimeout(() => {
+          setErrors({})
+        }, 5000)
       }
     } catch (error) {
       console.error("Error creating next batch:", error)
-      alert("Failed to create next batch")
+      setErrors({ general: "An unexpected error occurred. Please try again." })
+      setTimeout(() => {
+        setErrors({})
+      }, 5000)
+    } finally {
+      setCreatingNextBatch(null)
     }
   }
 
@@ -207,6 +257,46 @@ export default function BatchesPage() {
             </div>
           </div>
         </div>
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-800">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-green-600 hover:text-green-800"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {errors.general && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800">{errors.general}</p>
+            </div>
+            <button
+              onClick={() => setErrors({})}
+              className="text-red-600 hover:text-red-800"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-12">

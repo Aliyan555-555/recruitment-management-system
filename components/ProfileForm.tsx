@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, Plus, Save, Upload, FileText } from "lucide-react"
+import { Trash2, Plus, Save, Upload, FileText, Edit2, X } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -80,6 +80,17 @@ export function ProfileForm({ user }: { user: any }) {
 
   // Education State
   const [educations, setEducations] = useState<Education[]>(user.educations)
+  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string }>>([])
+  const [editingEducationId, setEditingEducationId] = useState<string | null>(null)
+  const [newEducation, setNewEducation] = useState<Partial<Education>>({
+    degreeTitle: "",
+    educationLevelId: "",
+    institute: "",
+    majorSubject: "",
+    grade: "",
+    passingYear: "",
+    country: ""
+  })
 
   // Skills State
   const [skills, setSkills] = useState<Skill[]>(user.skills)
@@ -89,6 +100,30 @@ export function ProfileForm({ user }: { user: any }) {
   // CV State
   const [cvs, setCvs] = useState<CV[]>(user.cvs)
   const [cvUploading, setCvUploading] = useState(false)
+
+  const updateEducationValue = (id: string, changes: Partial<Education>) => {
+    setEducations(prev =>
+      prev.map((education) =>
+        education.id === id ? { ...education, ...changes } : education
+      )
+    )
+  }
+
+  // Load education levels on mount
+  useEffect(() => {
+    const fetchEducationLevels = async () => {
+      try {
+        const response = await fetch("/api/profile/education-levels")
+        if (response.ok) {
+          const data = await response.json()
+          setEducationLevels(data.levels || [])
+        }
+      } catch (error) {
+        console.error("Error fetching education levels:", error)
+      }
+    }
+    fetchEducationLevels()
+  }, [])
 
   const handleSaveProfile = async () => {
     setLoading(true)
@@ -139,23 +174,84 @@ export function ProfileForm({ user }: { user: any }) {
   }
 
   const handleAddEducation = async () => {
+    if (!newEducation.degreeTitle || !newEducation.educationLevelId) {
+      alert("Please fill in Degree Title and Education Level")
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch("/api/profile/education", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          degreeTitle: "New Degree",
-          educationLevelId: "1"
+          degreeTitle: newEducation.degreeTitle.trim(),
+          educationLevelId: newEducation.educationLevelId,
+          institute: newEducation.institute?.trim() || undefined,
+          majorSubject: newEducation.majorSubject?.trim() || undefined,
+          grade: newEducation.grade?.trim() || undefined,
+          passingYear: newEducation.passingYear?.trim() || undefined,
+          country: newEducation.country?.trim() || undefined
         })
       })
 
       if (response.ok) {
         const newEdu = await response.json()
         setEducations([...educations, newEdu])
+        setNewEducation({
+          degreeTitle: "",
+          educationLevelId: "",
+          institute: "",
+          majorSubject: "",
+          grade: "",
+          passingYear: "",
+          country: ""
+        })
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to add education")
       }
     } catch (error) {
       console.error("Error adding education:", error)
+      alert("Failed to add education. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateEducation = async (id: string, updatedData: Partial<Education>) => {
+    if (!updatedData.degreeTitle?.trim() || !updatedData.educationLevelId) {
+      alert("Degree Title and Education Level are required")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/profile/education/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          degreeTitle: updatedData.degreeTitle.trim(),
+          educationLevelId: updatedData.educationLevelId,
+          institute: updatedData.institute?.trim() || undefined,
+          majorSubject: updatedData.majorSubject?.trim() || undefined,
+          grade: updatedData.grade?.trim() || undefined,
+          passingYear: updatedData.passingYear?.trim() || undefined,
+          country: updatedData.country?.trim() || undefined
+        })
+      })
+
+      if (response.ok) {
+        const updated = await response.json()
+        setEducations(educations.map(edu => edu.id === id ? updated : edu))
+        setEditingEducationId(null)
+      } else {
+        const error = await response.json()
+        alert(error.error || "Failed to update education")
+      }
+    } catch (error) {
+      console.error("Error updating education:", error)
+      alert("Failed to update education. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -385,38 +481,271 @@ export function ProfileForm({ user }: { user: any }) {
       <Card>
         <CardHeader>
           <CardTitle>Education</CardTitle>
-          <CardDescription>Add your educational qualifications</CardDescription>
+          <CardDescription>Add and manage your educational qualifications</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* Existing Educations */}
           {educations.map((edu) => (
-            <Card key={edu.id}>
+            <Card key={edu.id} className="border-2">
               <CardContent className="pt-6">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2 flex-1">
-                    <h4 className="font-semibold">{edu.degreeTitle}</h4>
-                    {edu.educationLevel && (
-                      <Badge variant="secondary">{edu.educationLevel.name}</Badge>
-                    )}
-                    {edu.institute && <p className="text-sm text-muted-foreground">{edu.institute}</p>}
-                    {edu.majorSubject && <p className="text-sm text-muted-foreground">{edu.majorSubject}</p>}
+                {editingEducationId === edu.id ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-semibold">Edit Education</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingEducationId(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`degree-${edu.id}`}>Degree Title *</Label>
+                        <Input
+                          id={`degree-${edu.id}`}
+                          value={edu.degreeTitle}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { degreeTitle: event.target.value })
+                          }
+                          placeholder="e.g., Bachelor of Science"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`level-${edu.id}`}>Education Level *</Label>
+                        <Select
+                          value={edu.educationLevelId}
+                          onValueChange={(value) => updateEducationValue(edu.id, { educationLevelId: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {educationLevels.map((level) => (
+                              <SelectItem key={level.id} value={level.id}>
+                                {level.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`institute-${edu.id}`}>Institution</Label>
+                        <Input
+                          id={`institute-${edu.id}`}
+                          value={edu.institute || ""}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { institute: event.target.value })
+                          }
+                          placeholder="e.g., Harvard University"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`major-${edu.id}`}>Major/Subject</Label>
+                        <Input
+                          id={`major-${edu.id}`}
+                          value={edu.majorSubject || ""}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { majorSubject: event.target.value })
+                          }
+                          placeholder="e.g., Computer Science"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`grade-${edu.id}`}>Grade/GPA</Label>
+                        <Input
+                          id={`grade-${edu.id}`}
+                          value={edu.grade || ""}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { grade: event.target.value })
+                          }
+                          placeholder="e.g., 3.8/4.0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`year-${edu.id}`}>Passing Year</Label>
+                        <Input
+                          id={`year-${edu.id}`}
+                          value={edu.passingYear || ""}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { passingYear: event.target.value })
+                          }
+                          placeholder="e.g., 2020"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`country-edu-${edu.id}`}>Country</Label>
+                        <Input
+                          id={`country-edu-${edu.id}`}
+                          value={edu.country || ""}
+                          onChange={(event) =>
+                            updateEducationValue(edu.id, { country: event.target.value })
+                          }
+                          placeholder="e.g., United States"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        onClick={() => {
+                          const currentEducation = educations.find((educationItem) => educationItem.id === edu.id)
+                          if (currentEducation) {
+                            handleUpdateEducation(edu.id, currentEducation)
+                          }
+                        }}
+                        disabled={loading}
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditingEducationId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteEducation(edu.id)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-2 flex-1">
+                        <h4 className="font-semibold text-lg">{edu.degreeTitle}</h4>
+                        {edu.educationLevel && (
+                          <Badge variant="secondary">{edu.educationLevel.name}</Badge>
+                        )}
+                        {edu.institute && (
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium">Institution:</span> {edu.institute}
+                          </p>
+                        )}
+                        {edu.majorSubject && (
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium">Major:</span> {edu.majorSubject}
+                          </p>
+                        )}
+                        {(edu.grade || edu.passingYear || edu.country) && (
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            {edu.grade && <span><span className="font-medium">Grade:</span> {edu.grade}</span>}
+                            {edu.passingYear && <span><span className="font-medium">Year:</span> {edu.passingYear}</span>}
+                            {edu.country && <span><span className="font-medium">Country:</span> {edu.country}</span>}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingEducationId(edu.id)}
+                          disabled={loading}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteEducation(edu.id)}
+                          disabled={loading}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
 
-          <Button onClick={handleAddEducation} disabled={loading} variant="outline">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Education
-          </Button>
+          {/* Add New Education Form */}
+          <Card className="border-dashed border-2">
+            <CardContent className="pt-6">
+              <h4 className="font-semibold mb-4">Add New Education</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-degree">Degree Title *</Label>
+                  <Input
+                    id="new-degree"
+                    value={newEducation.degreeTitle || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, degreeTitle: e.target.value })}
+                    placeholder="e.g., Bachelor of Science"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-level">Education Level *</Label>
+                  <Select
+                    value={newEducation.educationLevelId || ""}
+                    onValueChange={(value) => setNewEducation({ ...newEducation, educationLevelId: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {educationLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.id}>
+                          {level.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-institute">Institution</Label>
+                  <Input
+                    id="new-institute"
+                    value={newEducation.institute || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, institute: e.target.value })}
+                    placeholder="e.g., Harvard University"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-major">Major/Subject</Label>
+                  <Input
+                    id="new-major"
+                    value={newEducation.majorSubject || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, majorSubject: e.target.value })}
+                    placeholder="e.g., Computer Science"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-grade">Grade/GPA</Label>
+                  <Input
+                    id="new-grade"
+                    value={newEducation.grade || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, grade: e.target.value })}
+                    placeholder="e.g., 3.8/4.0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-year">Passing Year</Label>
+                  <Input
+                    id="new-year"
+                    value={newEducation.passingYear || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, passingYear: e.target.value })}
+                    placeholder="e.g., 2020"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="new-country">Country</Label>
+                  <Input
+                    id="new-country"
+                    value={newEducation.country || ""}
+                    onChange={(e) => setNewEducation({ ...newEducation, country: e.target.value })}
+                    placeholder="e.g., United States"
+                  />
+                </div>
+              </div>
+              <Button 
+                onClick={handleAddEducation} 
+                disabled={loading || !newEducation.degreeTitle || !newEducation.educationLevelId} 
+                className="mt-4"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Education
+              </Button>
+            </CardContent>
+          </Card>
         </CardContent>
       </Card>
 
