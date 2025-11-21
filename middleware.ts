@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { auth } from "@/lib/auth"
+import { getToken } from "next-auth/jwt"
 
 export async function middleware(request: NextRequest) {
-  const session = await auth()
+  // Use getToken instead of auth() to avoid Prisma initialization in Edge runtime
+  const token = await getToken({ 
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET 
+  })
+  
   const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
@@ -17,12 +22,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected routes - require authentication
-  if (!session || !session.user) {
+  if (!token || !token.role) {
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }
 
-  const userRole = session.user.role
+  const userRole = token.role as string
 
   // Admin routes
   if (pathname.startsWith('/admin')) {
