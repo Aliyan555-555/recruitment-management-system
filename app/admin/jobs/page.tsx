@@ -189,8 +189,8 @@ export default function AdminJobsPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 ">
+            <div className="">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                   <tr>
@@ -315,7 +315,7 @@ export default function AdminJobsPage() {
                             </button>
 
                             {openMenuId === job.id && (
-                              <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-xl overflow-hidden">
+                              <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-xl">
                                 <div className="py-1">
                                   <Link
                                     href={`/admin/jobs/${job.id}/edit`}

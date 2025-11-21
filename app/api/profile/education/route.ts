@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const userId = session.user.id
+    const userId = BigInt(session.user.id)
 
     if (!body.degreeTitle?.trim() || !body.educationLevelId) {
       return NextResponse.json(
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     const education = await prisma.userEducation.create({
       data: {
-        userId: Number(userId),
+        userId: userId,
         educationLevelId: BigInt(body.educationLevelId),
         degreeTitle: body.degreeTitle.trim(),
         institute: body.institute?.trim() || null,

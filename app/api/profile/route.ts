@@ -97,10 +97,10 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json()
-    const userId = session.user.id
+    const userId = BigInt(session.user.id)
 
     const updated = await prisma.user.update({
-      where: { id: Number(userId) },
+      where: { id: userId },
       data: {
         firstname: body.firstName,
         lastname: body.lastName,
