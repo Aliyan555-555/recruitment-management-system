@@ -24,20 +24,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-      - name: Setup ENV for Next.js
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-          NEXT_PUBLIC_SOCKET_URL: ${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
-        run: |
-          echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" >> .env
-          echo "NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}" >> .env
-          echo "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" >> .env
-          echo "NEXTAUTH_URL=${NEXTAUTH_URL}" >> .env
-
+  
       - name: Install dependencies
-        run: npm ci
+        run: npm i --force
 
       - name: Build Next.js app
         run: npm run build
