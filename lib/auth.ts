@@ -8,6 +8,11 @@ const loginSchema = z.object({
   password: z.string().min(1),
 })
 
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("NEXTAUTH_SECRET environment variable is required")
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -101,5 +106,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }
   },
   secret: process.env.NEXTAUTH_SECRET,
+  trustHost: true, // Required for Vercel and other serverless platforms
+  basePath: "/api/auth", // Explicitly set the base path
 })
 
