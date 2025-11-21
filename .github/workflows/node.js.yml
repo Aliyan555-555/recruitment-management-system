@@ -55,8 +55,6 @@ jobs:
       - name: Build Next.js app
         run: npm run build
 
-      - name: Upload production build (optional)
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-build
-          path: .next
+      - name: Restart Production Server
+        run: |
+          pm2 restart recruitment-management-system
