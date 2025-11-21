@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: self-hosted
+    environment: production   # <-- GitHub Environment name
 
     strategy:
       matrix:
@@ -24,7 +25,30 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-  
+      - name: Create .env file from GitHub Environment Secrets
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "DIRECT_URL=${{ secrets.DIRECT_URL }}" >> .env
+          echo "NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}" >> .env
+          echo "NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}" >> .env
+          echo "NODE_ENV=${{ secrets.NODE_ENV }}" >> .env
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "APP_URL=${{ secrets.APP_URL }}" >> .env
+          echo "MAX_FILE_SIZE=${{ secrets.MAX_FILE_SIZE }}" >> .env
+          echo "ALLOWED_FILE_TYPES=${{ secrets.ALLOWED_FILE_TYPES }}" >> .env
+          echo "UPLOAD_DIR=${{ secrets.UPLOAD_DIR }}" >> .env
+          echo "CV_STORAGE_PATH=${{ secrets.CV_STORAGE_PATH }}" >> .env
+          echo "GALLERY_STORAGE_PATH=${{ secrets.GALLERY_STORAGE_PATH }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> .env
+          echo "SESSION_MAX_AGE=${{ secrets.SESSION_MAX_AGE }}" >> .env
+          echo "SMTP_HOST=${{ secrets.SMTP_HOST }}" >> .env
+          echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
+          echo "SMTP_SECURE=${{ secrets.SMTP_SECURE }}" >> .env
+          echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
+          echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
+          echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env
+
       - name: Install dependencies
         run: npm i --force
 
