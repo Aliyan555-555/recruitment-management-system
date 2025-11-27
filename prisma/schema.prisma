@@ -6,7 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -14,42 +16,45 @@ datasource db {
 // ============================================
 
 model User {
-  id              BigInt   @id @default(autoincrement())
-  role            UserRole @default(CANDIDATE)
-  userStatus      UserStatus @default(ACTIVE) @map("user_status")
-  username        String   @unique @db.VarChar(100)
-  password        String   @db.VarChar(255)
-  firstname       String   @db.VarChar(100)
-  lastname        String   @db.VarChar(100)
-  email           String   @unique @db.VarChar(100)
-  phone1          String?  @db.VarChar(20)
-  phone2          String?  @db.VarChar(20)
-  institution     String?  @db.VarChar(255)
-  department      String?  @db.VarChar(255)
-  address         String?  @db.VarChar(255)
-  city            String?  @db.VarChar(120)
-  country         String?  @db.VarChar(2)
-  lang            String?  @db.VarChar(30)
-  theme           String?  @db.VarChar(50)
-  timezone        String?  @db.VarChar(100)
-  firstAccess     BigInt?  @map("first_access")
-  lastAccess      BigInt?  @map("last_access")
-  lastLogin       BigInt?  @map("last_login")
-  currentLogin    BigInt?  @map("current_login")
-  deletedAt       BigInt?  @map("deleted_at")
-  suspended       Boolean  @default(false)
-  createdAt       BigInt   @map("created_at")
-  updatedAt       BigInt   @map("updated_at")
+  id           BigInt     @id @default(autoincrement())
+  role         UserRole   @default(CANDIDATE)
+  userStatus   UserStatus @default(ACTIVE) @map("user_status")
+  username     String     @unique @db.VarChar(100)
+  password     String     @db.VarChar(255)
+  firstname    String     @db.VarChar(100)
+  lastname     String     @db.VarChar(100)
+  email        String     @unique @db.VarChar(100)
+  phone1       String?    @db.VarChar(20)
+  phone2       String?    @db.VarChar(20)
+  institution  String?    @db.VarChar(255)
+  department   String?    @db.VarChar(255)
+  address      String?    @db.VarChar(255)
+  city         String?    @db.VarChar(120)
+  country      String?    @db.VarChar(2)
+  lang         String?    @db.VarChar(30)
+  theme        String?    @db.VarChar(50)
+  timezone     String?    @db.VarChar(100)
+  firstAccess  BigInt?    @map("first_access")
+  lastAccess   BigInt?    @map("last_access")
+  lastLogin    BigInt?    @map("last_login")
+  currentLogin BigInt?    @map("current_login")
+  deletedAt    BigInt?    @map("deleted_at")
+  suspended    Boolean    @default(false)
+  createdAt    BigInt     @map("created_at")
+  updatedAt    BigInt     @map("updated_at")
 
   // Relations
-  educations              UserEducation[]
-  skills                  UserSkills[]
-  cvs                     CvManagerCv[]
-  jobsCreated             Job[]                   @relation("JobCreator")
-  jobsUpdated             Job[]                   @relation("JobUpdater")
-  jobsApplied             JobsApplied[]
-  jobsBookmarked          JobsBookmark[]
-  
+  educations     UserEducation[]
+  skills         UserSkills[]
+  experiences    UserExperience[]
+  profileDetails UserProfileDetail?
+  jobPreference  UserJobPreference?
+  cvs            CvManagerCv[]
+  jobsCreated    Job[]              @relation("JobCreator")
+  jobsUpdated    Job[]              @relation("JobUpdater")
+  jobsApplied    JobsApplied[]
+  jobsBookmarked JobsBookmark[]
+
   // Workflow Relations
   stepInterviewer         WorkflowStep[]          @relation("StepInterviewer")
   stepInterviewerInstance CandidatePipelineStep[] @relation("StepInterviewerInstance")
@@ -61,12 +66,12 @@ model User {
   slotInterviewer         InterviewSlot[]         @relation("SlotInterviewer")
   slotBookings            SlotBooking[]
   stageEvaluations        StageEvaluation[]
-  
+
   // Batch Relations
-  batchesCreated          Batch[]                 @relation("BatchCreator")
-  batchCandidatesEvaluated BatchCandidateEvaluation[]
-  batchCandidates         BatchCandidate[]        @relation("BatchCandidateEvaluator")
-  batchCandidatesEvaluatedBy BatchCandidate[]     @relation("BatchCandidateEvaluatorUser")
+  batchesCreated             Batch[]                    @relation("BatchCreator")
+  batchCandidatesEvaluated   BatchCandidateEvaluation[]
+  batchCandidates            BatchCandidate[]           @relation("BatchCandidateEvaluator")
+  batchCandidatesEvaluatedBy BatchCandidate[]           @relation("BatchCandidateEvaluatorUser")
 
   @@index([role])
   @@index([userStatus])
@@ -74,23 +79,23 @@ model User {
 }
 
 model UserEducation {
-  id               BigInt              @id @default(autoincrement())
-  userId           BigInt              @map("user_id")
-  educationLevelId BigInt              @map("education_level_id")
-  degreeTitle      String              @db.VarChar(255)
-  institute        String?             @db.VarChar(255)
-  instituteId      BigInt?             @map("institute_id")
-  majorSubject     String?             @db.VarChar(255)
-  grade            String?             @db.VarChar(50)
-  passingYear      String?             @db.VarChar(50)
-  country          String?             @db.VarChar(50)
-  createdAt        BigInt              @map("created_at")
-  updatedAt        BigInt              @map("updated_at")
+  id               BigInt  @id @default(autoincrement())
+  userId           BigInt  @map("user_id")
+  educationLevelId BigInt  @map("education_level_id")
+  degreeTitle      String  @db.VarChar(255)
+  institute        String? @db.VarChar(255)
+  instituteId      BigInt? @map("institute_id")
+  majorSubject     String? @db.VarChar(255)
+  grade            String? @db.VarChar(50)
+  passingYear      String? @db.VarChar(50)
+  country          String? @db.VarChar(50)
+  createdAt        BigInt  @map("created_at")
+  updatedAt        BigInt  @map("updated_at")
 
   // Relations
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  educationLevel   UserEducationLevel  @relation(fields: [educationLevelId], references: [id])
-  instituteRef     Institute?          @relation(fields: [instituteId], references: [id])
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  educationLevel UserEducationLevel @relation(fields: [educationLevelId], references: [id])
+  instituteRef   Institute?         @relation(fields: [instituteId], references: [id])
 
   @@index([userId])
   @@index([educationLevelId])
@@ -99,73 +104,140 @@ model UserEducation {
 }
 
 model UserEducationLevel {
-  id                      BigInt                   @id @default(autoincrement())
-  name                    String                   @db.VarChar(100)
+  id   BigInt @id @default(autoincrement())
+  name String @db.VarChar(100)
 
   // Relations
-  userEducations          UserEducation[]
+  userEducations           UserEducation[]
   jobEducationRequirements JobEducationRequirement[]
 
   @@map("user_education_level")
 }
 
 model UserSkills {
-  id         BigInt  @id @default(autoincrement())
-  userId     BigInt  @map("user_id")
-  skillName  String  @db.VarChar(255)
-  level      Int
-  createdAt  BigInt  @map("created_at")
-  updatedAt  BigInt  @map("updated_at")
+  id        BigInt @id @default(autoincrement())
+  userId    BigInt @map("user_id")
+  skillName String @db.VarChar(255)
+  level     Int
+  createdAt BigInt @map("created_at")
+  updatedAt BigInt @map("updated_at")
 
   // Relations
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("user_skills")
 }
 
+model UserExperience {
+  id        BigInt  @id @default(autoincrement())
+  userId    BigInt  @map("user_id")
+  jobTitle  String  @db.VarChar(255)
+  company   String? @db.VarChar(255)
+  location  String? @db.VarChar(255)
+  startDate String? @map("start_date") @db.VarChar(50)
+  endDate   String? @map("end_date") @db.VarChar(50)
+  isCurrent Boolean @default(false) @map("is_current")
+  createdAt BigInt  @map("created_at")
+  updatedAt BigInt  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_experience")
+}
+
+model UserProfileDetail {
+  id                BigInt  @id @default(autoincrement())
+  userId            BigInt  @unique @map("user_id")
+  title             String? @db.VarChar(50)
+  fatherName        String? @map("father_name") @db.VarChar(255)
+  religion          String? @db.VarChar(100)
+  nationality       String? @db.VarChar(120)
+  dateOfBirth       String? @map("date_of_birth") @db.VarChar(30)
+  cnic              String? @db.VarChar(50)
+  gender            String? @db.VarChar(50)
+  maritalStatus     String? @map("marital_status") @db.VarChar(50)
+  preferredCity     String? @map("preferred_city") @db.VarChar(120)
+  postalCode        String? @map("postal_code") @db.VarChar(20)
+  disclaimersAgreed Boolean @default(false) @map("disclaimers_agreed")
+  professionalGrade String? @map("professional_grade") @db.VarChar(50)
+  linkedinUrl       String? @map("linkedin_url") @db.VarChar(255)
+  portfolioUrl      String? @map("portfolio_url") @db.VarChar(255)
+  githubUrl         String? @map("github_url") @db.VarChar(255)
+  websiteUrl        String? @map("website_url") @db.VarChar(255)
+  bio               String? @db.Text
+  availability      String? @db.VarChar(100)
+  expectedSalary    String? @map("expected_salary") @db.VarChar(100)
+  noticePeriod      String? @map("notice_period") @db.VarChar(50)
+  languages         String? @db.Text
+  certifications    String? @db.Text
+  achievements      String? @db.Text
+  references        String? @db.Text
+  createdAt         BigInt  @map("created_at")
+  updatedAt         BigInt  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profile_detail")
+}
+
+model UserJobPreference {
+  id             BigInt  @id @default(autoincrement())
+  userId         BigInt  @unique @map("user_id")
+  firstPriority  String? @map("first_priority") @db.VarChar(255)
+  secondPriority String? @map("second_priority") @db.VarChar(255)
+  thirdPriority  String? @map("third_priority") @db.VarChar(255)
+  summary        String? @db.Text
+  createdAt      BigInt  @map("created_at")
+  updatedAt      BigInt  @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_job_preference")
+}
 
 // ============================================
 // Jobs & Applications
 // ============================================
 
 model Job {
-  id                   BigInt            @id @default(autoincrement())
-  jobCode              String            @unique @db.VarChar(50) @map("job_code")
-  title                String            @db.VarChar(255)
-  shortDescription     String?           @db.VarChar(500) @map("short_description")
-  description          String?           @db.Text
-  company              String            @db.VarChar(255)
-  postFrom             DateTime          @map("post_from") @db.Date
-  postTo               DateTime          @map("post_to") @db.Date
-  status               Boolean           @default(true)
-  jobType              JobType           @default(NORMAL) @map("job_type")
-  jobStatus            JobStatus         @default(ACTIVE) @map("job_status")
-  industry             String?           @db.VarChar(255)
-  employmentType       EmploymentType    @map("employment_type")
-  employmentShift      String?           @db.VarChar(50)
-  totalPositions       Int?              @default(1) @map("total_positions")
-  minimumExperience    String?           @db.VarChar(255)
-  certification        String?           @db.Text
-  minimumSalary        String?           @db.VarChar(50)
-  benefits             String?           @db.Text
-  createdBy            BigInt            @map("created_by")
-  updatedBy            BigInt?           @map("updated_by")
-  createdAt            BigInt            @map("created_at")
-  updatedAt            BigInt            @map("updated_at")
-  deletedAt            BigInt?           @map("deleted_at")
+  id                BigInt         @id @default(autoincrement())
+  jobCode           String         @unique @map("job_code") @db.VarChar(50)
+  title             String         @db.VarChar(255)
+  shortDescription  String?        @map("short_description") @db.VarChar(500)
+  description       String?        @db.Text
+  company           String         @db.VarChar(255)
+  postFrom          DateTime       @map("post_from") @db.Date
+  postTo            DateTime       @map("post_to") @db.Date
+  status            Boolean        @default(true)
+  jobType           JobType        @default(NORMAL) @map("job_type")
+  jobStatus         JobStatus      @default(ACTIVE) @map("job_status")
+  industry          String?        @db.VarChar(255)
+  employmentType    EmploymentType @map("employment_type")
+  employmentShift   String?        @db.VarChar(50)
+  totalPositions    Int?           @default(1) @map("total_positions")
+  minimumExperience String?        @db.VarChar(255)
+  certification     String?        @db.Text
+  minimumSalary     String?        @db.VarChar(50)
+  benefits          String?        @db.Text
+  createdBy         BigInt         @map("created_by")
+  updatedBy         BigInt?        @map("updated_by")
+  createdAt         BigInt         @map("created_at")
+  updatedAt         BigInt         @map("updated_at")
+  deletedAt         BigInt?        @map("deleted_at")
 
   // Relations
-  creator              User              @relation("JobCreator", fields: [createdBy], references: [id])
-  updater              User?             @relation("JobUpdater", fields: [updatedBy], references: [id])
-  skills               JobSkill[]
-  applications         JobsApplied[]
-  bookmarks            JobsBookmark[]
-  workflow             JobWorkflow?
-  pipelines            CandidatePipeline[]
-  locations            JobLocation[]
+  creator               User                      @relation("JobCreator", fields: [createdBy], references: [id])
+  updater               User?                     @relation("JobUpdater", fields: [updatedBy], references: [id])
+  skills                JobSkill[]
+  applications          JobsApplied[]
+  bookmarks             JobsBookmark[]
+  workflow              JobWorkflow?
+  pipelines             CandidatePipeline[]
+  locations             JobLocation[]
   educationRequirements JobEducationRequirement[]
-  batches              Batch[]
+  batches               Batch[]
 
   @@index([createdBy])
   @@index([updatedBy])
@@ -179,7 +251,7 @@ model Job {
 
 enum EmploymentType {
   Permanent
-  PartTime   @map("Part Time")
+  PartTime  @map("Part Time")
   Contract
 }
 
@@ -195,47 +267,47 @@ enum JobStatus {
 }
 
 model JobSkill {
-  id         BigInt  @id @default(autoincrement())
-  jobId      BigInt  @map("job_id")
-  skillName  String  @db.VarChar(255)
+  id        BigInt @id @default(autoincrement())
+  jobId     BigInt @map("job_id")
+  skillName String @db.VarChar(255)
 
   // Relations
-  job        Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
   @@map("job_skills")
 }
 
 model JobLocation {
-  id         BigInt  @id @default(autoincrement())
-  jobId      BigInt  @map("job_id")
-  city       String  @db.VarChar(255)
-  country    String? @db.VarChar(50)
-  createdAt  BigInt  @map("created_at")
-  updatedAt  BigInt  @map("updated_at")
+  id        BigInt  @id @default(autoincrement())
+  jobId     BigInt  @map("job_id")
+  city      String  @db.VarChar(255)
+  country   String? @db.VarChar(50)
+  createdAt BigInt  @map("created_at")
+  updatedAt BigInt  @map("updated_at")
 
   // Relations
-  job        Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
   @@map("job_locations")
 }
 
 model JobEducationRequirement {
-  id                  BigInt             @id @default(autoincrement())
-  jobId               BigInt             @map("job_id")
-  educationLevelId    BigInt             @map("education_level_id")
-  field               String?            @db.VarChar(255)
-  minimumGpa          String?            @db.VarChar(50) @map("minimum_gpa")
-  gpaScale            String?            @db.VarChar(50) @map("gpa_scale")
-  isRequired          Boolean            @default(true) @map("is_required")
-  notes               String?            @db.Text
-  createdAt           BigInt             @map("created_at")
-  updatedAt           BigInt             @map("updated_at")
+  id               BigInt  @id @default(autoincrement())
+  jobId            BigInt  @map("job_id")
+  educationLevelId BigInt  @map("education_level_id")
+  field            String? @db.VarChar(255)
+  minimumGpa       String? @map("minimum_gpa") @db.VarChar(50)
+  gpaScale         String? @map("gpa_scale") @db.VarChar(50)
+  isRequired       Boolean @default(true) @map("is_required")
+  notes            String? @db.Text
+  createdAt        BigInt  @map("created_at")
+  updatedAt        BigInt  @map("updated_at")
 
   // Relations
-  job                 Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  educationLevel      UserEducationLevel @relation(fields: [educationLevelId], references: [id])
+  job            Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  educationLevel UserEducationLevel @relation(fields: [educationLevelId], references: [id])
 
   @@index([jobId])
   @@index([educationLevelId])
@@ -243,24 +315,24 @@ model JobEducationRequirement {
 }
 
 model JobsApplied {
-  id               BigInt              @id @default(autoincrement())
-  jobId            BigInt              @map("job_id")
-  userId           BigInt              @map("user_id")
-  cvId             BigInt              @map("cv_id")
-  status           ApplicationStatus   @default(SUBMITTED)
-  appliedAt        BigInt              @map("applied_at")
-  statusUpdatedAt  BigInt?             @map("status_updated_at")
-  note             String?             @db.Text
-  batchId          BigInt?             @map("batch_id")
+  id              BigInt            @id @default(autoincrement())
+  jobId           BigInt            @map("job_id")
+  userId          BigInt            @map("user_id")
+  cvId            BigInt            @map("cv_id")
+  status          ApplicationStatus @default(SUBMITTED)
+  appliedAt       BigInt            @map("applied_at")
+  statusUpdatedAt BigInt?           @map("status_updated_at")
+  note            String?           @db.Text
+  batchId         BigInt?           @map("batch_id")
 
   // Relations
-  job              Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cv               CvManagerCv         @relation(fields: [cvId], references: [id])
-  pipeline         CandidatePipeline?
-  slotBookings     SlotBooking[]
-  batch            Batch?              @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  batchCandidates  BatchCandidate[]
+  job             Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cv              CvManagerCv        @relation(fields: [cvId], references: [id])
+  pipeline        CandidatePipeline?
+  slotBookings    SlotBooking[]
+  batch           Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batchCandidates BatchCandidate[]
 
   @@unique([jobId, userId])
   @@index([jobId])
@@ -280,16 +352,16 @@ enum ApplicationStatus {
 }
 
 model JobsBookmark {
-  id         BigInt   @id @default(autoincrement())
-  jobId      BigInt   @map("job_id")
-  userId     BigInt   @map("user_id")
-  status     Boolean  @default(true)
-  createdAt  BigInt   @map("created_at")
-  updatedAt  BigInt   @map("updated_at")
+  id        BigInt  @id @default(autoincrement())
+  jobId     BigInt  @map("job_id")
+  userId    BigInt  @map("user_id")
+  status    Boolean @default(true)
+  createdAt BigInt  @map("created_at")
+  updatedAt BigInt  @map("updated_at")
 
   // Relations
-  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, userId])
   @@index([jobId])
@@ -302,17 +374,17 @@ model JobsBookmark {
 // ============================================
 
 model CvManagerCv {
-  id         BigInt        @id @default(autoincrement())
-  filepath   String        @db.VarChar(255)
-  filename   String        @db.VarChar(255)
-  userId     BigInt        @map("user_id")
-  status     String        @db.VarChar(10)
-  deletedAt  BigInt?       @map("deleted_at")
-  createdAt  BigInt        @map("created_at")
-  updatedAt  BigInt        @map("updated_at")
+  id        BigInt  @id @default(autoincrement())
+  filepath  String  @db.VarChar(255)
+  filename  String  @db.VarChar(255)
+  userId    BigInt  @map("user_id")
+  status    String  @db.VarChar(10)
+  deletedAt BigInt? @map("deleted_at")
+  createdAt BigInt  @map("created_at")
+  updatedAt BigInt  @map("updated_at")
 
   // Relations
-  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications JobsApplied[]
 
   @@index([userId])
@@ -325,10 +397,10 @@ model CvManagerCv {
 // ============================================
 
 model Institute {
-  id         BigInt          @id @default(autoincrement())
-  name       String          @db.VarChar(255)
-  visible    Boolean         @default(true)
-  deletedAt  BigInt?         @map("deleted_at")
+  id        BigInt  @id @default(autoincrement())
+  name      String  @db.VarChar(255)
+  visible   Boolean @default(true)
+  deletedAt BigInt? @map("deleted_at")
 
   // Relations
   educations UserEducation[]
@@ -406,37 +478,37 @@ enum NotificationType {
 // ============================================
 
 model JobWorkflow {
-  id          BigInt         @id @default(autoincrement())
-  jobId       BigInt         @unique @map("job_id")
-  createdAt   BigInt         @map("created_at")
-  updatedAt   BigInt         @map("updated_at")
-  
-  job         Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  steps       WorkflowStep[]
+  id        BigInt @id @default(autoincrement())
+  jobId     BigInt @unique @map("job_id")
+  createdAt BigInt @map("created_at")
+  updatedAt BigInt @map("updated_at")
+
+  job   Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  steps WorkflowStep[]
 
   @@map("job_workflow")
 }
 
 model WorkflowStep {
-  id              BigInt    @id @default(autoincrement())
-  workflowId      BigInt    @map("workflow_id")
-  stepName        String    @db.VarChar(255) @map("step_name")
-  stepOrder       Int       @map("step_order")
-  isRequired      Boolean   @default(true) @map("is_required")
-  isSkippable     Boolean   @default(false) @map("is_skippable")
-  interviewerId   BigInt?   @map("interviewer_id")
-  status          StepStatus @default(ACTIVE)
-  createdAt       BigInt    @map("created_at")
-  updatedAt       BigInt    @map("updated_at")
+  id               BigInt     @id @default(autoincrement())
+  workflowId       BigInt     @map("workflow_id")
+  stepName         String     @map("step_name") @db.VarChar(255)
+  stepOrder        Int        @map("step_order")
+  isRequired       Boolean    @default(true) @map("is_required")
+  isSkippable      Boolean    @default(false) @map("is_skippable")
+  interviewerId    BigInt?    @map("interviewer_id")
+  status           StepStatus @default(ACTIVE)
+  createdAt        BigInt     @map("created_at")
+  updatedAt        BigInt     @map("updated_at")
   evaluationSchema Json?
   capacityPerSlot  Int?
-  stepMetadata     Json?  @map("step_metadata") // Stores stepType, durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
-  
-  workflow        JobWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  interviewer     User?        @relation("StepInterviewer", fields: [interviewerId], references: [id])
-  pipelineSteps   CandidatePipelineStep[]
-  slots           InterviewSlot[]
-  batches         Batch[]
+  stepMetadata     Json?      @map("step_metadata") // Stores stepType, durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
+
+  workflow      JobWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  interviewer   User?                   @relation("StepInterviewer", fields: [interviewerId], references: [id])
+  pipelineSteps CandidatePipelineStep[]
+  slots         InterviewSlot[]
+  batches       Batch[]
 
   @@index([workflowId])
   @@index([interviewerId])
@@ -445,19 +517,19 @@ model WorkflowStep {
 
 // Interviewer availability slots per workflow step
 model InterviewSlot {
-  id            BigInt @id @default(autoincrement())
-  stepId        BigInt @map("step_id")
-  interviewerId BigInt @map("interviewer_id")
+  id            BigInt   @id @default(autoincrement())
+  stepId        BigInt   @map("step_id")
+  interviewerId BigInt   @map("interviewer_id")
   startsAt      DateTime
   endsAt        DateTime
-  capacity      Int @default(1)
-  isBlocked     Boolean @default(false)
-  createdAt     BigInt @map("created_at")
-  updatedAt     BigInt @map("updated_at")
+  capacity      Int      @default(1)
+  isBlocked     Boolean  @default(false)
+  createdAt     BigInt   @map("created_at")
+  updatedAt     BigInt   @map("updated_at")
 
-  step          WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  interviewer   User @relation("SlotInterviewer", fields: [interviewerId], references: [id])
-  bookings      SlotBooking[]
+  step        WorkflowStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  interviewer User          @relation("SlotInterviewer", fields: [interviewerId], references: [id])
+  bookings    SlotBooking[]
 
   @@index([stepId])
   @@index([interviewerId])
@@ -466,20 +538,20 @@ model InterviewSlot {
 
 // Concurrency-safe bookings per slot
 model SlotBooking {
-  id            BigInt @id @default(autoincrement())
-  slotId        BigInt @map("slot_id")
-  candidateId   BigInt @map("candidate_id")
-  applicationId BigInt @map("application_id")
+  id            BigInt        @id @default(autoincrement())
+  slotId        BigInt        @map("slot_id")
+  candidateId   BigInt        @map("candidate_id")
+  applicationId BigInt        @map("application_id")
   status        BookingStatus @default(RESERVED)
-  createdAt     BigInt @map("created_at")
-  updatedAt     BigInt @map("updated_at")
+  createdAt     BigInt        @map("created_at")
+  updatedAt     BigInt        @map("updated_at")
 
-  slot          InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  candidate     User @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  application   JobsApplied @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  slot        InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  candidate   User          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  application JobsApplied   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
-  @@index([slotId])
   @@unique([slotId, candidateId])
+  @@index([slotId])
   @@map("slot_booking")
 }
 
@@ -492,38 +564,39 @@ enum BookingStatus {
 
 // Per-stage evaluation by interviewer
 model StageEvaluation {
-  id             BigInt @id @default(autoincrement())
-  pipelineStepId BigInt @map("pipeline_step_id")
-  interviewerId  BigInt @map("interviewer_id")
+  id             BigInt                   @id @default(autoincrement())
+  pipelineStepId BigInt                   @map("pipeline_step_id")
+  interviewerId  BigInt                   @map("interviewer_id")
   formData       Json
   score          Float?
   recommendation InterviewRecommendation?
-  submittedAt    BigInt? @map("submitted_at")
+  submittedAt    BigInt?                  @map("submitted_at")
 
-  pipelineStep   CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
-  interviewer    User @relation(fields: [interviewerId], references: [id])
+  pipelineStep CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
+  interviewer  User                  @relation(fields: [interviewerId], references: [id])
 
   @@unique([pipelineStepId, interviewerId])
   @@map("stage_evaluation")
 }
+
 model CandidatePipeline {
-  id              BigInt         @id @default(autoincrement())
-  candidateId     BigInt         @map("candidate_id")
-  jobId           BigInt         @map("job_id")
-  applicationId   BigInt         @unique @map("application_id")
-  currentStepOrder Int           @default(1) @map("current_step_order")
-  overallStatus   PipelineStatus @default(IN_PROGRESS) @map("overall_status")
-  startedAt       BigInt         @map("started_at")
-  completedAt     BigInt?        @map("completed_at")
-  lockState       PipelineLock   @default(NONE) @map("lock_state")
-  pipelineMode    PipelineMode   @default(INDIVIDUAL) @map("pipeline_mode")
-  
-  candidate       User             @relation("CandidatePipelines", fields: [candidateId], references: [id], onDelete: Cascade)
-  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  application     JobsApplied      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  steps           CandidatePipelineStep[]
-  auditLogs       AuditLog[]
-  interviews      Interview[]
+  id               BigInt         @id @default(autoincrement())
+  candidateId      BigInt         @map("candidate_id")
+  jobId            BigInt         @map("job_id")
+  applicationId    BigInt         @unique @map("application_id")
+  currentStepOrder Int            @default(1) @map("current_step_order")
+  overallStatus    PipelineStatus @default(IN_PROGRESS) @map("overall_status")
+  startedAt        BigInt         @map("started_at")
+  completedAt      BigInt?        @map("completed_at")
+  lockState        PipelineLock   @default(NONE) @map("lock_state")
+  pipelineMode     PipelineMode   @default(INDIVIDUAL) @map("pipeline_mode")
+
+  candidate   User                    @relation("CandidatePipelines", fields: [candidateId], references: [id], onDelete: Cascade)
+  job         Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application JobsApplied             @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  steps       CandidatePipelineStep[]
+  auditLogs   AuditLog[]
+  interviews  Interview[]
 
   @@index([candidateId])
   @@index([jobId])
@@ -543,24 +616,24 @@ enum PipelineMode {
 }
 
 model CandidatePipelineStep {
-  id              BigInt             @id @default(autoincrement())
-  pipelineId      BigInt             @map("pipeline_id")
-  workflowStepId  BigInt             @map("workflow_step_id")
-  stepOrder       Int                @map("step_order")
-  status          StepInstanceStatus @default(PENDING)
-  interviewerId   BigInt?            @map("interviewer_id")
-  feedback        String?            @db.Text
-  startedAt       BigInt?            @map("started_at")
-  completedAt     BigInt?            @map("completed_at")
-  skippedAt       BigInt?            @map("skipped_at")
-  skippedBy       BigInt?            @map("skipped_by")
-  batchId         BigInt?            @map("batch_id")
-  
-  pipeline        CandidatePipeline  @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  workflowStep    WorkflowStep       @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
-  interviewer     User?              @relation("StepInterviewerInstance", fields: [interviewerId], references: [id])
-  batch           Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  interviews      Interview[]
+  id             BigInt             @id @default(autoincrement())
+  pipelineId     BigInt             @map("pipeline_id")
+  workflowStepId BigInt             @map("workflow_step_id")
+  stepOrder      Int                @map("step_order")
+  status         StepInstanceStatus @default(PENDING)
+  interviewerId  BigInt?            @map("interviewer_id")
+  feedback       String?            @db.Text
+  startedAt      BigInt?            @map("started_at")
+  completedAt    BigInt?            @map("completed_at")
+  skippedAt      BigInt?            @map("skipped_at")
+  skippedBy      BigInt?            @map("skipped_by")
+  batchId        BigInt?            @map("batch_id")
+
+  pipeline         CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  workflowStep     WorkflowStep      @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  interviewer      User?             @relation("StepInterviewerInstance", fields: [interviewerId], references: [id])
+  batch            Batch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  interviews       Interview[]
   stageEvaluations StageEvaluation[]
 
   @@index([pipelineId])
@@ -572,23 +645,23 @@ model CandidatePipelineStep {
 }
 
 model Interview {
-  id                    BigInt                   @id @default(autoincrement())
-  pipelineId            BigInt                   @map("pipeline_id")
-  pipelineStepId        BigInt                   @map("pipeline_step_id")
-  interviewerId         BigInt                   @map("interviewer_id")
-  candidateId           BigInt                   @map("candidate_id")
-  feedback              String?                  @db.Text
-  rating                Int?
-  recommendation        InterviewRecommendation?
-  scheduledAt           BigInt?                  @map("scheduled_at")
-  conductedAt           BigInt?                  @map("conducted_at")
-  submittedAt           BigInt?                  @map("submitted_at")
-  
-  pipeline              CandidatePipeline        @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  pipelineStep          CandidatePipelineStep    @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
-  interviewer           User                     @relation("InterviewerInterviews", fields: [interviewerId], references: [id])
-  candidate             User                     @relation("CandidateInterviews", fields: [candidateId], references: [id])
-  
+  id             BigInt                   @id @default(autoincrement())
+  pipelineId     BigInt                   @map("pipeline_id")
+  pipelineStepId BigInt                   @map("pipeline_step_id")
+  interviewerId  BigInt                   @map("interviewer_id")
+  candidateId    BigInt                   @map("candidate_id")
+  feedback       String?                  @db.Text
+  rating         Int?
+  recommendation InterviewRecommendation?
+  scheduledAt    BigInt?                  @map("scheduled_at")
+  conductedAt    BigInt?                  @map("conducted_at")
+  submittedAt    BigInt?                  @map("submitted_at")
+
+  pipeline     CandidatePipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  pipelineStep CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
+  interviewer  User                  @relation("InterviewerInterviews", fields: [interviewerId], references: [id])
+  candidate    User                  @relation("CandidateInterviews", fields: [candidateId], references: [id])
+
   @@index([pipelineId])
   @@index([pipelineStepId])
   @@index([interviewerId])
@@ -597,18 +670,18 @@ model Interview {
 }
 
 model AuditLog {
-  id              BigInt       @id @default(autoincrement())
-  pipelineId      BigInt?      @map("pipeline_id")
-  userId          BigInt       @map("user_id")
-  action          AuditAction
-  entityType      String       @db.VarChar(100) @map("entity_type")
-  entityId        BigInt       @map("entity_id")
-  changes         String?      @db.Text
-  timestamp       BigInt
-  
-  pipeline        CandidatePipeline? @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  user            User             @relation("AuditLogs", fields: [userId], references: [id])
-  
+  id         BigInt      @id @default(autoincrement())
+  pipelineId BigInt?     @map("pipeline_id")
+  userId     BigInt      @map("user_id")
+  action     AuditAction
+  entityType String      @map("entity_type") @db.VarChar(100)
+  entityId   BigInt      @map("entity_id")
+  changes    String?     @db.Text
+  timestamp  BigInt
+
+  pipeline CandidatePipeline? @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  user     User               @relation("AuditLogs", fields: [userId], references: [id])
+
   @@index([pipelineId])
   @@index([userId])
   @@index([timestamp])
@@ -616,18 +689,18 @@ model AuditLog {
 }
 
 model Notification {
-  id              BigInt           @id @default(autoincrement())
-  userId          BigInt           @map("user_id")
-  title           String           @db.VarChar(255)
-  message         String           @db.Text
-  type            NotificationType
-  entityType      String?          @db.VarChar(100) @map("entity_type")
-  entityId        BigInt?          @map("entity_id")
-  isRead          Boolean          @default(false) @map("is_read")
-  createdAt       BigInt           @map("created_at")
-  
-  user            User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  
+  id         BigInt           @id @default(autoincrement())
+  userId     BigInt           @map("user_id")
+  title      String           @db.VarChar(255)
+  message    String           @db.Text
+  type       NotificationType
+  entityType String?          @map("entity_type") @db.VarChar(100)
+  entityId   BigInt?          @map("entity_id")
+  isRead     Boolean          @default(false) @map("is_read")
+  createdAt  BigInt           @map("created_at")
+
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
@@ -639,20 +712,20 @@ model Notification {
 // ============================================
 
 model Batch {
-  id              BigInt         @id @default(autoincrement())
-  jobId           BigInt         @map("job_id")
-  workflowStepId BigInt         @map("workflow_step_id")
-  batchNumber     Int            @map("batch_number")
-  batchName       String?        @db.VarChar(255) @map("batch_name")
-  status          BatchStatus    @default(PENDING_ADMIN) @map("status")
-  createdBy       BigInt         @map("created_by")
-  createdAt       BigInt         @map("created_at")
-  updatedAt       BigInt         @map("updated_at")
+  id             BigInt      @id @default(autoincrement())
+  jobId          BigInt      @map("job_id")
+  workflowStepId BigInt      @map("workflow_step_id")
+  batchNumber    Int         @map("batch_number")
+  batchName      String?     @map("batch_name") @db.VarChar(255)
+  status         BatchStatus @default(PENDING_ADMIN) @map("status")
+  createdBy      BigInt      @map("created_by")
+  createdAt      BigInt      @map("created_at")
+  updatedAt      BigInt      @map("updated_at")
 
   // Relations
-  job             Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  workflowStep    WorkflowStep   @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
-  creator         User           @relation("BatchCreator", fields: [createdBy], references: [id])
+  job             Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workflowStep    WorkflowStep            @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  creator         User                    @relation("BatchCreator", fields: [createdBy], references: [id])
   batchCandidates BatchCandidate[]
   pipelineSteps   CandidatePipelineStep[]
   applications    JobsApplied[]
@@ -672,20 +745,20 @@ enum BatchStatus {
 }
 
 model BatchCandidate {
-  id              BigInt                    @id @default(autoincrement())
-  batchId         BigInt                    @map("batch_id")
-  applicationId  BigInt                    @map("application_id")
-  candidateId     BigInt                    @map("candidate_id")
-  currentStatus   BatchCandidateStatus      @default(PENDING) @map("current_status")
-  evaluatedAt     BigInt?                   @map("evaluated_at")
-  evaluatedBy     BigInt?                   @map("evaluated_by")
+  id            BigInt               @id @default(autoincrement())
+  batchId       BigInt               @map("batch_id")
+  applicationId BigInt               @map("application_id")
+  candidateId   BigInt               @map("candidate_id")
+  currentStatus BatchCandidateStatus @default(PENDING) @map("current_status")
+  evaluatedAt   BigInt?              @map("evaluated_at")
+  evaluatedBy   BigInt?              @map("evaluated_by")
 
   // Relations
-  batch           Batch                     @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  application     JobsApplied               @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  candidate       User                      @relation("BatchCandidateEvaluator", fields: [candidateId], references: [id], onDelete: Cascade)
-  evaluator       User?                     @relation("BatchCandidateEvaluatorUser", fields: [evaluatedBy], references: [id], onDelete: SetNull)
-  evaluations     BatchCandidateEvaluation[]
+  batch       Batch                      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  application JobsApplied                @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  candidate   User                       @relation("BatchCandidateEvaluator", fields: [candidateId], references: [id], onDelete: Cascade)
+  evaluator   User?                      @relation("BatchCandidateEvaluatorUser", fields: [evaluatedBy], references: [id], onDelete: SetNull)
+  evaluations BatchCandidateEvaluation[]
 
   @@unique([batchId, candidateId])
   @@index([batchId])
@@ -703,20 +776,19 @@ enum BatchCandidateStatus {
 }
 
 model BatchCandidateEvaluation {
-  id                BigInt                @id @default(autoincrement())
-  batchCandidateId BigInt                @map("batch_candidate_id")
-  interviewerId     BigInt                @map("interviewer_id")
-  status            BatchCandidateStatus
-  feedback          String?               @db.Text
-  rating            Int?
-  submittedAt       BigInt                @map("submitted_at")
+  id               BigInt               @id @default(autoincrement())
+  batchCandidateId BigInt               @map("batch_candidate_id")
+  interviewerId    BigInt               @map("interviewer_id")
+  status           BatchCandidateStatus
+  feedback         String?              @db.Text
+  rating           Int?
+  submittedAt      BigInt               @map("submitted_at")
 
   // Relations
-  batchCandidate   BatchCandidate        @relation(fields: [batchCandidateId], references: [id], onDelete: Cascade)
-  interviewer      User                  @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  batchCandidate BatchCandidate @relation(fields: [batchCandidateId], references: [id], onDelete: Cascade)
+  interviewer    User           @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
 
   @@index([batchCandidateId])
   @@index([interviewerId])
   @@map("batch_candidate_evaluation")
 }
-

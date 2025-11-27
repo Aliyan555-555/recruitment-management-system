@@ -2,16 +2,18 @@
 
 import { useState } from "react"
 import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Briefcase, Loader2 } from "lucide-react"
+import { ArrowLeft, Briefcase, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const jobId = searchParams?.get("jobId")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -46,7 +48,67 @@ export default function LoginPage() {
         const session = await response.json()
         const userRole = session?.user?.role
 
-        // Redirect based on role
+        // If jobId is provided and user is a candidate, auto-apply to the job
+        if (jobId && userRole === "CANDIDATE") {
+          try {
+            // Fetch user's CVs
+            const cvResponse = await fetch("/api/profile/cv")
+            if (cvResponse.ok) {
+              const cvData = await cvResponse.json()
+              const cvs = cvData.cvs || []
+              
+              if (cvs.length > 0) {
+                // Use the first CV to apply
+                const firstCvId = cvs[0].id
+                
+                // Apply to the job
+                const applyResponse = await fetch(`/api/jobs/${jobId}/apply`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ cvId: firstCvId })
+                })
+                
+                if (applyResponse.ok) {
+                  // Redirect to job page to see the application
+                  router.push(`/jobs/${jobId}`)
+                  router.refresh()
+                  setIsLoading(false)
+                  return
+                } else {
+                  // If application fails, still redirect to job page
+                  // The error will be shown on the job page
+                  const errorData = await applyResponse.json().catch(() => ({}))
+                  console.error("Auto-apply failed:", errorData.error)
+                  router.push(`/jobs/${jobId}`)
+                  router.refresh()
+                  setIsLoading(false)
+                  return
+                }
+              } else {
+                // No CVs available, redirect to job page where user can upload one
+                router.push(`/jobs/${jobId}`)
+                router.refresh()
+                setIsLoading(false)
+                return
+              }
+            } else {
+              // CV fetch failed, still redirect to job page
+              router.push(`/jobs/${jobId}`)
+              router.refresh()
+              setIsLoading(false)
+              return
+            }
+          } catch (applyError) {
+            console.error("Error during auto-apply:", applyError)
+            // Redirect to job page even if auto-apply fails
+            router.push(`/jobs/${jobId}`)
+            router.refresh()
+            setIsLoading(false)
+            return
+          }
+        }
+
+        // Redirect based on role (if no jobId or not a candidate)
         if (userRole === "ADMIN") {
           router.push("/admin/dashboard")
         } else if (userRole === "INTERVIEWER") {
@@ -55,13 +117,15 @@ export default function LoginPage() {
           // CANDIDATE or default
           router.push("/")
         }
+        router.refresh()
+        setIsLoading(false)
       } catch (err) {
         // If session fetch fails, redirect to home page
         console.error("Error fetching session:", err)
         router.push("/")
+        router.refresh()
+        setIsLoading(false)
       }
-      
-      router.refresh()
     } catch (error) {
       setError("An error occurred. Please try again.")
       setIsLoading(false)
@@ -69,7 +133,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted px-4">
+      <Link href="/" className="absolute top-4 left-4">
+        <Button variant="secondary" size="sm" className="flex items-center gap-2 shadow-sm">
+          <ArrowLeft className="h-4 w-4" />
+          Home
+        </Button>
+      </Link>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">

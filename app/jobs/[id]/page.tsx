@@ -66,14 +66,15 @@ export default function JobDetailsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login")
-      return
-    }
-
-    if (status === "authenticated" && params.id) {
-      fetchJobDetails()
-      fetchUserCvs()
+    if (params.id) {
+      if (status === "unauthenticated") {
+        // For unauthenticated users, fetch job details from public API
+        fetchPublicJobDetails()
+      } else if (status === "authenticated") {
+        // For authenticated users, use the existing flow
+        fetchJobDetails()
+        fetchUserCvs()
+      }
     }
   }, [status, router, params.id])
 
@@ -109,6 +110,53 @@ export default function JobDetailsPage() {
         err instanceof Error ? err.message : "Failed to fetch job details"
       console.error("Error fetching job:", err)
       setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchPublicJobDetails = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/jobs/public`)
+      if (!response.ok) {
+        throw new Error("Failed to fetch job details")
+      }
+
+      const data = await response.json()
+      const jobData = data.jobs?.find((j: any) => j.id === params.id)
+      
+      if (!jobData) {
+        router.push("/")
+        return
+      }
+
+      // Transform public job data to match expected format
+      setJob({
+        id: jobData.id,
+        title: jobData.title,
+        company: jobData.company,
+        shortDescription: jobData.shortDescription,
+        description: jobData.description,
+        locations: jobData.locations,
+        employmentType: jobData.employmentType,
+        employmentShift: jobData.employmentShift,
+        minimumExperience: jobData.minimumExperience,
+        minimumSalary: jobData.minimumSalary,
+        benefits: jobData.benefits,
+        totalPositions: jobData.totalPositions,
+        postFrom: jobData.postFrom,
+        postTo: jobData.postTo,
+        skills: jobData.skills,
+        createdBy: "",
+        creatorEmail: ""
+      })
+      
+    } catch (error) {
+      console.error("Error fetching public job details:", error)
+      setError((error as Error).message)
     } finally {
       setLoading(false)
     }
@@ -192,6 +240,7 @@ export default function JobDetailsPage() {
             appliedAt: BigInt(application.appliedAt),
           } : null}
           userCvs={userCvs}
+          isPublic={status === "unauthenticated"}
         />
       </main>
     </div>

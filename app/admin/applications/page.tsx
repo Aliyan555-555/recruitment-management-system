@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  FileText, 
-  Search, 
-  Filter, 
-  ArrowRight, 
+import {
+  FileText,
+  Search,
+  Filter,
+  ArrowRight,
   Loader2,
   User,
   Briefcase,
@@ -130,7 +130,7 @@ export default function AdminApplicationsPage() {
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(a => 
+      filtered = filtered.filter(a =>
         a.candidateName.toLowerCase().includes(query) ||
         a.candidateEmail.toLowerCase().includes(query) ||
         a.jobTitle.toLowerCase().includes(query) ||
@@ -325,9 +325,9 @@ export default function AdminApplicationsPage() {
                         <span className="text-xs text-muted-foreground">
                           {application.pipeline.totalSteps > 0
                             ? `Step ${Math.min(
-                                Math.max(application.pipeline.currentStep, 1),
-                                application.pipeline.totalSteps
-                              )}/${application.pipeline.totalSteps}`
+                              Math.max(application.pipeline.currentStep, 1),
+                              application.pipeline.totalSteps
+                            )}/${application.pipeline.totalSteps}`
                             : application.pipeline.overallStatus === "COMPLETED"
                               ? "Completed"
                               : "No steps"}
@@ -355,8 +355,8 @@ export default function AdminApplicationsPage() {
             <div className="text-center py-12 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>
-                {searchQuery || statusFilter !== "all" 
-                  ? "No applications match your filters" 
+                {searchQuery || statusFilter !== "all"
+                  ? "No applications match your filters"
                   : "No applications yet"}
               </p>
             </div>

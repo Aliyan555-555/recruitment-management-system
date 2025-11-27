@@ -13,10 +13,13 @@ export async function middleware(request: NextRequest) {
 
   // Public routes that don't require authentication
   if (
+    pathname === '/' ||                          // Landing page
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/register')
+    pathname.startsWith('/api/register') ||
+    pathname.startsWith('/api/jobs/public') ||   // Public jobs API
+    pathname.startsWith('/jobs/') && pathname.includes('/apply/success') // Success pages
   ) {
     return NextResponse.next()
   }

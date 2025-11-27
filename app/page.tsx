@@ -1,23 +1,61 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
+import { JobsLandingHero } from "@/components/JobsLandingHero"
+import { PublicJobCard } from "@/components/PublicJobCard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Briefcase, Users, FileCheck, TrendingUp, Calendar, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Briefcase, Users, FileCheck, TrendingUp, Calendar, Clock, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useDashboardStore } from "@/store/useDashboardStore"
 import { useJobsStore } from "@/store/useJobsStore"
 import { JobCardSkeleton } from "@/components/JobCardSkeleton"
 import type { Job } from "@/store/useJobsStore"
 
+interface PublicJob {
+  id: string
+  title: string
+  company: string
+  shortDescription: string
+  description: string
+  industry: string
+  employmentType: string
+  employmentShift?: string
+  totalPositions?: number
+  minimumExperience?: string
+  minimumSalary?: string
+  benefits?: string
+  postFrom: string
+  postTo: string
+  jobType: string
+  jobStatus: string
+  createdAt: string
+  locations: Array<{
+    city: string
+    country: string
+  }>
+  skills: string[]
+  educationRequirements: Array<{
+    level: string
+    field?: string
+    isRequired: boolean
+  }>
+  applicationCount: number
+}
+
 export default function HomePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const { stats, recentApplications, upcomingInterviews, loading, error, fetchDashboardData } = useDashboardStore()
   const { jobs, fetchJobs } = useJobsStore()
+
+  // Public jobs state
+  const [publicJobs, setPublicJobs] = useState<PublicJob[]>([])
+  const [publicJobsLoading, setPublicJobsLoading] = useState(true)
+  const [publicJobsError, setPublicJobsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
@@ -40,6 +78,43 @@ export default function HomePage() {
     }
   }, [status, session, router, fetchDashboardData, fetchJobs])
 
+  // Fetch public jobs for unauthenticated users
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      fetchPublicJobs()
+    }
+  }, [status])
+
+  const fetchPublicJobs = async (filters?: {
+    search: string
+    department: string
+    location: string
+  }) => {
+    try {
+      setPublicJobsLoading(true)
+      setPublicJobsError(null)
+
+      const params = new URLSearchParams()
+      if (filters?.search) params.set('search', filters.search)
+      if (filters?.department && filters.department !== 'all') params.set('department', filters.department)
+      if (filters?.location && filters.location !== 'all') params.set('location', filters.location)
+
+      const response = await fetch(`/api/jobs/public?${params.toString()}`)
+      const data = await response.json()
+
+      if (data.success) {
+        setPublicJobs(data.jobs)
+      } else {
+        setPublicJobsError(data.error || "Failed to fetch jobs")
+      }
+    } catch (error) {
+      console.error("Error fetching public jobs:", error)
+      setPublicJobsError("Failed to fetch jobs. Please try again.")
+    } finally {
+      setPublicJobsLoading(false)
+    }
+  }
+
   // Show loading state while checking authentication or redirecting
   if (status === "loading" || (status === "authenticated" && session?.user?.role && session.user.role !== "CANDIDATE")) {
     return (
@@ -57,72 +132,94 @@ export default function HomePage() {
   // Show public landing page if not authenticated
   if (!session) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-background">
         <Navbar />
-        <main>
-          <div className="relative isolate px-6 pt-14 lg:px-8">
-            <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-              <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary to-secondary opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
-            </div>
 
-            <div className="mx-auto max-w-2xl py-32 sm:py-48 lg:py-56">
-              <div className="text-center">
-                <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-                  Professional Recruitment Management System
-                </h1>
-                <p className="mt-6 text-lg leading-8 text-muted-foreground">
-                  Streamline your hiring process with our comprehensive recruitment platform. 
-                  Manage applications, schedule interviews, and find the perfect candidates.
-                </p>
-                <div className="mt-10 flex items-center justify-center gap-x-6">
-                  <Link href="/register">
-                    <Button size="lg">
-                      Get Started
-                    </Button>
-                  </Link>
-                  <Link href="/login">
-                    <Button variant="outline" size="lg">
-                      Sign In
-                    </Button>
-                  </Link>
-                </div>
+        {/* Hero Section */}
+        <JobsLandingHero
+          onSearch={fetchPublicJobs}
+          totalJobs={publicJobs.length}
+        />
+
+        {/* Jobs Listing */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {publicJobsError && (
+            <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <p className="text-sm text-destructive">{publicJobsError}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fetchPublicJobs()}
+                className="mt-2"
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
+
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Available Positions
+            </h2>
+            <p className="text-muted-foreground">
+              Explore our latest job openings and start your career journey
+            </p>
+          </div>
+
+          {publicJobsLoading ? (
+            <div className="grid grid-cols-1 gap-6 max-w-4xl mx-auto">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-96 bg-muted animate-pulse rounded-lg" />
+              ))}
+            </div>
+          ) : publicJobs.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 w-full">
+              {publicJobs.map((job) => (
+                <PublicJobCard key={job.id} job={job} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                No jobs found
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your search filters or check back later for new opportunities.
+              </p>
+              <Button onClick={() => fetchPublicJobs()}>
+                Refresh Jobs
+              </Button>
+            </div>
+          )}
+
+          {/* Call to Action */}
+          {publicJobs.length > 0 && (
+            <div className="mt-16 text-center bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-foreground mb-4">
+                Ready to Start Your Journey?
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
+                Join our talent network and get access to exclusive job opportunities,
+                personalized recommendations, and application tracking.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/register">
+                  <Button size="lg" className="min-w-[200px]">
+                    Create Account
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button variant="outline" size="lg" className="min-w-[200px]">
+                    Sign In
+                  </Button>
+                </Link>
               </div>
             </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <Card>
-                <CardHeader>
-                  <Briefcase className="h-12 w-12 text-primary mb-4" />
-                  <CardTitle>Job Management</CardTitle>
-                  <CardDescription>
-                    Post jobs, manage applications, and track candidates through the entire hiring process.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <Users className="h-12 w-12 text-primary mb-4" />
-                  <CardTitle>Candidate Tracking</CardTitle>
-                  <CardDescription>
-                    Keep track of all candidates, their skills, education, and interview performance.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <FileCheck className="h-12 w-12 text-primary mb-4" />
-                  <CardTitle>Interview Scheduling</CardTitle>
-                  <CardDescription>
-                    Schedule and manage screening, focus group, and final interviews efficiently.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </div>
-          </div>
+          )}
         </main>
       </div>
     )

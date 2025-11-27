@@ -63,20 +63,28 @@ interface UserCv {
 
 export function JobDetails({
   job,
-  hasApplied,
-  application,
-  userCvs
+  hasApplied = false,
+  application = null,
+  userCvs = [],
+  isPublic = false
 }: {
   job: Job
-  hasApplied: boolean
-  application: Application | null
-  userCvs: UserCv[]
+  hasApplied?: boolean
+  application?: Application | null
+  userCvs?: UserCv[]
+  isPublic?: boolean
 }) {
   const router = useRouter()
   const [selectedCv, setSelectedCv] = useState(userCvs[0]?.id || "")
   const [applying, setApplying] = useState(false)
 
   const handleApply = async () => {
+    if (isPublic) {
+      // Redirect to registration with job context
+      router.push(`/register?jobId=${job.id}`)
+      return
+    }
+
     if (!selectedCv) {
       alert("Please select a CV to apply with")
       return
