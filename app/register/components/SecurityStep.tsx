@@ -1,8 +1,8 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AgreementsState, PersonalInfoState } from "@/app/register/types"
-import { CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { CheckCircle2, XCircle, AlertCircle, Eye, EyeOff } from "lucide-react"
 
 type SecurityStepProps = {
   personalInfo: PersonalInfoState
@@ -47,6 +47,9 @@ const SecurityStep = ({
   clearFieldError,
   getFieldError,
 }: SecurityStepProps) => {
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   const passwordRequirements = useMemo((): PasswordRequirement[] => {
     return [
       {
@@ -100,6 +103,7 @@ const SecurityStep = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Password *</Label>
@@ -109,17 +113,30 @@ const SecurityStep = ({
               </span>
             )}
           </div>
-          <Input
-            type="password"
-            value={password}
-            maxLength={128}
-            onChange={(e) => {
-              clearFieldError("security.password")
-              onPasswordChange(e.target.value)
-            }}
-            placeholder="Enter a strong password"
-            className={getFieldError("security.password") ? "border-destructive" : ""}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              maxLength={128}
+              onChange={(e) => {
+                clearFieldError("security.password")
+                onPasswordChange(e.target.value)
+              }}
+              placeholder="Enter a strong password"
+              className={getFieldError("security.password") ? "border-destructive" : ""}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           {getFieldError("security.password") && (
             <p className="text-xs text-destructive flex items-center gap-1">
               <AlertCircle className="h-3 w-3" />
@@ -148,23 +165,36 @@ const SecurityStep = ({
         </div>
         <div className="space-y-2">
           <Label>Confirm Password *</Label>
-          <Input
-            type="password"
-            value={confirmPassword}
-            maxLength={128}
-            onChange={(e) => {
-              clearFieldError("security.confirmPassword")
-              onConfirmPasswordChange(e.target.value)
-            }}
-            placeholder="Re-enter your password"
-            className={
-              getFieldError("security.confirmPassword") || (passwordsMatch === false && confirmPassword)
-                ? "border-destructive"
-                : passwordsMatch === true && confirmPassword
-                  ? "border-green-500"
-                  : ""
-            }
-          />
+          <div className="relative">
+            <Input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              maxLength={128}
+              onChange={(e) => {
+                clearFieldError("security.confirmPassword")
+                onConfirmPasswordChange(e.target.value)
+              }}
+              placeholder="Re-enter your password"
+              className={
+                getFieldError("security.confirmPassword") || (passwordsMatch === false && confirmPassword)
+                  ? "border-destructive"
+                  : passwordsMatch === true && confirmPassword
+                    ? "border-green-500"
+                    : ""
+              }
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           {getFieldError("security.confirmPassword") && (
             <p className="text-xs text-destructive flex items-center gap-1">
               <AlertCircle className="h-3 w-3" />
@@ -200,15 +230,13 @@ const SecurityStep = ({
             return (
               <div key={item.key} className="space-y-1">
                 <label
-                  className={`flex items-start gap-3 text-sm cursor-pointer ${
-                    hasError ? "text-destructive" : "text-foreground"
-                  }`}
+                  className={`flex items-start gap-3 text-sm cursor-pointer ${hasError ? "text-destructive" : "text-foreground"
+                    }`}
                 >
                   <input
                     type="checkbox"
-                    className={`mt-1 h-4 w-4 rounded border flex-shrink-0 ${
-                      hasError ? "border-destructive" : ""
-                    }`}
+                    className={`mt-1 h-4 w-4 rounded border flex-shrink-0 ${hasError ? "border-destructive" : ""
+                      }`}
                     checked={agreements[item.key]}
                     onChange={(e) => {
                       clearFieldError(errorKey)

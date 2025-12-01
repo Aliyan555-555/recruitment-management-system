@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import type { ValidationErrorItem } from "joi"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Briefcase, CheckCircle2, Loader2 } from "lucide-react"
+import { Briefcase, CheckCircle2, Loader2, ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -568,7 +568,13 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted px-4 py-12">
+    <div className="relative min-h-screen bg-gradient-to-b from-background to-muted px-4 py-12">
+      <Link href="/" className="absolute top-4 left-4">
+        <Button variant="secondary" size="sm" className="flex items-center gap-2 shadow-sm">
+          <ArrowLeft className="h-4 w-4" />
+          Home
+        </Button>
+      </Link>
       <div className="w-full max-w-5xl mx-auto">
         <div className="text-center mb-10 space-y-4">
           <div className="flex justify-center">

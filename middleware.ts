@@ -15,10 +15,14 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === '/' ||                          // Landing page
     pathname.startsWith('/login') ||
+    pathname === '/admin/login' ||               // Admin login page
+    pathname === '/interviewer/login' ||         // Interviewer login page
     pathname.startsWith('/register') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/register') ||
     pathname.startsWith('/api/jobs/public') ||   // Public jobs API
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
     pathname.startsWith('/jobs/') && pathname.includes('/apply/success') // Success pages
   ) {
     return NextResponse.next()

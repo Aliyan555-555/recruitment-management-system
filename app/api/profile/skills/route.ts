@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const userId = session.user.id
+    const userId = BigInt(session.user.id)
 
     const skill = await prisma.userSkills.create({
       data: {
-        userId: Number(userId),
+        userId: userId,
         skillName: body.skillName,
         level: body.level,
         createdAt: BigInt(Date.now()),

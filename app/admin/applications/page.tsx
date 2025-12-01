@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -69,7 +69,7 @@ export default function AdminApplicationsPage() {
 
   useEffect(() => {
     filterApplications()
-  }, [applications, searchQuery, statusFilter, jobFilter])
+  }, [])
 
   const fetchApplications = async () => {
     try {
@@ -114,7 +114,7 @@ export default function AdminApplicationsPage() {
     }
   }
 
-  const filterApplications = () => {
+  const filterApplications = useCallback(() => {
     let filtered = [...applications]
 
     // Filter by status
@@ -139,7 +139,7 @@ export default function AdminApplicationsPage() {
     }
 
     setFilteredApplications(filtered)
-  }
+  }, [applications, statusFilter, jobFilter, searchQuery])
 
   const getStatusColor = (status: string) => {
     switch (status) {

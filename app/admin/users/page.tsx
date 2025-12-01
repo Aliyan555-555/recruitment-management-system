@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  Users, 
-  Search, 
-  Filter, 
+import {
+  Users,
+  Search,
+  Filter,
   Loader2,
   User as UserIcon,
   Briefcase,
@@ -96,7 +96,7 @@ export default function AdminUsersPage() {
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(u => 
+      filtered = filtered.filter(u =>
         u.username.toLowerCase().includes(query) ||
         u.email.toLowerCase().includes(query) ||
         `${u.firstname} ${u.lastname}`.toLowerCase().includes(query) ||
@@ -286,8 +286,8 @@ export default function AdminUsersPage() {
             <div className="text-center py-12 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>
-                {searchQuery || roleFilter !== "all" 
-                  ? "No users match your filters" 
+                {searchQuery || roleFilter !== "all"
+                  ? "No users match your filters"
                   : "No users yet"}
               </p>
             </div>

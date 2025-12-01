@@ -559,3 +559,74 @@ export async function sendPipelineCompletionEmail(
     html
   })
 }
+
+/**
+ * Send password reset email to user
+ */
+export async function sendPasswordResetEmail(
+  email: string,
+  userName: string,
+  resetLink: string
+): Promise<void> {
+  const subject = "Reset Your Password - Recruitment Management System"
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }
+        .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .info-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #667eea; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔐 Password Reset Request</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${userName},</p>
+          <p>We received a request to reset your password for your Recruitment Management System account.</p>
+          
+          <div class="info-box">
+            <h3>Reset Your Password</h3>
+            <p>Click the button below to reset your password. This link will expire in <strong>10 minutes</strong> and can only be used <strong>once</strong>.</p>
+            <a href="${resetLink}" class="button">Reset Password</a>
+            <p style="margin-top: 15px; font-size: 12px; color: #666;">Or copy and paste this link into your browser:</p>
+            <p style="font-size: 11px; color: #667eea; word-break: break-all;">${resetLink}</p>
+          </div>
+
+          <div class="warning-box">
+            <h4>⚠️ Security Notice</h4>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li>This link expires in <strong>10 minutes</strong></li>
+              <li>This link can only be used <strong>once</strong></li>
+              <li>If you didn't request this, please ignore this email</li>
+              <li>Your password will not change until you click the link above</li>
+            </ul>
+          </div>
+
+          <p>If you're having trouble clicking the button, copy and paste the URL above into your web browser.</p>
+          
+          <div class="footer">
+            <p>This is an automated email from the Recruitment Management System.</p>
+            <p>If you didn't request a password reset, you can safely ignore this email.</p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: email,
+    subject,
+    html
+  })
+}

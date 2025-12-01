@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Briefcase, Loader2 } from "lucide-react"
+import { ArrowLeft, UserCircle, Loader2, Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,6 +20,7 @@ export default function LoginPage() {
     email: "",
     password: "",
   })
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,44 +40,34 @@ export default function LoginPage() {
         return
       }
 
-      // Wait a moment for session to be available, then get user role
       await new Promise(resolve => setTimeout(resolve, 200))
-      
-      // Get the user's role from session to redirect appropriately
+
       try {
         const response = await fetch("/api/auth/session")
         const session = await response.json()
         const userRole = session?.user?.role
 
-        // If jobId is provided and user is a candidate, auto-apply to the job
         if (jobId && userRole === "CANDIDATE") {
           try {
-            // Fetch user's CVs
             const cvResponse = await fetch("/api/profile/cv")
             if (cvResponse.ok) {
               const cvData = await cvResponse.json()
               const cvs = cvData.cvs || []
-              
+
               if (cvs.length > 0) {
-                // Use the first CV to apply
                 const firstCvId = cvs[0].id
-                
-                // Apply to the job
                 const applyResponse = await fetch(`/api/jobs/${jobId}/apply`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ cvId: firstCvId })
                 })
-                
+
                 if (applyResponse.ok) {
-                  // Redirect to job page to see the application
                   router.push(`/jobs/${jobId}`)
                   router.refresh()
                   setIsLoading(false)
                   return
                 } else {
-                  // If application fails, still redirect to job page
-                  // The error will be shown on the job page
                   const errorData = await applyResponse.json().catch(() => ({}))
                   console.error("Auto-apply failed:", errorData.error)
                   router.push(`/jobs/${jobId}`)
@@ -85,14 +76,12 @@ export default function LoginPage() {
                   return
                 }
               } else {
-                // No CVs available, redirect to job page where user can upload one
                 router.push(`/jobs/${jobId}`)
                 router.refresh()
                 setIsLoading(false)
                 return
               }
             } else {
-              // CV fetch failed, still redirect to job page
               router.push(`/jobs/${jobId}`)
               router.refresh()
               setIsLoading(false)
@@ -100,7 +89,6 @@ export default function LoginPage() {
             }
           } catch (applyError) {
             console.error("Error during auto-apply:", applyError)
-            // Redirect to job page even if auto-apply fails
             router.push(`/jobs/${jobId}`)
             router.refresh()
             setIsLoading(false)
@@ -108,19 +96,28 @@ export default function LoginPage() {
           }
         }
 
-        // Redirect based on role (if no jobId or not a candidate)
         if (userRole === "ADMIN") {
-          router.push("/admin/dashboard")
+          setError("Admin users must use the Admin Login page.")
+          await fetch("/api/auth/signout", { method: "POST" })
+          setIsLoading(false)
+          setTimeout(() => {
+            router.push("/admin/login")
+          }, 2000)
+          return
         } else if (userRole === "INTERVIEWER") {
-          router.push("/interviewer/dashboard")
+          setError("Interviewer users must use the Interviewer Login page.")
+          await fetch("/api/auth/signout", { method: "POST" })
+          setIsLoading(false)
+          setTimeout(() => {
+            router.push("/interviewer/login")
+          }, 2000)
+          return
         } else {
-          // CANDIDATE or default
           router.push("/")
         }
         router.refresh()
         setIsLoading(false)
       } catch (err) {
-        // If session fetch fails, redirect to home page
         console.error("Error fetching session:", err)
         router.push("/")
         router.refresh()
@@ -133,27 +130,30 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted px-4">
-      <Link href="/" className="absolute top-4 left-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-green-900 to-slate-900 px-4 py-8">
+      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+
+      <Link href="/" className="absolute top-6 left-6">
         <Button variant="secondary" size="sm" className="flex items-center gap-2 shadow-sm">
           <ArrowLeft className="h-4 w-4" />
           Home
         </Button>
       </Link>
-      <div className="w-full max-w-md">
+
+      <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary rounded-full">
-              <Briefcase className="h-8 w-8 text-primary-foreground" />
+            <div className="p-4 bg-green-600 rounded-full shadow-lg shadow-green-500/50">
+              <UserCircle className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold">Welcome Back</h1>
-          <p className="text-muted-foreground mt-2">Sign in to your account to continue</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Welcome Back</h1>
+          <p className="text-green-200">Sign in to explore job opportunities</p>
         </div>
 
-        <Card>
+        <Card className="border-green-500/20 shadow-2xl">
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+            <CardTitle>Candidate Login</CardTitle>
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -178,31 +178,54 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  disabled={isLoading}
-                />
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:underline font-medium"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             </CardContent>
 
             <CardFooter className="flex flex-col space-y-4">
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
               </Button>
 
-              <p className="text-sm text-center text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-primary hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
+              <div className="text-sm text-center text-muted-foreground">
+                <p>
+                  Don&apos;t have an account?{" "}
+                  <Link href="/register" className="text-primary hover:underline font-medium">
+                    Sign up
+                  </Link>
+                </p>
+              </div>
             </CardFooter>
           </form>
         </Card>
@@ -210,4 +233,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

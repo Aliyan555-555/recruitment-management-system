@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Save, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { Loader2, Save, ArrowLeft, CheckCircle2, Plus, Edit2, Trash2, X } from "lucide-react"
 import Link from "next/link"
 import {
   Select,
@@ -60,6 +60,42 @@ export default function EditProfilePage() {
   const [secondPriority, setSecondPriority] = useState("")
   const [thirdPriority, setThirdPriority] = useState("")
   const [summary, setSummary] = useState("")
+
+  // Skills
+  const [skills, setSkills] = useState<Array<{ id: string; skillName: string; level: number }>>([])
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null)
+  const [newSkill, setNewSkill] = useState({ skillName: "", level: 5 })
+  const [editingSkill, setEditingSkill] = useState({ skillName: "", level: 5 })
+  const [showAddSkill, setShowAddSkill] = useState(false)
+
+  // Experiences
+  const [experiences, setExperiences] = useState<Array<{
+    id: string
+    jobTitle: string
+    company?: string
+    location?: string
+    startDate?: string
+    endDate?: string
+    isCurrent: boolean
+  }>>([])
+  const [editingExperienceId, setEditingExperienceId] = useState<string | null>(null)
+  const [newExperience, setNewExperience] = useState({
+    jobTitle: "",
+    company: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false
+  })
+  const [editingExperience, setEditingExperience] = useState({
+    jobTitle: "",
+    company: "",
+    location: "",
+    startDate: "",
+    endDate: "",
+    isCurrent: false
+  })
+  const [showAddExperience, setShowAddExperience] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -126,10 +162,237 @@ export default function EditProfilePage() {
         setThirdPriority(user.jobPreference.thirdPriority || "")
         setSummary(user.jobPreference.summary || "")
       }
+
+      // Skills
+      if (user.skills) {
+        setSkills(user.skills.map((skill: any) => ({
+          id: skill.id.toString(),
+          skillName: skill.skillName,
+          level: skill.level
+        })))
+      }
+
+      // Experiences
+      if (user.experiences) {
+        setExperiences(user.experiences.map((exp: any) => ({
+          id: exp.id.toString(),
+          jobTitle: exp.jobTitle,
+          company: exp.company || "",
+          location: exp.location || "",
+          startDate: exp.startDate || "",
+          endDate: exp.endDate || "",
+          isCurrent: exp.isCurrent || false
+        })))
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load profile")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Skills handlers
+  const handleAddSkill = async () => {
+    if (!newSkill.skillName.trim()) {
+      setError("Skill name is required")
+      return
+    }
+
+    try {
+      const response = await fetch("/api/profile/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillName: newSkill.skillName.trim(),
+          level: newSkill.level
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to add skill")
+      }
+
+      const skill = await response.json()
+      setSkills([...skills, skill])
+      setNewSkill({ skillName: "", level: 5 })
+      setShowAddSkill(false)
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to add skill")
+    }
+  }
+
+  const handleEditSkill = (skill: { id: string; skillName: string; level: number }) => {
+    setEditingSkillId(skill.id)
+    setEditingSkill({ skillName: skill.skillName, level: skill.level })
+  }
+
+  const handleUpdateSkill = async () => {
+    if (!editingSkillId || !editingSkill.skillName.trim()) {
+      setError("Skill name is required")
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/profile/skills/${editingSkillId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          skillName: editingSkill.skillName.trim(),
+          level: editingSkill.level
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to update skill")
+      }
+
+      const updatedSkill = await response.json()
+      setSkills(skills.map(s => s.id === editingSkillId ? updatedSkill : s))
+      setEditingSkillId(null)
+      setEditingSkill({ skillName: "", level: 5 })
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to update skill")
+    }
+  }
+
+  const handleDeleteSkill = async (skillId: string) => {
+    if (!confirm("Are you sure you want to delete this skill?")) return
+
+    try {
+      const response = await fetch(`/api/profile/skills/${skillId}`, {
+        method: "DELETE"
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to delete skill")
+      }
+
+      setSkills(skills.filter(s => s.id !== skillId))
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to delete skill")
+    }
+  }
+
+  // Experience handlers
+  const handleAddExperience = async () => {
+    if (!newExperience.jobTitle.trim()) {
+      setError("Job title is required")
+      return
+    }
+
+    try {
+      const response = await fetch("/api/profile/experience", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle: newExperience.jobTitle.trim(),
+          company: newExperience.company.trim() || undefined,
+          location: newExperience.location.trim() || undefined,
+          startDate: newExperience.startDate.trim() || undefined,
+          endDate: newExperience.isCurrent ? undefined : (newExperience.endDate.trim() || undefined),
+          isCurrent: newExperience.isCurrent
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to add experience")
+      }
+
+      const experience = await response.json()
+      setExperiences([...experiences, experience])
+      setNewExperience({
+        jobTitle: "",
+        company: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        isCurrent: false
+      })
+      setShowAddExperience(false)
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to add experience")
+    }
+  }
+
+  const handleEditExperience = (exp: typeof experiences[0]) => {
+    setEditingExperienceId(exp.id)
+    setEditingExperience({
+      jobTitle: exp.jobTitle,
+      company: exp.company || "",
+      location: exp.location || "",
+      startDate: exp.startDate || "",
+      endDate: exp.endDate || "",
+      isCurrent: exp.isCurrent
+    })
+  }
+
+  const handleUpdateExperience = async () => {
+    if (!editingExperienceId || !editingExperience.jobTitle.trim()) {
+      setError("Job title is required")
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/profile/experience/${editingExperienceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobTitle: editingExperience.jobTitle.trim(),
+          company: editingExperience.company.trim() || undefined,
+          location: editingExperience.location.trim() || undefined,
+          startDate: editingExperience.startDate.trim() || undefined,
+          endDate: editingExperience.isCurrent ? undefined : (editingExperience.endDate.trim() || undefined),
+          isCurrent: editingExperience.isCurrent
+        })
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to update experience")
+      }
+
+      const updatedExp = await response.json()
+      setExperiences(experiences.map(e => e.id === editingExperienceId ? updatedExp : e))
+      setEditingExperienceId(null)
+      setEditingExperience({
+        jobTitle: "",
+        company: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        isCurrent: false
+      })
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to update experience")
+    }
+  }
+
+  const handleDeleteExperience = async (expId: string) => {
+    if (!confirm("Are you sure you want to delete this experience?")) return
+
+    try {
+      const response = await fetch(`/api/profile/experience/${expId}`, {
+        method: "DELETE"
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || "Failed to delete experience")
+      }
+
+      setExperiences(experiences.filter(e => e.id !== expId))
+      setError(null)
+    } catch (err: any) {
+      setError(err.message || "Failed to delete experience")
     }
   }
 
@@ -427,6 +690,466 @@ export default function EditProfilePage() {
                     placeholder="https://yourwebsite.com"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Skills */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Skills</CardTitle>
+                  <CardDescription>Manage your technical and professional skills</CardDescription>
+                </div>
+                {!showAddSkill && !editingSkillId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddSkill(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Skill
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add Skill Form */}
+              {showAddSkill && !editingSkillId && (
+                <div className="p-4 border rounded-lg space-y-4 bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Add New Skill</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddSkill(false)
+                        setNewSkill({ skillName: "", level: 5 })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="newSkillName">Skill Name *</Label>
+                      <Input
+                        id="newSkillName"
+                        value={newSkill.skillName}
+                        onChange={(e) => setNewSkill({ ...newSkill, skillName: e.target.value })}
+                        placeholder="e.g., JavaScript, Python"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="newSkillLevel">Level (1-10) *</Label>
+                      <Input
+                        id="newSkillLevel"
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={newSkill.level}
+                        onChange={(e) => setNewSkill({ ...newSkill, level: parseInt(e.target.value) || 5 })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddSkill} size="sm">
+                      Add Skill
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddSkill(false)
+                        setNewSkill({ skillName: "", level: 5 })
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Skills List */}
+              <div className="space-y-3">
+                {skills.length === 0 && !showAddSkill && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No skills added yet. Click &quot;Add Skill&quot; to get started.
+                  </p>
+                )}
+                {skills.map((skill) => (
+                  <div key={skill.id} className="p-4 border rounded-lg">
+                    {editingSkillId === skill.id ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">Edit Skill</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingSkillId(null)
+                              setEditingSkill({ skillName: "", level: 5 })
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="editSkillName">Skill Name *</Label>
+                            <Input
+                              id="editSkillName"
+                              value={editingSkill.skillName}
+                              onChange={(e) => setEditingSkill({ ...editingSkill, skillName: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="editSkillLevel">Level (1-10) *</Label>
+                            <Input
+                              id="editSkillLevel"
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={editingSkill.level}
+                              onChange={(e) => setEditingSkill({ ...editingSkill, level: parseInt(e.target.value) || 5 })}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleUpdateSkill} size="sm">
+                            Update Skill
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingSkillId(null)
+                              setEditingSkill({ skillName: "", level: 5 })
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{skill.skillName}</p>
+                          <p className="text-sm text-muted-foreground">Level: {skill.level}/10</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditSkill(skill)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteSkill(skill.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Experience */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Work Experience</CardTitle>
+                  <CardDescription>Add your professional work experience</CardDescription>
+                </div>
+                {!showAddExperience && !editingExperienceId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddExperience(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Experience
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Add Experience Form */}
+              {showAddExperience && !editingExperienceId && (
+                <div className="p-4 border rounded-lg space-y-4 bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Add New Experience</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddExperience(false)
+                        setNewExperience({
+                          jobTitle: "",
+                          company: "",
+                          location: "",
+                          startDate: "",
+                          endDate: "",
+                          isCurrent: false
+                        })
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="newJobTitle">Job Title *</Label>
+                      <Input
+                        id="newJobTitle"
+                        value={newExperience.jobTitle}
+                        onChange={(e) => setNewExperience({ ...newExperience, jobTitle: e.target.value })}
+                        placeholder="e.g., Software Engineer"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="newCompany">Company</Label>
+                        <Input
+                          id="newCompany"
+                          value={newExperience.company}
+                          onChange={(e) => setNewExperience({ ...newExperience, company: e.target.value })}
+                          placeholder="Company name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="newLocation">Location</Label>
+                        <Input
+                          id="newLocation"
+                          value={newExperience.location}
+                          onChange={(e) => setNewExperience({ ...newExperience, location: e.target.value })}
+                          placeholder="City, Country"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="newStartDate">Start Date</Label>
+                        <Input
+                          id="newStartDate"
+                          type="month"
+                          value={newExperience.startDate}
+                          onChange={(e) => setNewExperience({ ...newExperience, startDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="newEndDate">End Date</Label>
+                        <Input
+                          id="newEndDate"
+                          type="month"
+                          value={newExperience.endDate}
+                          onChange={(e) => setNewExperience({ ...newExperience, endDate: e.target.value })}
+                          disabled={newExperience.isCurrent}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="newIsCurrent"
+                        checked={newExperience.isCurrent}
+                        onChange={(e) => {
+                          setNewExperience({ ...newExperience, isCurrent: e.target.checked, endDate: "" })
+                        }}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="newIsCurrent" className="cursor-pointer">
+                        I currently work here
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleAddExperience} size="sm">
+                      Add Experience
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddExperience(false)
+                        setNewExperience({
+                          jobTitle: "",
+                          company: "",
+                          location: "",
+                          startDate: "",
+                          endDate: "",
+                          isCurrent: false
+                        })
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Experiences List */}
+              <div className="space-y-3">
+                {experiences.length === 0 && !showAddExperience && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No experience added yet. Click &quot;Add Experience&quot; to get started.
+                  </p>
+                )}
+                {experiences.map((exp) => (
+                  <div key={exp.id} className="p-4 border rounded-lg">
+                    {editingExperienceId === exp.id ? (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">Edit Experience</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingExperienceId(null)
+                              setEditingExperience({
+                                jobTitle: "",
+                                company: "",
+                                location: "",
+                                startDate: "",
+                                endDate: "",
+                                isCurrent: false
+                              })
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="editJobTitle">Job Title *</Label>
+                            <Input
+                              id="editJobTitle"
+                              value={editingExperience.jobTitle}
+                              onChange={(e) => setEditingExperience({ ...editingExperience, jobTitle: e.target.value })}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="editCompany">Company</Label>
+                              <Input
+                                id="editCompany"
+                                value={editingExperience.company}
+                                onChange={(e) => setEditingExperience({ ...editingExperience, company: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="editLocation">Location</Label>
+                              <Input
+                                id="editLocation"
+                                value={editingExperience.location}
+                                onChange={(e) => setEditingExperience({ ...editingExperience, location: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="editStartDate">Start Date</Label>
+                              <Input
+                                id="editStartDate"
+                                type="month"
+                                value={editingExperience.startDate}
+                                onChange={(e) => setEditingExperience({ ...editingExperience, startDate: e.target.value })}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="editEndDate">End Date</Label>
+                              <Input
+                                id="editEndDate"
+                                type="month"
+                                value={editingExperience.endDate}
+                                onChange={(e) => setEditingExperience({ ...editingExperience, endDate: e.target.value })}
+                                disabled={editingExperience.isCurrent}
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              id="editIsCurrent"
+                              checked={editingExperience.isCurrent}
+                              onChange={(e) => {
+                                setEditingExperience({ ...editingExperience, isCurrent: e.target.checked, endDate: "" })
+                              }}
+                              className="h-4 w-4 rounded border-gray-300"
+                            />
+                            <Label htmlFor="editIsCurrent" className="cursor-pointer">
+                              I currently work here
+                            </Label>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleUpdateExperience} size="sm">
+                            Update Experience
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingExperienceId(null)
+                              setEditingExperience({
+                                jobTitle: "",
+                                company: "",
+                                location: "",
+                                startDate: "",
+                                endDate: "",
+                                isCurrent: false
+                              })
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium">{exp.jobTitle}</p>
+                          {exp.company && (
+                            <p className="text-sm text-muted-foreground">{exp.company}</p>
+                          )}
+                          {exp.location && (
+                            <p className="text-sm text-muted-foreground">{exp.location}</p>
+                          )}
+                          {(exp.startDate || exp.endDate) && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {exp.startDate || "N/A"} - {exp.isCurrent ? "Present" : (exp.endDate || "N/A")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditExperience(exp)}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteExperience(exp.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
