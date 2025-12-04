@@ -493,6 +493,14 @@ enum NotificationType {
   SYSTEM
 }
 
+enum StepType {
+  TEST
+  SCREENING_INTERVIEW
+  FOCUS_GROUP
+  FINAL_INTERVIEW
+  OFFER
+}
+
 // ============================================
 // Workflow System Models
 // ============================================
@@ -513,6 +521,7 @@ model WorkflowStep {
   id               BigInt     @id @default(autoincrement())
   workflowId       BigInt     @map("workflow_id")
   stepName         String     @map("step_name") @db.VarChar(255)
+  stepType         StepType?  @map("step_type")
   stepOrder        Int        @map("step_order")
   isRequired       Boolean    @default(true) @map("is_required")
   isSkippable      Boolean    @default(false) @map("is_skippable")
@@ -522,7 +531,7 @@ model WorkflowStep {
   updatedAt        BigInt     @map("updated_at")
   evaluationSchema Json?
   capacityPerSlot  Int?
-  stepMetadata     Json?      @map("step_metadata") // Stores stepType, durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
+  stepMetadata     Json?      @map("step_metadata") // Stores durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
 
   workflow      JobWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   interviewer   User?                   @relation("StepInterviewer", fields: [interviewerId], references: [id])

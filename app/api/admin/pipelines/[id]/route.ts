@@ -28,8 +28,33 @@ export async function GET(
             lastname: true,
             email: true,
             phone1: true,
+            phone2: true,
             city: true,
-            country: true
+            country: true,
+            address: true,
+            institution: true,
+            department: true,
+            experiences: {
+              orderBy: {
+                createdAt: 'desc'
+              }
+            },
+            educations: {
+              include: {
+                educationLevel: true,
+                instituteRef: true
+              },
+              orderBy: {
+                createdAt: 'desc'
+              }
+            },
+            skills: {
+              orderBy: {
+                createdAt: 'desc'
+              }
+            },
+            profileDetails: true,
+            jobPreference: true
           }
         },
         job: {
@@ -37,7 +62,11 @@ export async function GET(
             id: true,
             title: true,
             company: true,
-            description: true
+            description: true,
+            industry: true,
+            employmentType: true,
+            minimumExperience: true,
+            minimumSalary: true
           }
         },
         application: {
@@ -101,15 +130,88 @@ export async function GET(
       pipeline: {
         id: pipeline.id.toString(),
         candidate: {
+          id: pipeline.candidate.id.toString(),
           name: `${pipeline.candidate.firstname} ${pipeline.candidate.lastname}`,
+          firstname: pipeline.candidate.firstname,
+          lastname: pipeline.candidate.lastname,
           email: pipeline.candidate.email,
           phone: pipeline.candidate.phone1,
-          location: `${pipeline.candidate.city || ''}, ${pipeline.candidate.country || ''}`.trim()
+          phone2: pipeline.candidate.phone2,
+          address: pipeline.candidate.address,
+          city: pipeline.candidate.city,
+          country: pipeline.candidate.country,
+          location: `${pipeline.candidate.city || ''}, ${pipeline.candidate.country || ''}`.trim(),
+          institution: pipeline.candidate.institution,
+          department: pipeline.candidate.department,
+          experiences: pipeline.candidate.experiences.map(exp => ({
+            id: exp.id.toString(),
+            jobTitle: exp.jobTitle,
+            company: exp.company,
+            location: exp.location,
+            startDate: exp.startDate,
+            endDate: exp.endDate,
+            isCurrent: exp.isCurrent,
+            createdAt: exp.createdAt.toString()
+          })),
+          educations: pipeline.candidate.educations.map(edu => ({
+            id: edu.id.toString(),
+            educationLevel: edu.educationLevel.name,
+            degreeTitle: edu.degreeTitle,
+            institute: edu.institute,
+            instituteName: edu.instituteRef?.name,
+            majorSubject: edu.majorSubject,
+            grade: edu.grade,
+            passingYear: edu.passingYear,
+            country: edu.country,
+            createdAt: edu.createdAt.toString()
+          })),
+          skills: pipeline.candidate.skills.map(skill => ({
+            id: skill.id.toString(),
+            skillName: skill.skillName,
+            level: skill.level,
+            createdAt: skill.createdAt.toString()
+          })),
+          profileDetails: pipeline.candidate.profileDetails ? {
+            title: pipeline.candidate.profileDetails.title,
+            fatherName: pipeline.candidate.profileDetails.fatherName,
+            religion: pipeline.candidate.profileDetails.religion,
+            nationality: pipeline.candidate.profileDetails.nationality,
+            dateOfBirth: pipeline.candidate.profileDetails.dateOfBirth,
+            cnic: pipeline.candidate.profileDetails.cnic,
+            gender: pipeline.candidate.profileDetails.gender,
+            maritalStatus: pipeline.candidate.profileDetails.maritalStatus,
+            preferredCity: pipeline.candidate.profileDetails.preferredCity,
+            postalCode: pipeline.candidate.profileDetails.postalCode,
+            professionalGrade: pipeline.candidate.profileDetails.professionalGrade,
+            linkedinUrl: pipeline.candidate.profileDetails.linkedinUrl,
+            portfolioUrl: pipeline.candidate.profileDetails.portfolioUrl,
+            githubUrl: pipeline.candidate.profileDetails.githubUrl,
+            websiteUrl: pipeline.candidate.profileDetails.websiteUrl,
+            bio: pipeline.candidate.profileDetails.bio,
+            availability: pipeline.candidate.profileDetails.availability,
+            expectedSalary: pipeline.candidate.profileDetails.expectedSalary,
+            noticePeriod: pipeline.candidate.profileDetails.noticePeriod,
+            languages: pipeline.candidate.profileDetails.languages,
+            certifications: pipeline.candidate.profileDetails.certifications,
+            achievements: pipeline.candidate.profileDetails.achievements,
+            references: pipeline.candidate.profileDetails.references
+          } : null,
+          jobPreference: pipeline.candidate.jobPreference ? {
+            firstPriority: pipeline.candidate.jobPreference.firstPriority,
+            secondPriority: pipeline.candidate.jobPreference.secondPriority,
+            thirdPriority: pipeline.candidate.jobPreference.thirdPriority,
+            summary: pipeline.candidate.jobPreference.summary
+          } : null
         },
         job: {
+          id: pipeline.job.id.toString(),
           title: pipeline.job.title,
           company: pipeline.job.company,
-          description: pipeline.job.description
+          description: pipeline.job.description,
+          industry: pipeline.job.industry,
+          employmentType: pipeline.job.employmentType,
+          minimumExperience: pipeline.job.minimumExperience,
+          minimumSalary: pipeline.job.minimumSalary
         },
         application: {
           status: pipeline.application.status,

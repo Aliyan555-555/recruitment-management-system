@@ -134,11 +134,10 @@ export default function AdminJobsPage() {
         {/* Status Message */}
         {statusMessage && (
           <div
-            className={`mb-6 rounded-lg border p-4 flex items-start gap-3 ${
-              statusMessage.type === "success"
-                ? "bg-green-50 border-green-200 text-green-800"
-                : "bg-red-50 border-red-200 text-red-800"
-            }`}
+            className={`mb-6 rounded-lg border p-4 flex items-start gap-3 ${statusMessage.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-red-50 border-red-200 text-red-800"
+              }`}
             role="status"
             aria-live="polite"
           >
@@ -209,6 +208,9 @@ export default function AdminJobsPage() {
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Type
                     </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Rounds
+                    </th>
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
                     </th>
@@ -239,36 +241,51 @@ export default function AdminJobsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex flex-col gap-1 items-center">
                           <span
-                            className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${
-                              job.jobType === "BULK"
+                            className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${job.jobType === "BULK"
                                 ? "bg-purple-100 text-purple-800"
                                 : "bg-blue-100 text-blue-800"
-                            }`}
+                              }`}
                           >
                             {job.jobType === "BULK" ? "Bulk Hiring" : "Normal"}
                           </span>
                           {job.jobType === "BULK" && job.jobStatus && (
                             <span
-                              className={`px-2 py-0.5 inline-flex text-xs font-medium rounded-full ${
-                                job.jobStatus === "ACTIVE"
+                              className={`px-2 py-0.5 inline-flex text-xs font-medium rounded-full ${job.jobStatus === "ACTIVE"
                                   ? "bg-green-100 text-green-800"
                                   : job.jobStatus === "ADMIN_SHORTLISTING"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
                             >
                               {job.jobStatus.replace(/_/g, " ")}
                             </span>
                           )}
                         </div>
+
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex flex-wrap gap-2 max-w-xs">
+                          {(job as any).workflow?.steps?.map((step: any) => (
+                            <Link
+                              key={step.id}
+                              href={`/admin/jobs/${job.id}/rounds/${step.id}/applied`}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors"
+                              title={`${step.name} (${step.type})`}
+                            >
+                              {step.name}
+                            </Link>
+                          ))}
+                          {(!(job as any).workflow?.steps || (job as any).workflow?.steps.length === 0) && (
+                            <span className="text-xs text-gray-500 italic">No rounds defined</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span
-                          className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${
-                            job.status
+                          className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${job.status
                               ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
-                          }`}
+                            }`}
                         >
                           {job.status ? "Active" : "Inactive"}
                         </span>
@@ -378,6 +395,6 @@ export default function AdminJobsPage() {
           </div>
         )}
       </div>
-    </div>
+    </div >
   )
 }

@@ -1,70 +1,87 @@
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 
 export async function middleware(request: NextRequest) {
-  // Use getToken instead of auth() to avoid Prisma initialization in Edge runtime
+  const { pathname } = request.nextUrl
+  
+  // Get the token to check user's role
   const token = await getToken({ 
     req: request,
     secret: process.env.NEXTAUTH_SECRET 
   })
-  
-  const pathname = request.nextUrl.pathname
 
-  // Public routes that don't require authentication
-  if (
-    pathname === '/' ||                          // Landing page
-    pathname.startsWith('/login') ||
-    pathname === '/admin/login' ||               // Admin login page
-    pathname === '/interviewer/login' ||         // Interviewer login page
-    pathname.startsWith('/register') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/api/register') ||
-    pathname.startsWith('/api/jobs/public') ||   // Public jobs API
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/jobs/') && pathname.includes('/apply/success') // Success pages
-  ) {
+  // Public routes that don't need authentication
+  const publicRoutes = ['/auth/signin', '/auth/signup', '/auth/error', '/', '/about', '/contact']
+  if (publicRoutes.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
 
-  // Protected routes - require authentication
-  if (!token || !token.role) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+  // No token = not authenticated
+  if (!token) {
+    const signInUrl = new URL('/auth/signin', request.url)
+    signInUrl.searchParams.set('callbackUrl', pathname)
+    return NextResponse.redirect(signInUrl)
   }
 
   const userRole = token.role as string
 
-  // Admin routes
-  if (pathname.startsWith('/admin')) {
+  // Admin-only routes
+  const adminRoutes = [
+    '/admin/jobs',
+    '/admin/candidates',
+    '/admin/interviews',
+    '/admin/batches',
+    '/admin/slots'
+  ]
+  
+  if (adminRoutes.some(route => pathname.startsWith(route))) {
     if (userRole !== 'ADMIN') {
-      const homeUrl = new URL('/', request.url)
-      return NextResponse.redirect(homeUrl)
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }
 
-  // Interviewer routes
-  if (pathname.startsWith('/interviewer')) {
-    if (userRole !== 'INTERVIEWER' && userRole !== 'ADMIN') {
-      const homeUrl = new URL('/', request.url)
-      return NextResponse.redirect(homeUrl)
+  // Round management pages - Admin only
+  if (pathname.match(/\/admin\/jobs\/\d+\/rounds/)) {
+    if (userRole !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }
 
-  // Candidate routes (applications, profile management)
-  if (pathname.startsWith('/applications') || pathname.startsWith('/profile')) {
-    if (userRole !== 'CANDIDATE' && userRole !== 'ADMIN') {
-      const homeUrl = new URL('/', request.url)
-      return NextResponse.redirect(homeUrl)
+  // Interviewer routes - Admin or Interviewer
+  if (pathname.startsWith('/interviewer/')) {
+    if (userRole !== 'ADMIN' && userRole !== 'INTERVIEWER') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
+  }
+
+  // Assessment forms - Admin or assigned Interviewer
+  // Note: Detailed assignment checking happens in the API/page component
+  if (pathname.match(/\/admin\/jobs\/\d+\/rounds\/\d+\/candidates\/\d+\/assessment/)) {
+    if (userRole !== 'ADMIN' && userRole !== 'INTERVIEWER') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+  }
+
+  // Candidate routes - All authenticated users can access their own profile
+  if (pathname.startsWith('/profile/')) {
+    // Allow all authenticated users
+    return NextResponse.next()
   }
 
   return NextResponse.next()
 }
 
+// Configure which routes use this middleware
 export const config = {
   matcher: [
-    '/((?!api/auth|api/register|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

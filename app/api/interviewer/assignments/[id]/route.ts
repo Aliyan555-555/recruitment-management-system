@@ -26,6 +26,11 @@ export async function GET(
             job: true,
             candidate: {
               include: {
+                experiences: {
+                  orderBy: {
+                    createdAt: 'desc'
+                  }
+                },
                 educations: {
                   include: {
                     educationLevel: {
@@ -33,9 +38,18 @@ export async function GET(
                         name: true,
                       }
                     }
+                  },
+                  orderBy: {
+                    createdAt: 'desc'
                   }
                 },
-                skills: true,
+                skills: {
+                  orderBy: {
+                    createdAt: 'desc'
+                  }
+                },
+                profileDetails: true,
+                jobPreference: true,
               },
             },
             interviews: true,
@@ -102,6 +116,15 @@ export async function GET(
             address: step.pipeline.candidate.address,
             city: step.pipeline.candidate.city,
             country: step.pipeline.candidate.country,
+            experiences: step.pipeline.candidate.experiences.map((exp: any) => ({
+              id: exp.id.toString(),
+              jobTitle: exp.jobTitle,
+              company: exp.company,
+              location: exp.location,
+              startDate: exp.startDate,
+              endDate: exp.endDate,
+              isCurrent: exp.isCurrent,
+            })),
             educations: step.pipeline.candidate.educations.map((edu: any) => ({
               degreeTitle: edu.degreeTitle,
               institute: edu.institute,
@@ -115,6 +138,31 @@ export async function GET(
               skillName: skill.skillName,
               level: skill.level,
             })),
+            profileDetails: step.pipeline.candidate.profileDetails ? {
+              title: step.pipeline.candidate.profileDetails.title,
+              dateOfBirth: step.pipeline.candidate.profileDetails.dateOfBirth,
+              gender: step.pipeline.candidate.profileDetails.gender,
+              nationality: step.pipeline.candidate.profileDetails.nationality,
+              cnic: step.pipeline.candidate.profileDetails.cnic,
+              maritalStatus: step.pipeline.candidate.profileDetails.maritalStatus,
+              professionalGrade: step.pipeline.candidate.profileDetails.professionalGrade,
+              linkedinUrl: step.pipeline.candidate.profileDetails.linkedinUrl,
+              portfolioUrl: step.pipeline.candidate.profileDetails.portfolioUrl,
+              githubUrl: step.pipeline.candidate.profileDetails.githubUrl,
+              websiteUrl: step.pipeline.candidate.profileDetails.websiteUrl,
+              bio: step.pipeline.candidate.profileDetails.bio,
+              expectedSalary: step.pipeline.candidate.profileDetails.expectedSalary,
+              noticePeriod: step.pipeline.candidate.profileDetails.noticePeriod,
+              availability: step.pipeline.candidate.profileDetails.availability,
+              certifications: step.pipeline.candidate.profileDetails.certifications,
+              languages: step.pipeline.candidate.profileDetails.languages,
+            } : null,
+            jobPreference: step.pipeline.candidate.jobPreference ? {
+              firstPriority: step.pipeline.candidate.jobPreference.firstPriority,
+              secondPriority: step.pipeline.candidate.jobPreference.secondPriority,
+              thirdPriority: step.pipeline.candidate.jobPreference.thirdPriority,
+              summary: step.pipeline.candidate.jobPreference.summary,
+            } : null,
           },
           application: {
             id: step.pipeline.application?.id.toString(),

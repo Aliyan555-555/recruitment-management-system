@@ -44,6 +44,11 @@ export async function GET(req: NextRequest) {
           select: {
             applications: true
           }
+        },
+        workflow: {
+          include: {
+            steps: true
+          }
         }
       },
       orderBy: {
@@ -56,9 +61,9 @@ export async function GET(req: NextRequest) {
         id: job.id.toString(),
         title: job.title,
         company: job.company,
-        status: job.status,
+        status:job.status,
         jobType: (job as any).jobType || "NORMAL",
-        jobStatus: (job as any).jobStatus || "ACTIVE",
+                jobStatus: (job as any).jobStatus || "ACTIVE",
         shortDescription: job.shortDescription || "",
         description: job.description || undefined,
         locations: job.locations?.map((loc) => ({
@@ -68,13 +73,22 @@ export async function GET(req: NextRequest) {
         employmentType: job.employmentType,
         postFrom: job.postFrom.toISOString(),
         postTo: job.postTo.toISOString(),
-        skills: job.skills.map((s) => s.skillName),
+        skills: job.skills?.map((s) => s.skillName) || [],
         minimumEducation: job.educationRequirements?.[0]?.educationLevel?.name || undefined,
         createdBy: `${job.creator.firstname} ${job.creator.lastname}`,
         applicationCount: job._count.applications,
         _count: {
           applications: job._count.applications,
         },
+        workflow: (job as any).workflow ? {
+          id: (job as any).workflow.id.toString(),
+          steps: (job as any).workflow.steps.map((step: any) => ({
+            id: step.id.toString(),
+            name: step.stepName,
+            type: step.stepType,
+            order: step.stepOrder
+          })).sort((a: any, b: any) => a.order - b.order)
+        } : null
       }))
     })
   } catch (error: any) {
@@ -85,4 +99,3 @@ export async function GET(req: NextRequest) {
     )
   }
 }
-

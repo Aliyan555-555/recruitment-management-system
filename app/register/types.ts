@@ -43,7 +43,6 @@ export type PersonalInfoState = {
   homeAddress: string
   city: string
   postalCode: string
-  institution: string
   department: string
 }
 

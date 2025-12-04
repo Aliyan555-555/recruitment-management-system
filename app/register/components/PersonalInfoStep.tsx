@@ -298,36 +298,26 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>City</Label>
-          <Select
-            value={personalInfo.city}
-            onValueChange={(value) => handleInputChange("city", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select city" />
-            </SelectTrigger>
-            <SelectContent>
-              {pakistaniCities.map((city) => (
-                <SelectItem key={city} value={city}>
-                  {city}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {getFieldError("personal.city") && (
-            <p className="text-xs text-destructive">{getFieldError("personal.city")}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label>Institution</Label>
-          <Input
-            value={personalInfo.institution}
-            placeholder="e.g., University of Karachi"
-            onChange={(e) => onChange({ institution: e.target.value })}
-          />
-        </div>
+      <div className="space-y-2">
+        <Label>City</Label>
+        <Select
+          value={personalInfo.city}
+          onValueChange={(value) => handleInputChange("city", value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select city" />
+          </SelectTrigger>
+          <SelectContent>
+            {pakistaniCities.map((city) => (
+              <SelectItem key={city} value={city}>
+                {city}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {getFieldError("personal.city") && (
+          <p className="text-xs text-destructive">{getFieldError("personal.city")}</p>
+        )}
       </div>
 
       <div className="space-y-2">

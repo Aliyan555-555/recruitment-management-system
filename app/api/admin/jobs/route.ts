@@ -3,14 +3,26 @@ import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { generateJobCode } from "@/lib/utils"
 
+// Helper function to convert stepType to human-readable stepName
+function getStepNameFromType(stepType: string): string {
+  const stepTypeMap: Record<string, string> = {
+    "TEST": "Test",
+    "SCREENING_INTERVIEW": "Screening Interview",
+    "FOCUS_GROUP": "Focus Group",
+    "FINAL_INTERVIEW": "Final Interview",
+    "OFFER": "Offer"
+  }
+  return stepTypeMap[stepType] || stepType
+}
+
 interface WorkflowStepInput {
-  stepName: string
+  stepName?: string // Optional, for backward compatibility/display
+  stepType: string // Required: TEST, SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
   stepOrder: number
   isRequired: boolean
   isSkippable: boolean
   interviewerId?: string
   // Extended fields stored in stepMetadata
-  stepType?: string
   skipReason?: string
   durationMins?: number
   weightage?: number
@@ -104,11 +116,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Validate that Offer step exists and is last
+    const offerStepIndex = body.workflowSteps.findIndex(s => s.stepType === "OFFER")
+    if (offerStepIndex === -1) {
+      return NextResponse.json(
+        { error: "Offer step is mandatory and must be the last step in the workflow" },
+        { status: 400 }
+      )
+    }
+    if (offerStepIndex !== body.workflowSteps.length - 1) {
+      return NextResponse.json(
+        { error: `Step ${body.workflowSteps[offerStepIndex].stepOrder}: Offer step must be the last step in the workflow` },
+        { status: 400 }
+      )
+    }
+
+    // Validate step types are valid
+    const validStepTypes = ["TEST", "SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW", "OFFER"]
+    for (const step of body.workflowSteps) {
+      if (!step.stepType || !validStepTypes.includes(step.stepType)) {
+        return NextResponse.json(
+          { error: `Step ${step.stepOrder}: Invalid step type. Must be one of: ${validStepTypes.join(", ")}` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Validate required fields for each step
     for (const step of body.workflowSteps) {
-      if (!step.stepName || step.stepName.trim() === "") {
+      // stepName is optional now, but we'll use stepType for validation
+      if (!step.stepType || step.stepType.trim() === "") {
         return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Step Name is required` },
+          { error: `Step ${step.stepOrder}: Step Type is required` },
           { status: 400 }
         )
       }
@@ -293,8 +332,12 @@ export async function POST(req: NextRequest) {
                 }))
               }
 
+              // Auto-populate stepName from stepType
+              const stepName = getStepNameFromType(step.stepType)
+
               return {
-                stepName: step.stepName,
+                stepName: stepName, // Auto-populated from stepType
+                stepType: step.stepType as any, // Store stepType in database field
                 stepOrder: step.stepOrder,
                 isRequired: step.isRequired,
                 isSkippable: step.isSkippable,
