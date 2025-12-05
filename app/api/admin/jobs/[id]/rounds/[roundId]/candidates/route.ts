@@ -25,7 +25,17 @@ export async function GET(
       where: {
         workflowStepId: BigInt(params.roundId),
         pipeline: {
-          jobId: BigInt(params.id)
+          jobId: BigInt(params.id),
+          // Filter out shortlisted applications when status="applied"
+          ...(status === "applied" ? {
+            application: {
+              status: { not: "SHORTLISTED" }
+            }
+          } : status === "shortlisted" ? {
+            application: {
+              status: "SHORTLISTED"
+            }
+          } : {})
         },
         ...(status === "shortlisted" ? { 
           status: { in: ["IN_PROGRESS", "COMPLETED"] }
@@ -48,6 +58,7 @@ export async function GET(
               select: {
                 appliedAt: true,
                 statusUpdatedAt: true,
+                status: true,
               }
             }
           }
@@ -75,6 +86,7 @@ export async function GET(
         appliedAt: step.pipeline.application.appliedAt.toString(),
         shortlistedAt: step.startedAt?.toString() || step.pipeline.application.statusUpdatedAt?.toString(),
         status: step.status,
+        applicationStatus: step.pipeline.application.status, // Include application status
         pipelineStepId: step.id.toString(),
         assessmentStatus: evaluation?.submittedAt ? "completed" : 
                           evaluation ? "in_progress" : "pending",

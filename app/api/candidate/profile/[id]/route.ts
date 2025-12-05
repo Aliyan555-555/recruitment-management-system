@@ -9,12 +9,19 @@ export async function GET(
   try {
     const session = await auth()
     
-    // Allow authenticated users (admins, interviewers) to view candidate profiles
-    // For public access, you might want to add additional checks
+    // Allow authenticated users (admins, interviewers, staff) to view candidate profiles
     if (!session?.user?.id) {
       return NextResponse.json(
-        { error: "Unauthorized" },
+        { error: "Unauthorized. Please log in to view candidate profiles." },
         { status: 401 }
+      )
+    }
+
+    // Validate candidate ID
+    if (!params.id || isNaN(Number(params.id))) {
+      return NextResponse.json(
+        { error: "Invalid candidate ID" },
+        { status: 400 }
       )
     }
 
@@ -46,7 +53,11 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json(
-        { error: "Candidate profile not found" },
+        { 
+          error: "Candidate profile not found",
+          message: "The candidate profile you're looking for doesn't exist or may have been removed.",
+          candidateId: params.id
+        },
         { status: 404 }
       )
     }

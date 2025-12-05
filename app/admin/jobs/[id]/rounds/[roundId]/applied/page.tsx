@@ -10,6 +10,7 @@ interface Candidate {
     email: string
     appliedAt: string
     status: string
+    applicationStatus?: string
     pipelineStepId: string
     assessmentStatus: "pending" | "in_progress" | "completed"
 }
@@ -120,7 +121,9 @@ export default function AppliedCandidatesPage() {
 
     const filteredCandidates = candidates.filter(candidate => {
         // Exclude shortlisted candidates - only show unshortlisted ones
-        const isNotShortlisted = candidate.status !== "SHORTLISTED"
+        // Use applicationStatus if available, otherwise fall back to status
+        const appStatus = candidate.applicationStatus || candidate.status
+        const isNotShortlisted = appStatus !== "SHORTLISTED"
         const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             candidate.email.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = statusFilter === "all" || candidate.status === statusFilter
@@ -194,7 +197,10 @@ export default function AppliedCandidatesPage() {
                             <div>
                                 <p className="text-sm font-medium text-gray-600">Total Candidates</p>
                                 <p className="text-2xl font-bold text-gray-900">
-                                    {candidates.filter(c => c.status !== "SHORTLISTED").length}
+                                    {candidates.filter(c => {
+                                        const appStatus = c.applicationStatus || c.status
+                                        return appStatus !== "SHORTLISTED"
+                                    }).length}
                                 </p>
                             </div>
                         </div>
@@ -366,10 +372,12 @@ export default function AppliedCandidatesPage() {
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Link
-                                                        href={`/admin/jobs/${jobId}/rounds/${roundId}/candidates/${candidate.id}/assessment`}
+                                                        href={`/candidate/profile/public/${candidate.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
                                                         className="px-3 py-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-all"
                                                     >
-                                                        View
+                                                        View Profile
                                                     </Link>
                                                     <button
                                                         onClick={() => handleShortlist([candidate.id])}

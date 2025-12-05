@@ -342,7 +342,7 @@ export default function HomePage() {
                   Browse Jobs
                 </Button>
               </Link>
-              <Link href="/profile" className="block">
+              <Link href="/candidate/profile" className="block">
                 <Button variant="outline" className="w-full" size="lg">
                   Complete Your Profile
                 </Button>

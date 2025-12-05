@@ -5,7 +5,9 @@ import { useParams } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Globe, Linkedin, Github, ExternalLink, FileText, Calendar, User } from "lucide-react"
+import { Loader2, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Globe, Linkedin, Github, ExternalLink, FileText, Calendar, User, AlertCircle, ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 interface PublicProfileData {
   user: {
@@ -69,13 +71,19 @@ export default function PublicProfilePage() {
   const fetchPublicProfile = async () => {
     try {
       setLoading(true)
+      setError(null)
       const response = await fetch(`/api/candidate/profile/${candidateId}`)
       
       if (!response.ok) {
-        throw new Error("Failed to fetch profile")
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || errorData.message || `Failed to fetch profile (${response.status})`
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
+      if (data.error) {
+        throw new Error(data.error)
+      }
       setProfile(data)
     } catch (err: any) {
       setError(err.message || "Failed to load profile")
@@ -86,25 +94,74 @@ export default function PublicProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
         <Navbar />
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+          <p className="text-gray-600 text-lg">Loading candidate profile...</p>
         </div>
       </div>
     )
   }
 
   if (error || !profile) {
+    const isNotFound = error?.toLowerCase().includes("not found") || error?.toLowerCase().includes("doesn't exist")
+    const isUnauthorized = error?.toLowerCase().includes("unauthorized")
+    
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
         <Navbar />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card>
-            <CardHeader>
-              <CardTitle>Error</CardTitle>
-              <CardDescription>{error || "Profile not found"}</CardDescription>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="border-2 border-red-200 shadow-lg">
+            <CardHeader className="text-center pb-4">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertCircle className="h-8 w-8 text-red-600" />
+                </div>
+              </div>
+              <CardTitle className="text-2xl text-gray-900">
+                {isNotFound ? "Profile Not Found" : isUnauthorized ? "Access Denied" : "Error Loading Profile"}
+              </CardTitle>
+              <CardDescription className="text-base mt-2">
+                {error || "The candidate profile could not be loaded."}
+              </CardDescription>
             </CardHeader>
+            <CardContent className="space-y-4">
+              {isNotFound && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Possible reasons:</strong>
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-yellow-700 mt-2 space-y-1">
+                    <li>The candidate ID may be incorrect</li>
+                    <li>The profile may have been removed or deactivated</li>
+                    <li>The candidate may not have completed their profile setup</li>
+                  </ul>
+                </div>
+              )}
+              {isUnauthorized && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    You need to be logged in as an admin or staff member to view candidate profiles.
+                  </p>
+                </div>
+              )}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  onClick={() => window.history.back()}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Go Back
+                </Button>
+                <Link href="/admin/jobs" className="flex-1">
+                  <Button className="w-full">
+                    View Jobs
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -116,7 +173,7 @@ export default function PublicProfilePage() {
   const profileDetails = user.profileDetails
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
