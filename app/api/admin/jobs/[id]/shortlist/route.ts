@@ -52,13 +52,6 @@ export async function GET(
             city: true,
             country: true
           }
-        },
-        cv: {
-          select: {
-            id: true,
-            filename: true,
-            filepath: true
-          }
         }
       },
       orderBy: {
@@ -78,10 +71,9 @@ export async function GET(
         },
         status: app.status,
         appliedAt: app.appliedAt.toString(),
-        cv: {
-          id: app.cv.id.toString(),
-          filename: app.cv.filename,
-          filepath: app.cv.filepath
+        profile: {
+          name: `${app.user.firstname} ${app.user.lastname}`,
+          email: app.user.email
         }
       }))
     })

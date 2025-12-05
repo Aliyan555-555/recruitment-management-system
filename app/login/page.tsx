@@ -48,52 +48,11 @@ export default function LoginPage() {
         const userRole = session?.user?.role
 
         if (jobId && userRole === "CANDIDATE") {
-          try {
-            const cvResponse = await fetch("/api/profile/cv")
-            if (cvResponse.ok) {
-              const cvData = await cvResponse.json()
-              const cvs = cvData.cvs || []
-
-              if (cvs.length > 0) {
-                const firstCvId = cvs[0].id
-                const applyResponse = await fetch(`/api/jobs/${jobId}/apply`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ cvId: firstCvId })
-                })
-
-                if (applyResponse.ok) {
-                  router.push(`/jobs/${jobId}`)
-                  router.refresh()
-                  setIsLoading(false)
-                  return
-                } else {
-                  const errorData = await applyResponse.json().catch(() => ({}))
-                  console.error("Auto-apply failed:", errorData.error)
-                  router.push(`/jobs/${jobId}`)
-                  router.refresh()
-                  setIsLoading(false)
-                  return
-                }
-              } else {
-                router.push(`/jobs/${jobId}`)
-                router.refresh()
-                setIsLoading(false)
-                return
-              }
-            } else {
-              router.push(`/jobs/${jobId}`)
-              router.refresh()
-              setIsLoading(false)
-              return
-            }
-          } catch (applyError) {
-            console.error("Error during auto-apply:", applyError)
-            router.push(`/jobs/${jobId}`)
-            router.refresh()
-            setIsLoading(false)
-            return
-          }
+          // Redirect to job page; applications now use profile data (no CV required)
+          router.push(`/jobs/${jobId}`)
+          router.refresh()
+          setIsLoading(false)
+          return
         }
 
         if (userRole === "ADMIN") {

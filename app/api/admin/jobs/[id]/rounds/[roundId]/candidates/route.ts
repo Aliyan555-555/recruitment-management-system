@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireAdmin } from "@/lib/rbac"
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates - Get candidates for a round
 export async function GET(
@@ -9,9 +8,13 @@ export async function GET(
   { params }: { params: { id: string; roundId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireAdmin()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 401 }
+      )
     }
 
     const { searchParams } = new URL(request.url)
@@ -96,9 +99,13 @@ export async function POST(
   { params }: { params: { id: string; roundId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireAdmin()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 401 }
+      )
     }
 
     const body = await request.json()
@@ -110,7 +117,7 @@ export async function POST(
 
     const roundId = BigInt(params.roundId)
     const jobId = BigInt(params.id)
-    const now = Date.now()
+    const now = BigInt(Math.floor(Date.now() / 1000))
 
     switch (action) {
       case "shortlist":

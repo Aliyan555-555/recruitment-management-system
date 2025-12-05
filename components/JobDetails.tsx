@@ -4,15 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { MapPin, Calendar, DollarSign, Briefcase, BookOpen, Award, CheckCircle2, Users } from "lucide-react"
+import { MapPin, Calendar, DollarSign, Briefcase, BookOpen, Award, CheckCircle2, Users, X, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface JobLocation {
@@ -49,34 +41,22 @@ interface Application {
   id: string
   status: string
   appliedAt: bigint
-  cv: {
-    id: string
-    filename: string
-  }
-}
-
-interface UserCv {
-  id: string
-  filename: string
-  filepath: string
 }
 
 export function JobDetails({
   job,
   hasApplied = false,
   application = null,
-  userCvs = [],
   isPublic = false
 }: {
   job: Job
   hasApplied?: boolean
   application?: Application | null
-  userCvs?: UserCv[]
   isPublic?: boolean
 }) {
   const router = useRouter()
-  const [selectedCv, setSelectedCv] = useState(userCvs[0]?.id || "")
   const [applying, setApplying] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleApply = async () => {
     if (isPublic) {
@@ -85,28 +65,25 @@ export function JobDetails({
       return
     }
 
-    if (!selectedCv) {
-      alert("Please select a CV to apply with")
-      return
-    }
-
     setApplying(true)
+    setErrorMessage(null)
     try {
       const response = await fetch(`/api/jobs/${job.id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvId: selectedCv })
+        body: JSON.stringify({})
       })
 
       if (response.ok) {
-        router.refresh()
+        // Redirect to success page
+        router.push(`/jobs/${job.id}/apply/success`)
       } else {
         const data = await response.json()
-        alert(data.error || "Failed to apply")
+        setErrorMessage(data.error || "Failed to apply. Please try again.")
       }
     } catch (error) {
       console.error("Apply error:", error)
-      alert("Failed to submit application")
+      setErrorMessage("Failed to submit application. Please check your connection and try again.")
     } finally {
       setApplying(false)
     }
@@ -163,10 +140,31 @@ export function JobDetails({
                 <p className="text-sm text-green-700">
                   Status: <Badge>{application.status}</Badge>
                 </p>
-                <p className="text-sm text-green-700 mt-1">
-                  CV used: {application.cv.filename}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error Notification Popup */}
+      {errorMessage && (
+        <Card className="border-red-200 bg-red-50 animate-in slide-in-from-top-2 duration-300">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-900 mb-1">Application Error</h3>
+                <p className="text-sm text-red-700">
+                  {errorMessage}
                 </p>
               </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-red-600 hover:text-red-800 transition-colors p-1 rounded-md hover:bg-red-100"
+                aria-label="Close error message"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
           </CardContent>
         </Card>
@@ -177,7 +175,7 @@ export function JobDetails({
         <CardContent>
           {job.description ? (
             <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: job.description }}>
-    
+
             </div>
           ) : (
             <p className="text-muted-foreground">No description provided</p>
@@ -277,40 +275,17 @@ export function JobDetails({
         <Card>
           <CardHeader>
             <CardTitle>Apply for this Position</CardTitle>
-            <CardDescription>Select a CV to apply with</CardDescription>
+            <CardDescription>Your profile will be used for this application</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {userCvs.length > 0 ? (
-              <>
-                <div className="space-y-2">
-                  <Label>Select CV/Resume</Label>
-                  <Select value={selectedCv} onValueChange={setSelectedCv}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userCvs.map((cv) => (
-                        <SelectItem key={cv.id} value={cv.id}>
-                          {cv.filename}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleApply} disabled={applying} className="w-full">
-                  {applying ? "Submitting..." : "Submit Application"}
-                </Button>
-              </>
-            ) : (
-              <div className="text-center py-8 space-y-4">
-                <p className="text-muted-foreground">
-                  You need to upload a CV before you can apply
-                </p>
-                <a href="/profile" className="text-primary hover:underline">
-                  Go to profile to upload CV
-                </a>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Button onClick={handleApply} disabled={applying} className="w-full">
+                {applying ? "Submitting..." : "Submit Application"}
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                We will use your profile (education, experience, skills) for this application.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

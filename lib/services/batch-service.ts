@@ -36,11 +36,10 @@ export interface BatchWithCandidates {
     }
     application: {
       id: bigint
-      cv: {
-        id: bigint
-        filename: string
-        filepath: string
-      } | null
+      profile?: {
+        name: string
+        email: string
+      }
     }
   }>
 }

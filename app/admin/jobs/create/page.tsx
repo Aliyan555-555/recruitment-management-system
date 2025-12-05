@@ -22,40 +22,30 @@ interface FormErrors {
   skills?: string
   locations?: string
   _general?: string
-  workflowSteps?: Record<number, {
-    stepName?: string
-    meetingLink?: string
-    durationMins?: string
-    weightage?: string
-    scoreThreshold?: string
-    evaluationCriteria?: string
-    attachments?: string
-  }>
+  workflowSteps?: {
+    [key: number]: {
+      stepType?: string
+      stepName?: string
+      meetingLink?: string
+      durationMins?: string
+      weightage?: string
+      scoreThreshold?: string
+    }
+    _general?: string
+  }
 }
 
 interface WorkflowStep {
   stepName?: string // Kept for backward compatibility/display
   stepType: string // Required: TEST, SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
   stepOrder: number
-  isRequired: boolean
-  isSkippable: boolean
   interviewerId?: string
-  skipReason?: string
   durationMins?: number
   weightage?: number
   scoreThreshold?: number
   interviewMode?: string
   meetingLink?: string
   interviewerIds?: string[]
-  evaluationCriteria?: string[]
-  evaluationCriteriaInput?: string // Temporary input field for adding criteria
-  candidateInstructions?: string
-  interviewerInstructions?: string
-  attachments?: Array<{
-    file: File
-    id: string // Unique ID for the file
-    access: string[] // ["CANDIDATE", "INTERVIEWER"] - access permissions for this specific file
-  }>
 }
 
 export default function CreateJobPage() {
@@ -142,8 +132,6 @@ export default function CreateJobPage() {
     {
       stepType: "",
       stepOrder: 1,
-      isRequired: true,
-      isSkippable: false,
     }
   ])
 
@@ -338,19 +326,6 @@ export default function CreateJobPage() {
       }
     }
 
-    // Validate attachments file size (max 10MB per file)
-    if (step.attachments && step.attachments.length > 0) {
-      for (const attachment of step.attachments) {
-        if (attachment.file && attachment.file.size > 10 * 1024 * 1024) {
-          stepErrors.attachments = `File "${attachment.file.name}" exceeds 10MB size limit`
-          break
-        }
-        if (attachment.access.length === 0) {
-          stepErrors.attachments = "Each attachment must have at least one access option selected"
-          break
-        }
-      }
-    }
 
     return stepErrors
   }
@@ -435,12 +410,44 @@ export default function CreateJobPage() {
         }
       })
       if (Object.keys(stepErrors).length > 0) {
-        newErrors.workflowSteps = { ...newErrors.workflowSteps, ...stepErrors }
+        // Merge step errors with existing workflowSteps errors
+        if (newErrors.workflowSteps) {
+          newErrors.workflowSteps = { ...newErrors.workflowSteps, ...stepErrors }
+        } else {
+          newErrors.workflowSteps = stepErrors
+        }
       }
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+
+    // Check if there are any errors (including nested workflow step errors)
+    const topLevelKeys = Object.keys(newErrors).filter(key => key !== 'workflowSteps')
+    if (topLevelKeys.length > 0) {
+      return false
+    }
+
+    // Check workflow steps errors
+    if (newErrors.workflowSteps) {
+      const workflowKeys = Object.keys(newErrors.workflowSteps)
+      if (workflowKeys.length > 0) {
+        // Check if any workflow error has actual content
+        for (const key of workflowKeys) {
+          const value = newErrors.workflowSteps[key as keyof typeof newErrors.workflowSteps]
+          if (typeof value === 'string' && (value as string).trim().length > 0) {
+            return false // Found _general error
+          }
+          if (typeof value === 'object' && value !== null) {
+            const errorObj = value as Record<string, string>
+            if (Object.keys(errorObj).length > 0) {
+              return false // Found step-specific error
+            }
+          }
+        }
+      }
+    }
+
+    return true
   }
 
   // Handle field blur for real-time validation
@@ -498,8 +505,6 @@ export default function CreateJobPage() {
       {
         stepType: "",
         stepOrder: workflowSteps.length + 1,
-        isRequired: true,
-        isSkippable: false,
       }
     ])
   }
@@ -526,7 +531,8 @@ export default function CreateJobPage() {
     e.preventDefault()
 
     // Validate all fields before submission
-    if (!validateForm()) {
+    const isValid = validateForm()
+    if (!isValid) {
       // Mark all fields as touched to show errors
       const allTouched: Record<string, boolean> = {}
       Object.keys(formData).forEach(key => {
@@ -534,11 +540,20 @@ export default function CreateJobPage() {
       })
       setTouched(allTouched)
 
-      // Scroll to first error
-      const firstErrorField = document.querySelector('[data-error="true"]')
-      if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
+      // Scroll to first error after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        const firstErrorField = document.querySelector('[data-error="true"]')
+        if (firstErrorField) {
+          firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        } else {
+          // If no field with data-error, scroll to general error or first visible error
+          const generalError = document.querySelector('[role="status"]')
+          if (generalError) {
+            generalError.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }
+      }, 100)
+
       return
     }
 
@@ -547,19 +562,11 @@ export default function CreateJobPage() {
     try {
       const skillsArray = formData.skills.filter(s => s.trim()) // Already an array, just filter empty values
 
-      // Transform workflow steps: serialize attachment metadata (no File objects)
+      // Transform workflow steps
       const transformedSteps = workflowSteps.map((step) => {
-        const attachments = (step.attachments || []).map((att: any) => ({
-          id: att.id,
-          fileName: att.file?.name ?? att.fileName ?? "",
-          fileSize: typeof att.file?.size === "number" ? att.file.size : (att.fileSize ?? 0),
-          fileType: att.file?.type ?? att.fileType ?? "",
-          access: Array.isArray(att.access) ? att.access : [],
-        }))
-
-        // Remove client-only file objects from payload
-        const { attachments: _clientAttachments, deadline: _deadline, ...rest } = step as any
-        return { ...rest, attachments }
+        // Remove any client-only fields from payload
+        const { stepName, ...rest } = step as any
+        return rest
       })
 
       const response = await fetch("/api/admin/jobs", {
@@ -1389,44 +1396,6 @@ export default function CreateJobPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={step.isRequired}
-                      onChange={(e) => handleStepChange(index, "isRequired", e.target.checked)}
-                      className="mr-2"
-                      id={`required-${index}`}
-                    />
-                    <label htmlFor={`required-${index}`} className="text-sm text-gray-700">
-                      Required
-                    </label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={step.isSkippable}
-                      onChange={(e) => handleStepChange(index, "isSkippable", e.target.checked)}
-                      className="mr-2"
-                      id={`skippable-${index}`}
-                    />
-                    <label htmlFor={`skippable-${index}`} className="text-sm text-gray-700">
-                      Skippable
-                    </label>
-                  </div>
-
-                  {step.isSkippable && (
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Skip Reason</label>
-                      <textarea
-                        value={step.skipReason || ""}
-                        onChange={(e) => handleStepChange(index, "skipReason", e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        placeholder="Enter reason why this step can be skipped..."
-                      />
-                    </div>
-                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Duration (mins)</label>
@@ -1582,271 +1551,7 @@ export default function CreateJobPage() {
                     </select>
                   </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Route Visibility (roles)</label>
-                    <div className="px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-500">
-                      Managed automatically for each workflow step.
-                    </div>
-                  </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Candidate Instructions</label>
-                    <textarea
-                      value={step.candidateInstructions || ""}
-                      onChange={(e) => handleStepChange(index, "candidateInstructions", e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Interviewer Instructions</label>
-                    <textarea
-                      value={step.interviewerInstructions || ""}
-                      onChange={(e) => handleStepChange(index, "interviewerInstructions", e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
-                    <input
-                      type="file"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || [])
-                        const currentAttachments = step.attachments || []
-
-                        // Validate file sizes before adding
-                        let hasError = false
-                        const maxSize = 10 * 1024 * 1024 // 10MB
-
-                        for (const file of files) {
-                          if (file.size > maxSize) {
-                            setErrors(prev => ({
-                              ...prev,
-                              workflowSteps: {
-                                ...prev.workflowSteps,
-                                [index]: {
-                                  ...prev.workflowSteps?.[index],
-                                  attachments: `File "${file.name}" exceeds 10MB size limit`
-                                }
-                              }
-                            }))
-                            hasError = true
-                            e.target.value = ""
-                            return
-                          }
-                        }
-
-                        // Clear attachment error if validation passes
-                        if (errors.workflowSteps?.[index]?.attachments && !hasError) {
-                          setErrors(prev => {
-                            const newErrors = { ...prev }
-                            if (newErrors.workflowSteps?.[index]) {
-                              delete newErrors.workflowSteps[index].attachments
-                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                delete newErrors.workflowSteps[index]
-                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                  delete newErrors.workflowSteps
-                                }
-                              }
-                            }
-                            return newErrors
-                          })
-                        }
-
-                        // Create new attachment objects with unique IDs and default access (both)
-                        const newAttachments = files.map(file => ({
-                          file,
-                          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                          access: ["CANDIDATE", "INTERVIEWER"] // Default: both have access
-                        }))
-
-                        handleStepChange(index, "attachments", [...currentAttachments, ...newAttachments])
-
-                        // Reset file input
-                        e.target.value = ""
-                      }}
-                      className="w-full mb-3 px-3 py-2 border border-gray-300 rounded-md"
-                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                    />
-                    {errors.workflowSteps?.[index]?.attachments && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1 mb-3">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.workflowSteps[index].attachments}
-                      </p>
-                    )}
-                    <p className="text-xs text-gray-500 mb-3">
-                      Maximum file size: 10MB. Allowed formats: PDF, DOC, DOCX, TXT, JPG, JPEG, PNG
-                    </p>
-
-                    {step.attachments && step.attachments.length > 0 && (
-                      <div className="space-y-3 mt-3">
-                        <p className="text-xs text-gray-600 font-medium">Uploaded Files ({step.attachments.length})</p>
-                        {step.attachments.map((attachment, fileIndex) => (
-                          <div key={attachment.id} className="p-3 border border-gray-200 rounded-md bg-gray-50">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-800">
-                                  {attachment.file.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(attachment.file.size / 1024).toFixed(2)} KB
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = step.attachments?.filter((_, i) => i !== fileIndex) || []
-                                  handleStepChange(index, "attachments", updated)
-                                }}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                              >
-                                Remove
-                              </button>
-                            </div>
-
-                            <div className="mt-2">
-                              <label className="block text-xs font-medium text-gray-700 mb-2">
-                                Access Control for this file:
-                              </label>
-                              <div className="grid grid-cols-2 gap-2">
-                                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-md cursor-pointer hover:bg-white bg-white">
-                                  <input
-                                    type="checkbox"
-                                    checked={attachment.access.includes("CANDIDATE")}
-                                    onChange={(e) => {
-                                      const updatedAttachments = [...(step.attachments || [])]
-                                      const currentAccess = updatedAttachments[fileIndex].access
-
-                                      if (e.target.checked) {
-                                        // Add CANDIDATE
-                                        updatedAttachments[fileIndex] = {
-                                          ...updatedAttachments[fileIndex],
-                                          access: [...new Set([...currentAccess, "CANDIDATE"])]
-                                        }
-                                        // Clear error if access is set
-                                        if (errors.workflowSteps?.[index]?.attachments) {
-                                          setErrors(prev => {
-                                            const newErrors = { ...prev }
-                                            if (newErrors.workflowSteps?.[index]) {
-                                              delete newErrors.workflowSteps[index].attachments
-                                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                                delete newErrors.workflowSteps[index]
-                                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                                  delete newErrors.workflowSteps
-                                                }
-                                              }
-                                            }
-                                            return newErrors
-                                          })
-                                        }
-                                      } else {
-                                        // Prevent removing if it's the last option
-                                        const newAccess = currentAccess.filter(a => a !== "CANDIDATE")
-                                        if (newAccess.length === 0) {
-                                          setErrors(prev => ({
-                                            ...prev,
-                                            workflowSteps: {
-                                              ...prev.workflowSteps,
-                                              [index]: {
-                                                ...prev.workflowSteps?.[index],
-                                                attachments: "Each attachment must have at least one access option selected"
-                                              }
-                                            }
-                                          }))
-                                          return
-                                        }
-                                        updatedAttachments[fileIndex] = {
-                                          ...updatedAttachments[fileIndex],
-                                          access: newAccess
-                                        }
-                                      }
-                                      handleStepChange(index, "attachments", updatedAttachments)
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  <span className="text-xs text-gray-700">Candidate</span>
-                                </label>
-
-                                <label className="flex items-center gap-2 p-2 border border-gray-300 rounded-md cursor-pointer hover:bg-white bg-white">
-                                  <input
-                                    type="checkbox"
-                                    checked={attachment.access.includes("INTERVIEWER")}
-                                    onChange={(e) => {
-                                      const updatedAttachments = [...(step.attachments || [])]
-                                      const currentAccess = updatedAttachments[fileIndex].access
-
-                                      if (e.target.checked) {
-                                        // Add INTERVIEWER
-                                        updatedAttachments[fileIndex] = {
-                                          ...updatedAttachments[fileIndex],
-                                          access: [...new Set([...currentAccess, "INTERVIEWER"])]
-                                        }
-                                        // Clear error if access is set
-                                        if (errors.workflowSteps?.[index]?.attachments) {
-                                          setErrors(prev => {
-                                            const newErrors = { ...prev }
-                                            if (newErrors.workflowSteps?.[index]) {
-                                              delete newErrors.workflowSteps[index].attachments
-                                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                                delete newErrors.workflowSteps[index]
-                                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                                  delete newErrors.workflowSteps
-                                                }
-                                              }
-                                            }
-                                            return newErrors
-                                          })
-                                        }
-                                      } else {
-                                        // Prevent removing if it's the last option
-                                        const newAccess = currentAccess.filter(a => a !== "INTERVIEWER")
-                                        if (newAccess.length === 0) {
-                                          setErrors(prev => ({
-                                            ...prev,
-                                            workflowSteps: {
-                                              ...prev.workflowSteps,
-                                              [index]: {
-                                                ...prev.workflowSteps?.[index],
-                                                attachments: "Each attachment must have at least one access option selected"
-                                              }
-                                            }
-                                          }))
-                                          return
-                                        }
-                                        updatedAttachments[fileIndex] = {
-                                          ...updatedAttachments[fileIndex],
-                                          access: newAccess
-                                        }
-                                      }
-                                      handleStepChange(index, "attachments", updatedAttachments)
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  <span className="text-xs text-gray-700">Interviewer</span>
-                                </label>
-                              </div>
-
-                              {attachment.access.length === 0 && (
-                                <p className="text-xs text-red-600 mt-1">
-                                  ⚠️ At least one access option must be selected
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <p className="text-xs text-gray-500 mt-2">
-                      Upload multiple files. Each file can have different access permissions (Candidate, Interviewer, or Both).
-                    </p>
-                  </div>
                 </div>
               </div>
             ))}

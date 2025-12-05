@@ -49,7 +49,6 @@ model User {
   experiences    UserExperience[]
   profileDetails UserProfileDetail?
   jobPreference  UserJobPreference?
-  cvs            CvManagerCv[]
   jobsCreated    Job[]              @relation("JobCreator")
   jobsUpdated    Job[]              @relation("JobUpdater")
   jobsApplied    JobsApplied[]
@@ -338,7 +337,6 @@ model JobsApplied {
   id              BigInt            @id @default(autoincrement())
   jobId           BigInt            @map("job_id")
   userId          BigInt            @map("user_id")
-  cvId            BigInt            @map("cv_id")
   status          ApplicationStatus @default(SUBMITTED)
   appliedAt       BigInt            @map("applied_at")
   statusUpdatedAt BigInt?           @map("status_updated_at")
@@ -348,7 +346,6 @@ model JobsApplied {
   // Relations
   job             Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cv              CvManagerCv        @relation(fields: [cvId], references: [id])
   pipeline        CandidatePipeline?
   slotBookings    SlotBooking[]
   batch           Batch?             @relation(fields: [batchId], references: [id], onDelete: SetNull)
@@ -357,7 +354,6 @@ model JobsApplied {
   @@unique([jobId, userId])
   @@index([jobId])
   @@index([userId])
-  @@index([cvId])
   @@index([batchId])
   @@map("jobs_applied")
 }
@@ -389,30 +385,6 @@ model JobsBookmark {
   @@map("jobs_bookmark")
 }
 
-// ============================================
-// CV Manager
-// ============================================
-
-model CvManagerCv {
-  id        BigInt  @id @default(autoincrement())
-  filepath  String  @db.VarChar(255)
-  filename  String  @db.VarChar(255)
-  userId    BigInt  @map("user_id")
-  status    String  @db.VarChar(10)
-  deletedAt BigInt? @map("deleted_at")
-  createdAt BigInt  @map("created_at")
-  updatedAt BigInt  @map("updated_at")
-
-  // Relations
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  applications JobsApplied[]
-
-  @@index([userId])
-  @@index([deletedAt])
-  @@map("cvmanager_cv")
-}
-
-// ============================================
 // Supporting Tables
 // ============================================
 

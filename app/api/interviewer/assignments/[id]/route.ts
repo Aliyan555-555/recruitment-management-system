@@ -54,13 +54,10 @@ export async function GET(
             },
             interviews: true,
             application: {
-              include: {
-                cv: {
-                  select: {
-                    filename: true,
-                    filepath: true,
-                  }
-                }
+              select: {
+                id: true,
+                status: true,
+                appliedAt: true,
               }
             }
           },
@@ -166,10 +163,10 @@ export async function GET(
           },
           application: {
             id: step.pipeline.application?.id.toString(),
-            cv: step.pipeline.application?.cv ? {
-              filename: step.pipeline.application.cv.filename,
-              filepath: step.pipeline.application.cv.filepath,
-            } : null,
+          profile: {
+            name: `${step.pipeline.candidate.firstname} ${step.pipeline.candidate.lastname}`,
+            email: step.pipeline.candidate.email,
+          },
           },
         },
         interviews: step.interviews.map((iv) => ({

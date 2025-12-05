@@ -119,10 +119,12 @@ export default function AppliedCandidatesPage() {
     }
 
     const filteredCandidates = candidates.filter(candidate => {
+        // Exclude shortlisted candidates - only show unshortlisted ones
+        const isNotShortlisted = candidate.status !== "SHORTLISTED"
         const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             candidate.email.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = statusFilter === "all" || candidate.status === statusFilter
-        return matchesSearch && matchesStatus
+        return isNotShortlisted && matchesSearch && matchesStatus
     })
 
     if (loading) {
@@ -181,7 +183,7 @@ export default function AppliedCandidatesPage() {
                 </div>
 
                 {/* Statistics */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -190,8 +192,10 @@ export default function AppliedCandidatesPage() {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Total Applied</p>
-                                <p className="text-2xl font-bold text-gray-900">{candidates.length}</p>
+                                <p className="text-sm font-medium text-gray-600">Total Candidates</p>
+                                <p className="text-2xl font-bold text-gray-900">
+                                    {candidates.filter(c => c.status !== "SHORTLISTED").length}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -207,22 +211,6 @@ export default function AppliedCandidatesPage() {
                                 <p className="text-sm font-medium text-gray-600">Pending Review</p>
                                 <p className="text-2xl font-bold text-gray-900">
                                     {candidates.filter(c => c.status === "PENDING").length}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-gray-600">Shortlisted</p>
-                                <p className="text-2xl font-bold text-gray-900">
-                                    {candidates.filter(c => c.status === "SHORTLISTED").length}
                                 </p>
                             </div>
                         </div>
@@ -271,7 +259,6 @@ export default function AppliedCandidatesPage() {
                                 <option value="PENDING">Pending</option>
                                 <option value="IN_PROGRESS">In Progress</option>
                                 <option value="COMPLETED">Completed</option>
-                                <option value="SHORTLISTED">Shortlisted</option>
                                 <option value="REJECTED">Rejected</option>
                             </select>
                         </div>
@@ -359,17 +346,17 @@ export default function AppliedCandidatesPage() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${candidate.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
-                                                        candidate.status === "SHORTLISTED" ? "bg-green-100 text-green-800" :
-                                                            candidate.status === "REJECTED" ? "bg-red-100 text-red-800" :
-                                                                "bg-blue-100 text-blue-800"
+                                                    candidate.status === "SHORTLISTED" ? "bg-green-100 text-green-800" :
+                                                        candidate.status === "REJECTED" ? "bg-red-100 text-red-800" :
+                                                            "bg-blue-100 text-blue-800"
                                                     }`}>
                                                     {candidate.status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${candidate.assessmentStatus === "completed" ? "bg-green-100 text-green-800" :
-                                                        candidate.assessmentStatus === "in_progress" ? "bg-blue-100 text-blue-800" :
-                                                            "bg-gray-100 text-gray-800"
+                                                    candidate.assessmentStatus === "in_progress" ? "bg-blue-100 text-blue-800" :
+                                                        "bg-gray-100 text-gray-800"
                                                     }`}>
                                                     {candidate.assessmentStatus === "completed" ? "Completed" :
                                                         candidate.assessmentStatus === "in_progress" ? "In Progress" :
@@ -406,6 +393,6 @@ export default function AppliedCandidatesPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     )
 }

@@ -1,8 +1,17 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { type ColumnDef } from "@tanstack/react-table"
+import { DataTable } from "@/components/ui/data-table"
+
+interface WorkflowStep {
+  id: string
+  name: string
+  type: string
+  order: number
+}
 
 interface Job {
   id: string
@@ -16,6 +25,10 @@ interface Job {
   applicationCount?: number
   _count?: {
     applications: number
+  }
+  workflow?: {
+    id: string
+    steps: WorkflowStep[]
   }
 }
 
@@ -97,6 +110,312 @@ export default function AdminJobsPage() {
       setDeletingId(null)
     }
   }
+
+  const getStepByType = (job: Job, stepType: string): WorkflowStep | null => {
+    if (!job.workflow?.steps) return null
+    return job.workflow.steps.find(step => step.type === stepType) || null
+  }
+
+  const getStepDisplay = (job: Job, stepType: string): string => {
+    const step = getStepByType(job, stepType)
+    return step ? step.name : "N/A"
+  }
+
+  const columns = useMemo<ColumnDef<Job>[]>(() => [
+    {
+      id: "index",
+      header: "S.No.",
+      cell: ({ row, table }) => {
+        const pageIndex = table.getState().pagination.pageIndex
+        const pageSize = table.getState().pagination.pageSize
+        const rowIndex = table.getRowModel().rows.findIndex(r => r.id === row.id)
+        return pageIndex * pageSize + rowIndex + 1
+      },
+      enableSorting: false,
+    },
+    {
+      accessorKey: "title",
+      header: "Job Title",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="text-sm font-semibold text-gray-900">{row.original.title}</div>
+      ),
+    },
+    {
+      accessorKey: "postFrom",
+      header: "Available From",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="text-sm text-gray-600">
+          {new Date(row.original.postFrom).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "postTo",
+      header: "Available To",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="text-sm text-gray-600">
+          {new Date(row.original.postTo).toLocaleDateString()}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="text-center">
+          <span
+            className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${row.original.status
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+              }`}
+          >
+            {row.original.status ? "Active" : "Inactive"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "applications",
+      header: "No. of Applicants",
+      enableSorting: true,
+      cell: ({ row }) => (
+        <div className="text-center">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            {row.original._count?.applications ?? row.original.applicationCount ?? 0}
+          </span>
+        </div>
+      ),
+      sortingFn: (rowA, rowB) => {
+        const countA = rowA.original._count?.applications ?? rowA.original.applicationCount ?? 0
+        const countB = rowB.original._count?.applications ?? rowB.original.applicationCount ?? 0
+        return countA - countB
+      },
+    },
+    {
+      id: "test",
+      header: "Test",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const step = getStepByType(row.original, "TEST")
+        return (
+          <div className="text-center">
+            {step ? (
+              <Link
+                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                title={step.name}
+              >
+                {step.name}
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-400">N/A</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "screening",
+      header: "Screening",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const step = getStepByType(row.original, "SCREENING_INTERVIEW")
+        return (
+          <div className="text-center">
+            {step ? (
+              <Link
+                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                title={step.name}
+              >
+                {step.name}
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-400">N/A</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "focusGroup",
+      header: "Focus Group",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const step = getStepByType(row.original, "FOCUS_GROUP")
+        return (
+          <div className="text-center">
+            {step ? (
+              <Link
+                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                title={step.name}
+              >
+                {step.name}
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-400">N/A</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "finalInterview",
+      header: "Final Interview",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const step = getStepByType(row.original, "FINAL_INTERVIEW")
+        return (
+          <div className="text-center">
+            {step ? (
+              <Link
+                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                title={step.name}
+              >
+                {step.name}
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-400">N/A</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "offered",
+      header: "Offered",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const step = getStepByType(row.original, "OFFER")
+        return (
+          <div className="text-center">
+            {step ? (
+              <Link
+                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
+                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                title={step.name}
+              >
+                {step.name}
+              </Link>
+            ) : (
+              <span className="text-sm text-gray-400">N/A</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const job = row.original
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Link
+              href={`/admin/jobs/${job.id}`}
+              className="inline-flex items-center justify-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+              title="View Job"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </Link>
+            <Link
+              href={`/admin/candidates?jobId=${job.id}`}
+              className="inline-flex items-center justify-center p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors"
+              title="View Candidates"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </Link>
+            <div
+              className="relative"
+              ref={(el) => {
+                menuRefs.current[job.id] = el
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenMenuId(prev => (prev === job.id ? null : job.id))
+                }}
+                className="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="More Actions"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
+
+              {openMenuId === job.id && (
+                <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-xl">
+                  <div className="py-1">
+                    <Link
+                      href={`/admin/jobs/${job.id}/edit`}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setOpenMenuId(null)}
+                    >
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      <span className="font-medium">Edit Job</span>
+                    </Link>
+                    {job.jobType === "BULK" && (
+                      <>
+                        <Link
+                          href={`/admin/jobs/${job.id}/shortlist`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setOpenMenuId(null)}
+                        >
+                          <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                          <span className="font-medium">Shortlist</span>
+                        </Link>
+                        <Link
+                          href={`/admin/jobs/${job.id}/batches`}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setOpenMenuId(null)}
+                        >
+                          <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                          <span className="font-medium">Manage Batches</span>
+                        </Link>
+                      </>
+                    )}
+                    <div className="border-t border-gray-200 my-1"></div>
+                    <button
+                      onClick={() => handleDelete(job.id, job.title)}
+                      disabled={deletingId === job.id}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span className="font-medium">
+                        {deletingId === job.id ? "Deleting..." : "Delete Job"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      },
+    },
+  ], [openMenuId, deletingId, menuRefs])
 
   if (loading) {
     return (
@@ -188,210 +507,13 @@ export default function AdminJobsPage() {
             </Link>
           </div>
         ) : (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 ">
-            <div className="">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Job Title
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Company
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Period
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Applications
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Rounds
-                    </th>
-                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {jobs.map((job) => (
-                    <tr key={job.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-semibold text-gray-900">{job.title}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600">{job.company}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600">
-                          {new Date(job.postFrom).toLocaleDateString()} - {new Date(job.postTo).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          {job._count?.applications ?? (job as any).applicationCount ?? 0}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="flex flex-col gap-1 items-center">
-                          <span
-                            className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${job.jobType === "BULK"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-blue-100 text-blue-800"
-                              }`}
-                          >
-                            {job.jobType === "BULK" ? "Bulk Hiring" : "Normal"}
-                          </span>
-                          {job.jobType === "BULK" && job.jobStatus && (
-                            <span
-                              className={`px-2 py-0.5 inline-flex text-xs font-medium rounded-full ${job.jobStatus === "ACTIVE"
-                                  ? "bg-green-100 text-green-800"
-                                  : job.jobStatus === "ADMIN_SHORTLISTING"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-gray-100 text-gray-800"
-                                }`}
-                            >
-                              {job.jobStatus.replace(/_/g, " ")}
-                            </span>
-                          )}
-                        </div>
-
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex flex-wrap gap-2 max-w-xs">
-                          {(job as any).workflow?.steps?.map((step: any) => (
-                            <Link
-                              key={step.id}
-                              href={`/admin/jobs/${job.id}/rounds/${step.id}/applied`}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors"
-                              title={`${step.name} (${step.type})`}
-                            >
-                              {step.name}
-                            </Link>
-                          ))}
-                          {(!(job as any).workflow?.steps || (job as any).workflow?.steps.length === 0) && (
-                            <span className="text-xs text-gray-500 italic">No rounds defined</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span
-                          className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${job.status
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                            }`}
-                        >
-                          {job.status ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/admin/jobs/${job.id}`}
-                            className="inline-flex items-center justify-center p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="View Job"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          </Link>
-                          <Link
-                            href={`/admin/candidates?jobId=${job.id}`}
-                            className="inline-flex items-center justify-center p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors"
-                            title="View Candidates"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                          </Link>
-                          <div
-                            className="relative"
-                            ref={(el) => {
-                              menuRefs.current[job.id] = el
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setOpenMenuId(prev => (prev === job.id ? null : job.id))
-                              }}
-                              className="inline-flex items-center justify-center p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                              title="More Actions"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                              </svg>
-                            </button>
-
-                            {openMenuId === job.id && (
-                              <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-gray-200 bg-white shadow-xl">
-                                <div className="py-1">
-                                  <Link
-                                    href={`/admin/jobs/${job.id}/edit`}
-                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                    onClick={() => setOpenMenuId(null)}
-                                  >
-                                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                    <span className="font-medium">Edit Job</span>
-                                  </Link>
-                                  {job.jobType === "BULK" && (
-                                    <>
-                                      <Link
-                                        href={`/admin/jobs/${job.id}/shortlist`}
-                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                        onClick={() => setOpenMenuId(null)}
-                                      >
-                                        <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                                        </svg>
-                                        <span className="font-medium">Shortlist</span>
-                                      </Link>
-                                      <Link
-                                        href={`/admin/jobs/${job.id}/batches`}
-                                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                        onClick={() => setOpenMenuId(null)}
-                                      >
-                                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                        </svg>
-                                        <span className="font-medium">Manage Batches</span>
-                                      </Link>
-                                    </>
-                                  )}
-                                  <div className="border-t border-gray-200 my-1"></div>
-                                  <button
-                                    onClick={() => handleDelete(job.id, job.title)}
-                                    disabled={deletingId === job.id}
-                                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    <span className="font-medium">
-                                      {deletingId === job.id ? "Deleting..." : "Delete Job"}
-                                    </span>
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+            <DataTable
+              columns={columns}
+              data={jobs}
+              searchKey="title"
+              searchPlaceholder="Search jobs by title..."
+            />
           </div>
         )}
       </div>

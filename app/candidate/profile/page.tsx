@@ -66,10 +66,6 @@ interface ProfileData {
       thirdPriority?: string
       summary?: string
     } | null
-    cvs: Array<{
-      id: string
-      filename: string
-    }>
   }
 }
 
@@ -408,31 +404,20 @@ export default function CandidateProfilePage() {
               </Card>
             )}
 
-            {/* CVs */}
-            {user.cvs.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    CVs
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {user.cvs.map((cv) => (
-                    <div key={cv.id} className="flex items-center justify-between p-2 border rounded">
-                      <span className="text-sm">{cv.filename}</span>
-                      <a
-                        href={`/api/profile/cv/${cv.id}`}
-                        target="_blank"
-                        className="text-primary hover:underline text-sm"
-                      >
-                        View
-                      </a>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
+            {/* CVs Deprecated */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  CVs Deprecated
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  CV uploads are deprecated. Applications use your profile data (education, experience, skills).
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Salary & Notice Period */}
             {(profileDetails?.expectedSalary || profileDetails?.noticePeriod) && (

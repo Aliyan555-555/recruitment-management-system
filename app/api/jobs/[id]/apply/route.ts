@@ -72,7 +72,7 @@ export async function POST(
 
       // Use bulk application handler
       try {
-        const applicationId = await handleBulkApplication(jobId, userIdBig, BigInt(body.cvId))
+        const applicationId = await handleBulkApplication(jobId, userIdBig)
         
         const application = await prisma.jobsApplied.findUnique({
           where: { id: applicationId },
@@ -156,7 +156,6 @@ export async function POST(
       data: {
         jobId,
         userId: userIdBig,
-        cvId: BigInt(body.cvId),
         status: "SUBMITTED",
         appliedAt: now
       },
@@ -177,11 +176,6 @@ export async function POST(
             firstname: true,
             lastname: true,
             email: true
-          }
-        },
-        cv: {
-          select: {
-            filename: true
           }
         }
       }

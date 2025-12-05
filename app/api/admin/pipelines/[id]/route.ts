@@ -73,14 +73,7 @@ export async function GET(
           select: {
             id: true,
             status: true,
-            appliedAt: true,
-            cv: {
-              select: {
-                id: true,
-                filename: true,
-                filepath: true
-              }
-            }
+            appliedAt: true
           }
         },
         steps: {
@@ -215,12 +208,7 @@ export async function GET(
         },
         application: {
           status: pipeline.application.status,
-          appliedAt: pipeline.application.appliedAt.toString(),
-          cv: {
-            id: pipeline.application.cv.id.toString(),
-            filename: pipeline.application.cv.filename,
-            filepath: pipeline.application.cv.filepath
-          }
+          appliedAt: pipeline.application.appliedAt.toString()
         },
         status: pipeline.overallStatus,
         lockState: (pipeline as any).lockState || 'NONE',

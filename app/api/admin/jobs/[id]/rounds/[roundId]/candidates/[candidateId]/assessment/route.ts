@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireStaff } from "@/lib/rbac"
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates/[candidateId]/assessment - Get existing assessment
 export async function GET(
@@ -9,9 +8,13 @@ export async function GET(
   { params }: { params: { id: string; roundId: string; candidateId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INTERVIEWER")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireStaff()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin or Interviewer access required" },
+        { status: 401 }
+      )
     }
 
     // Find pipeline step for this candidate and round
@@ -24,6 +27,45 @@ export async function GET(
         }
       },
       include: {
+        pipeline: {
+          include: {
+            candidate: {
+              include: {
+                profileDetails: true,
+                educations: {
+                  include: {
+                    educationLevel: true
+                  },
+                  orderBy: { createdAt: 'desc' },
+                  take: 1
+                },
+                experiences: {
+                  orderBy: { createdAt: 'desc' },
+                  take: 1
+                },
+                jobPreference: true
+              }
+            },
+            job: {
+              select: {
+                id: true,
+                title: true,
+                company: true
+              }
+            },
+            application: {
+              select: {
+                appliedAt: true
+              }
+            }
+          }
+        },
+        workflowStep: {
+          select: {
+            stepName: true,
+            stepMetadata: true
+          }
+        },
         stageEvaluations: {
           include: {
             interviewer: {
@@ -42,8 +84,39 @@ export async function GET(
     }
 
     const evaluation = pipelineStep.stageEvaluations[0]
+    const candidate = pipelineStep.pipeline.candidate
+    const latestEducation = candidate.educations[0]
+    const latestExperience = candidate.experiences[0]
+
+    // Extract interviewer IDs from step metadata
+    const stepMetadata = pipelineStep.workflowStep.stepMetadata as any
+    const stepInterviewerIds = stepMetadata?.interviewerIds || []
 
     return NextResponse.json({
+      candidate: {
+        id: candidate.id.toString(),
+        name: `${candidate.firstname} ${candidate.lastname}`,
+        email: candidate.email,
+        phone: candidate.phone1,
+        education: latestEducation ? 
+          `${latestEducation.educationLevel.name} - ${latestEducation.degreeTitle}` : "-",
+        institution: latestEducation?.institute || "-",
+        lastEmployer: latestExperience?.company || "-",
+        lastAssignment: latestExperience?.jobTitle || "-",
+        totalExperience: latestExperience ? 
+          `${latestExperience.startDate} - ${latestExperience.endDate || "Present"}` : "-",
+        currentSalary: candidate.profileDetails?.expectedSalary || "-",
+        liability: candidate.profileDetails?.noticePeriod || "-",
+        relatives: candidate.profileDetails?.references || "-",
+        remarks: "-"
+      },
+      job: {
+        id: pipelineStep.pipeline.job.id.toString(),
+        title: pipelineStep.pipeline.job.title,
+        company: pipelineStep.pipeline.job.company
+      },
+      stepName: pipelineStep.workflowStep.stepName,
+      stepInterviewerIds: stepInterviewerIds,
       formData: evaluation?.formData || null,
       submittedAt: evaluation?.submittedAt,
       interviewer: evaluation?.interviewer ? 
@@ -61,9 +134,13 @@ export async function POST(
   { params }: { params: { id: string; roundId: string; candidateId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INTERVIEWER")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireStaff()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin or Interviewer access required" },
+        { status: 401 }
+      )
     }
 
     const body = await request.json()
@@ -88,9 +165,26 @@ export async function POST(
       return NextResponse.json({ error: "Pipeline step not found" }, { status: 404 })
     }
 
-    // Calculate score and recommendation based on form data
-    const recommendedToHire = formData.recommendedToHire === "yes"
-    const score = recommendedToHire ? 75 : 40 // Simple scoring logic
+    // Calculate score based on skill ratings
+    let totalScore = 0
+    let maxScore = 0
+    
+    if (formData.skills) {
+      // Calculate score from skill ratings
+      Object.keys(formData.skills).forEach((skillKey) => {
+        const skill = formData.skills[skillKey]
+        const rating = skill.rating || 0
+        const max = skill.max || 10
+        totalScore += rating
+        maxScore += max
+      })
+    }
+    
+    // Calculate percentage
+    const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+    
+    // Determine recommendation based on score and form data
+    const recommendedToHire = formData.recommendedToHire === "Recommended" || formData.recommendedToHire === "yes"
     const recommendation = recommendedToHire ? "HIRE" : "NO_HIRE"
 
     // Create or update stage evaluation
@@ -98,22 +192,22 @@ export async function POST(
       where: {
         pipelineStepId_interviewerId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(session.user.id)
+          interviewerId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(session.user.id),
+        interviewerId: BigInt(user.id),
         formData: formData,
-        score: score,
+        score: totalScore,
         recommendation: recommendation,
-        submittedAt: Date.now()
+        submittedAt: BigInt(Math.floor(Date.now() / 1000))
       },
       update: {
         formData: formData,
-        score: score,
+        score: totalScore,
         recommendation: recommendation,
-        submittedAt: Date.now()
+        submittedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })
 
@@ -122,13 +216,15 @@ export async function POST(
       where: { id: pipelineStep.id },
       data: {
         status: recommendedToHire ? "COMPLETED" : "REJECTED",
-        completedAt: Date.now()
+        completedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })
 
     return NextResponse.json({ success: true, evaluation: {
       id: evaluation.id.toString(),
-      score,
+      score: totalScore,
+      scorePercentage,
+      maxScore,
       recommendation
     }})
   } catch (error) {
@@ -143,9 +239,13 @@ export async function PUT(
   { params }: { params: { id: string; roundId: string; candidateId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INTERVIEWER")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireStaff()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin or Interviewer access required" },
+        { status: 401 }
+      )
     }
 
     const body = await request.json()
@@ -171,12 +271,12 @@ export async function PUT(
       where: {
         pipelineStepId_interviewerId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(session.user.id)
+          interviewerId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(session.user.id),
+        interviewerId: BigInt(user.id),
         formData: formData,
         score: null,
         recommendation: null,

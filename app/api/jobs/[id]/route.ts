@@ -41,10 +41,7 @@ export async function GET(
           }
         },
         applications: {
-          where: { userId: BigInt(session.user.id) },
-          include: {
-            cv: true
-          }
+          where: { userId: BigInt(session.user.id) }
         }
       }
     })
@@ -90,11 +87,7 @@ export async function GET(
       application: userApplication ? {
         id: userApplication.id.toString(),
         status: userApplication.status,
-        appliedAt: userApplication.appliedAt.toString(),
-        cv: {
-          id: userApplication.cv.id.toString(),
-          filename: userApplication.cv.filename
-        }
+        appliedAt: userApplication.appliedAt.toString()
       } : null
     })
   } catch (error: any) {

@@ -19,28 +19,14 @@ interface WorkflowStepInput {
   stepName?: string // Optional, for backward compatibility/display
   stepType: string // Required: TEST, SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
   stepOrder: number
-  isRequired: boolean
-  isSkippable: boolean
   interviewerId?: string
   // Extended fields stored in stepMetadata
-  skipReason?: string
   durationMins?: number
   weightage?: number
   scoreThreshold?: number
   interviewMode?: string
   meetingLink?: string
   interviewerIds?: string[] // Multi-select interviewer IDs
-  routeVisibility?: string[] // Roles that can view this step
-  evaluationCriteria?: string[] // Evaluation criteria tags
-  candidateInstructions?: string
-  interviewerInstructions?: string
-  attachments?: Array<{
-    id: string
-    fileName: string
-    fileSize: number
-    fileType: string
-    access: string[] // Access permissions
-  }> // Note: Actual file upload requires separate endpoint, this stores metadata only
 }
 
 interface JobLocationInput {
@@ -306,31 +292,16 @@ export async function POST(req: NextRequest) {
                 ? step.interviewerIds[0]
                 : step.interviewerId
 
-              // Build stepMetadata JSON with all extended fields
+              // Build stepMetadata JSON with extended fields
               const stepMetadata: any = {}
               
               if (step.stepType) stepMetadata.stepType = step.stepType
-              if (step.skipReason) stepMetadata.skipReason = step.skipReason
               if (step.durationMins !== undefined) stepMetadata.durationMins = step.durationMins
               if (step.weightage !== undefined) stepMetadata.weightage = step.weightage
               if (step.scoreThreshold !== undefined) stepMetadata.scoreThreshold = step.scoreThreshold
               if (step.interviewMode) stepMetadata.interviewMode = step.interviewMode
               if (step.meetingLink) stepMetadata.meetingLink = step.meetingLink
               if (step.interviewerIds && step.interviewerIds.length > 0) stepMetadata.interviewerIds = step.interviewerIds
-              if (step.routeVisibility && step.routeVisibility.length > 0) stepMetadata.routeVisibility = step.routeVisibility
-              if (step.evaluationCriteria && step.evaluationCriteria.length > 0) stepMetadata.evaluationCriteria = step.evaluationCriteria
-              if (step.candidateInstructions) stepMetadata.candidateInstructions = step.candidateInstructions
-              if (step.interviewerInstructions) stepMetadata.interviewerInstructions = step.interviewerInstructions
-              if (step.attachments && step.attachments.length > 0) {
-                // Store attachment metadata (files need separate upload endpoint)
-                stepMetadata.attachments = step.attachments.map(att => ({
-                  id: att.id,
-                  fileName: att.fileName,
-                  fileSize: att.fileSize,
-                  fileType: att.fileType,
-                  access: att.access
-                }))
-              }
 
               // Auto-populate stepName from stepType
               const stepName = getStepNameFromType(step.stepType)
@@ -339,8 +310,8 @@ export async function POST(req: NextRequest) {
                 stepName: stepName, // Auto-populated from stepType
                 stepType: step.stepType as any, // Store stepType in database field
                 stepOrder: step.stepOrder,
-                isRequired: step.isRequired,
-                isSkippable: step.isSkippable,
+                isRequired: true, // Default: all steps are required
+                isSkippable: false, // Default: steps are not skippable
                 interviewerId: primaryInterviewerId ? BigInt(primaryInterviewerId) : null,
                 status: 'ACTIVE',
                 stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,

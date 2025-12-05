@@ -98,7 +98,7 @@ export function ProfileForm({ user }: { user: any }) {
   const [newSkillLevel, setNewSkillLevel] = useState("5")
 
   // CV State
-  const [cvs, setCvs] = useState<CV[]>(user.cvs)
+  const [cvs, setCvs] = useState<CV[]>([])
   const [cvUploading, setCvUploading] = useState(false)
 
   const updateEducationValue = (id: string, changes: Partial<Education>) => {
@@ -313,53 +313,6 @@ export function ProfileForm({ user }: { user: any }) {
       }
     } catch (error) {
       console.error("Error deleting skill:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be less than 5MB")
-      return
-    }
-
-    setCvUploading(true)
-    const formData = new FormData()
-    formData.append("file", file)
-
-    try {
-      const response = await fetch("/api/profile/cv", {
-        method: "POST",
-        body: formData
-      })
-
-      if (response.ok) {
-        const newCv = await response.json()
-        setCvs([newCv, ...cvs])
-      }
-    } catch (error) {
-      console.error("Error uploading CV:", error)
-    } finally {
-      setCvUploading(false)
-    }
-  }
-
-  const handleDeleteCv = async (id: string) => {
-    setLoading(true)
-    try {
-      const response = await fetch(`/api/profile/cv/${id}`, {
-        method: "DELETE"
-      })
-
-      if (response.ok) {
-        setCvs(cvs.filter(c => c.id !== id))
-      }
-    } catch (error) {
-      console.error("Error deleting CV:", error)
     } finally {
       setLoading(false)
     }
@@ -800,59 +753,16 @@ export function ProfileForm({ user }: { user: any }) {
         </CardContent>
       </Card>
 
-      {/* CV/Resume */}
+      {/* Profile-based Applications */}
       <Card>
         <CardHeader>
-          <CardTitle>CV/Resume</CardTitle>
-          <CardDescription>Upload and manage your resumes</CardDescription>
+          <CardTitle>Applications use your Profile</CardTitle>
+          <CardDescription>CV uploads are deprecated. We use your profile data (education, experience, skills).</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <Upload className="h-12 w-12 text-muted-foreground" />
-              <div className="text-center">
-                <Label htmlFor="cv-upload" className="cursor-pointer">
-                  <Button asChild>
-                    <span>Upload CV</span>
-                  </Button>
-                  <input
-                    id="cv-upload"
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={handleCvUpload}
-                    disabled={cvUploading}
-                  />
-                </Label>
-                <p className="text-xs text-muted-foreground mt-2">
-                  PDF, DOC, or DOCX (Max 5MB)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {cvs.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-semibold">Your CVs:</h4>
-              {cvs.map((cv) => (
-                <div key={cv.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm">{cv.filename}</span>
-                    <Badge variant="outline">{cv.status}</Badge>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteCv(cv.id)}
-                    disabled={loading}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Keep your profile up to date. When you apply, your profile information is sent instead of a CV file.
+          </p>
         </CardContent>
       </Card>
     </div>

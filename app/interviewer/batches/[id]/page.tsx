@@ -17,11 +17,6 @@ interface Candidate {
   }
   application: {
     id: string
-    cv: {
-      id: string
-      filename: string
-      filepath: string
-    } | null
   }
 }
 
@@ -192,17 +187,9 @@ export default function BatchEvaluationPage() {
                     </h3>
                     <p className="text-sm text-gray-600">{candidate.candidate.email}</p>
                   </div>
-                  {candidate.application.cv ? (
-                    <a
-                      href={`/api/profile/cv/${candidate.application.cv.id}`}
-                      target="_blank"
-                      className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
-                    >
-                      View CV
-                    </a>
-                  ) : (
-                    <span className="px-3 py-1 text-sm text-gray-400">No CV</span>
-                  )}
+                  <span className="px-3 py-1 text-sm text-gray-500 bg-blue-50 text-blue-700 rounded-lg">
+                    Profile Used
+                  </span>
                 </div>
 
                 <div className="space-y-4">

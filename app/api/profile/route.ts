@@ -36,11 +36,7 @@ export async function GET(req: NextRequest) {
           orderBy: { createdAt: "desc" }
         },
         profileDetails: true,
-        jobPreference: true,
-        cvs: {
-          where: { deletedAt: null },
-          orderBy: { updatedAt: "desc" }
-        }
+        jobPreference: true
       }
     })
 
@@ -121,13 +117,7 @@ export async function GET(req: NextRequest) {
           secondPriority: user.jobPreference.secondPriority,
           thirdPriority: user.jobPreference.thirdPriority,
           summary: user.jobPreference.summary
-        } : null,
-        cvs: user.cvs.map(cv => ({
-          id: cv.id.toString(),
-          filename: cv.filename,
-          filepath: cv.filepath,
-          status: cv.status
-        }))
+        } : null
       }
     })
   } catch (error: any) {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireAdmin } from "@/lib/rbac"
 
 // GET /api/admin/jobs/[id]/workflow - Get job workflow with round statistics
 export async function GET(
@@ -9,9 +8,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireAdmin()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 401 }
+      )
     }
 
     // Get job with workflow
@@ -20,7 +23,7 @@ export async function GET(
       include: {
         workflow: {
           include: {
-            workflowSteps: {
+            steps: {
               orderBy: { stepOrder: 'asc' },
               include: {
                 pipelineSteps: {
@@ -45,7 +48,7 @@ export async function GET(
     }
 
     // Calculate statistics for each round
-    const roundsWithStats = job.workflow.workflowSteps.map(step => {
+    const roundsWithStats = job.workflow.steps.map(step => {
       const allCandidates = step.pipelineSteps
 
       return {

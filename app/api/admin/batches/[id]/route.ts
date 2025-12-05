@@ -49,11 +49,10 @@ export async function GET(
           },
           application: {
             id: c.application.id.toString(),
-            cv: c.application.cv ? {
-              id: c.application.cv.id.toString(),
-              filename: c.application.cv.filename,
-              filepath: c.application.cv.filepath
-            } : null
+            profile: {
+              name: `${c.candidate.firstname} ${c.candidate.lastname}`,
+              email: c.candidate.email
+            }
           }
         }))
       }

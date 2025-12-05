@@ -6,8 +6,7 @@ import { createBatch } from "./batch-service"
  */
 export async function handleBulkApplication(
   jobId: bigint,
-  userId: bigint,
-  cvId: bigint
+  userId: bigint
 ): Promise<bigint> {
   const now = BigInt(Math.floor(Date.now() / 1000))
 
@@ -56,7 +55,6 @@ export async function handleBulkApplication(
     data: {
       jobId,
       userId,
-      cvId,
       status: "APPLIED",
       appliedAt: now
     }

@@ -42,16 +42,6 @@ interface Application {
   id: string
   status: string
   appliedAt: string
-  cv: {
-    id: string
-    filename: string
-  }
-}
-
-interface UserCv {
-  id: string
-  filename: string
-  filepath: string
 }
 
 export default function JobDetailsPage() {
@@ -61,7 +51,6 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null)
   const [hasApplied, setHasApplied] = useState(false)
   const [application, setApplication] = useState<Application | null>(null)
-  const [userCvs, setUserCvs] = useState<UserCv[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,7 +62,6 @@ export default function JobDetailsPage() {
       } else if (status === "authenticated") {
         // For authenticated users, use the existing flow
         fetchJobDetails()
-        fetchUserCvs()
       }
     }
   }, [status, router, params.id])
@@ -162,25 +150,6 @@ export default function JobDetailsPage() {
     }
   }
 
-  const fetchUserCvs = async () => {
-    try {
-      const response = await fetch("/api/profile/cv", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setUserCvs(data.cvs || [])
-      }
-    } catch (err) {
-      console.error("Error fetching CVs:", err)
-      // Don't set error state for CVs, just log it
-    }
-  }
-
   // Show loading state while checking authentication
   if (status === "loading" || loading) {
     return (
@@ -239,7 +208,6 @@ export default function JobDetailsPage() {
             ...application,
             appliedAt: BigInt(application.appliedAt),
           } : null}
-          userCvs={userCvs}
           isPublic={status === "unauthenticated"}
         />
       </main>

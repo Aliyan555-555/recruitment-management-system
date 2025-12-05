@@ -15,11 +15,6 @@ interface Candidate {
   }
   status: string
   appliedAt: string
-  cv: {
-    id: string
-    filename: string
-    filepath: string
-  }
 }
 
 export default function ShortlistPage() {
@@ -234,14 +229,8 @@ export default function ShortlistPage() {
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {new Date(Number(candidate.appliedAt) * 1000).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4">
-                    <a
-                      href={`/api/profile/cv/${candidate.cv.id}`}
-                      target="_blank"
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      View CV
-                    </a>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    Profile used
                   </td>
                 </tr>
               ))}

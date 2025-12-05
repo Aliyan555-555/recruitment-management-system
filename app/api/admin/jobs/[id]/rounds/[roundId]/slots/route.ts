@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireAdmin, requireStaff } from "@/lib/rbac"
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/slots - List slots
 export async function GET(
@@ -9,9 +8,13 @@ export async function GET(
   { params }: { params: { id: string; roundId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || (session.user.role !== "ADMIN" && session.user.role !== "INTERVIEWER")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireStaff()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin or Interviewer access required" },
+        { status: 401 }
+      )
     }
 
     const slots = await prisma.interviewSlot.findMany({
@@ -22,8 +25,8 @@ export async function GET(
         interviewer: {
           select: {
             id: true,
-            firstName: true,
-            lastName: true,
+            firstname: true,
+            lastname: true,
             email: true
           }
         },
@@ -32,8 +35,8 @@ export async function GET(
             candidate: {
               select: {
                 id: true,
-                firstName: true,
-                lastName: true,
+                firstname: true,
+                lastname: true,
                 email: true
               }
             }
@@ -54,11 +57,11 @@ export async function GET(
         isBlocked: slot.isBlocked,
         interviewer: {
           id: slot.interviewer.id.toString(),
-          name: `${slot.interviewer.firstName} ${slot.interviewer.lastName}`
+          name: `${slot.interviewer.firstname} ${slot.interviewer.lastname}`
         },
-        bookings: slot.bookings.map(booking => ({
+        bookings: slot.bookings.map((booking: any) => ({
           id: booking.id.toString(),
-          candidateName: `${booking.candidate.firstName} ${booking.candidate.lastName}`,
+          candidateName: `${booking.candidate.firstname} ${booking.candidate.lastname}`,
           status: booking.status
         }))
       }))
@@ -75,9 +78,13 @@ export async function POST(
   { params }: { params: { id: string; roundId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireAdmin()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 401 }
+      )
     }
 
     const body = await request.json()

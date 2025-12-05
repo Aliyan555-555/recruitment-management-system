@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { requireCandidate } from "@/lib/rbac"
 
 // POST /api/slots/[slotId]/book - Book a slot
 export async function POST(
@@ -9,9 +8,13 @@ export async function POST(
   { params }: { params: { slotId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== "CANDIDATE") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireCandidate()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Candidate access required" },
+        { status: 401 }
+      )
     }
 
     const { applicationId } = await request.json()
@@ -45,11 +48,11 @@ export async function POST(
     const booking = await prisma.slotBooking.create({
       data: {
         slotId: BigInt(params.slotId),
-        candidateId: BigInt(session.user.id),
+        candidateId: BigInt(user.id),
         applicationId: BigInt(applicationId),
         status: "RESERVED",
-        createdAt: BigInt(Date.now()),
-        updatedAt: BigInt(Date.now())
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
+        updatedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })
 
@@ -71,16 +74,20 @@ export async function DELETE(
   { params }: { params: { slotId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const user = await requireCandidate()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized - Candidate access required" },
+        { status: 401 }
+      )
     }
 
     // Find the booking for this slot and user
     const booking = await prisma.slotBooking.findFirst({
       where: {
         slotId: BigInt(params.slotId),
-        candidateId: BigInt(session.user.id)
+        candidateId: BigInt(user.id)
       }
     })
 
