@@ -121,9 +121,10 @@ export default function AppliedCandidatesPage() {
 
     const filteredCandidates = candidates.filter(candidate => {
         // Exclude shortlisted candidates - only show unshortlisted ones
-        // Use applicationStatus if available, otherwise fall back to status
+        // UNLESS they are just entering this round (status is PENDING)
+        // This allows candidates moved from previous rounds (who are globally SHORTLISTED) to appear here
         const appStatus = candidate.applicationStatus || candidate.status
-        const isNotShortlisted = appStatus !== "SHORTLISTED"
+        const isNotShortlisted = appStatus !== "SHORTLISTED" || candidate.status === "PENDING"
         const matchesSearch = candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             candidate.email.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = statusFilter === "all" || candidate.status === statusFilter
@@ -199,7 +200,7 @@ export default function AppliedCandidatesPage() {
                                 <p className="text-2xl font-bold text-gray-900">
                                     {candidates.filter(c => {
                                         const appStatus = c.applicationStatus || c.status
-                                        return appStatus !== "SHORTLISTED"
+                                        return appStatus !== "SHORTLISTED" || c.status === "PENDING"
                                     }).length}
                                 </p>
                             </div>

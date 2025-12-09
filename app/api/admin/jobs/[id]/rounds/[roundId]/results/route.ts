@@ -2,6 +2,49 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/rbac"
 
+const DEFAULT_SKILL_MAX: Record<string, number> = {
+  appearance: 10,
+  education: 10,
+  intellectual: 10,
+  leadership: 10,
+  principles: 10,
+  itSkills: 10,
+  communication: 10,
+  commitment: 10,
+  assertiveness: 10,
+  versatility: 10,
+  professionalKnowledge: 25,
+  experience: 25
+}
+
+function calculateScore(formData: any, storedScore?: number | null) {
+  if (!formData) {
+    const maxScore = Object.values(DEFAULT_SKILL_MAX).reduce((sum, v) => sum + v, 0)
+    const totalScore = storedScore ?? 0
+    const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+    return { totalScore, maxScore, scorePercentage, recommendation: null as string | null }
+  }
+
+  let totalScore = 0
+  let maxScore = 0
+
+  Object.entries(DEFAULT_SKILL_MAX).forEach(([key, defaultMax]) => {
+    const rating = Number(formData?.skills?.[key]?.rating ?? 0)
+    const max = Number(formData?.skills?.[key]?.max ?? defaultMax)
+    totalScore += rating
+    maxScore += max
+  })
+
+  const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+  const recommendedToHire =
+    formData.recommendedToHire === "Recommended" ||
+    formData.recommendedToHire === "yes" ||
+    formData.recommendedToHire === "HIRE"
+  const recommendation = recommendedToHire ? "HIRE" : "NO_HIRE"
+
+  return { totalScore, maxScore, scorePercentage, recommendation }
+}
+
 // GET /api/admin/jobs/[id]/rounds/[roundId]/results - Get results for a round
 export async function GET(
   request: NextRequest,
@@ -17,13 +60,25 @@ export async function GET(
       )
     }
 
+    // Get current workflow step to check stepOrder
+    const currentWorkflowStep = await prisma.workflowStep.findUnique({
+      where: { id: BigInt(params.roundId) },
+      select: { stepOrder: true }
+    })
+
+    if (!currentWorkflowStep) {
+      return NextResponse.json({ error: "Workflow step not found" }, { status: 404 })
+    }
+
     const pipelineSteps = await prisma.candidatePipelineStep.findMany({
       where: {
         workflowStepId: BigInt(params.roundId),
         pipeline: {
-          jobId: BigInt(params.id)
+          jobId: BigInt(params.id),
+          // Only show candidates who are still at this step or earlier
+          currentStepOrder: { lte: currentWorkflowStep.stepOrder }
         },
-        status: { in: ["IN_PROGRESS", "COMPLETED", "REJECTED"] }
+        status: { in: ["PENDING", "IN_PROGRESS", "COMPLETED", "REJECTED"] }
       },
       include: {
         pipeline: {
@@ -47,44 +102,66 @@ export async function GET(
               }
             }
           }
+        },
+        workflowStep: {
+          select: {
+            stepOrder: true
+          }
         }
       }
     })
 
     const candidates = pipelineSteps.map(step => {
       const evaluation = step.stageEvaluations[0]
-      const passed = step.status === "COMPLETED"
-      const failed = step.status === "REJECTED"
-      
+      const formData = evaluation?.formData as any
+      const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(formData, evaluation?.score)
+      const status =
+        step.status === "COMPLETED"
+          ? "PASSED"
+          : step.status === "REJECTED"
+          ? "FAILED"
+          : step.status === "IN_PROGRESS"
+          ? "IN_PROGRESS"
+          : "PENDING"
+
       return {
         id: step.pipeline.candidate.id.toString(),
         name: `${step.pipeline.candidate.firstname} ${step.pipeline.candidate.lastname}`,
         email: step.pipeline.candidate.email,
-        assessmentScore: evaluation?.score,
-        recommendation: evaluation?.recommendation,
-        status: passed ? "PASSED" : failed ? "FAILED" : "PENDING",
-        interviewer: evaluation?.interviewer ? 
-          `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}` : undefined,
+        score: totalScore,
+        maxScore,
+        scorePercentage,
+        recommendation: evaluation?.recommendation || recommendation,
+        status,
+        interviewer: evaluation?.interviewer
+          ? `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}`
+          : undefined,
         assessedAt: evaluation?.submittedAt?.toString(),
       }
     })
 
     // Calculate statistics
     const total = candidates.length
-    const passed = candidates.filter(c => c.status === "PASSED").length
-    const failed = candidates.filter(c => c.status === "FAILED").length
+    const passed = candidates.filter(c => c.recommendation === "HIRE" || c.status === "PASSED").length
+    const failed = candidates.filter(c => c.recommendation === "NO_HIRE" || c.status === "FAILED").length
     const pending = candidates.filter(c => c.status === "PENDING").length
-    
-    const scoresWithValues = candidates.filter(c => c.assessmentScore !== undefined && c.assessmentScore !== null)
+    const inProgress = candidates.filter(c => c.status === "IN_PROGRESS").length
+    const completed = candidates.filter(c => c.status === "PASSED").length
+    const rejected = candidates.filter(c => c.status === "FAILED").length
+
+    const scoresWithValues = candidates.filter(c => c.score !== undefined && c.score !== null)
     const averageScore = scoresWithValues.length > 0
-      ? scoresWithValues.reduce((sum, c) => sum + (c.assessmentScore || 0), 0) / scoresWithValues.length
+      ? Math.round((scoresWithValues.reduce((sum, c) => sum + (c.score || 0), 0) / scoresWithValues.length) * 10) / 10
       : 0
 
     const stats = {
       total,
+      pending,
+      inProgress,
+      completed,
+      rejected,
       passed,
       failed,
-      pending,
       averageScore
     }
 

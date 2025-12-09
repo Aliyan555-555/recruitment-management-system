@@ -2,28 +2,99 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireStaff } from "@/lib/rbac"
 
+type AssessmentForm = {
+  skills?: Record<string, { rating?: number; max?: number }>
+  comments?: string
+  recommendedToHire?: string
+  priorityToOffer?: string
+  interviewerIds?: string[]
+}
+
+const DEFAULT_SKILL_MAX: Record<string, number> = {
+  appearance: 10,
+  education: 10,
+  intellectual: 10,
+  leadership: 10,
+  principles: 10,
+  itSkills: 10,
+  communication: 10,
+  commitment: 10,
+  assertiveness: 10,
+  versatility: 10,
+  professionalKnowledge: 25,
+  experience: 25
+}
+
+function calculateScore(formData: AssessmentForm) {
+  let totalScore = 0
+  let maxScore = 0
+
+  Object.entries(formData.skills || {}).forEach(([key, skill]) => {
+    const rating = Number(skill?.rating ?? 0)
+    const max = Number(skill?.max ?? DEFAULT_SKILL_MAX[key] ?? 10)
+    totalScore += rating
+    maxScore += max
+  })
+
+  const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+  const recommendedToHire =
+    formData.recommendedToHire === "Recommended" ||
+    formData.recommendedToHire === "yes" ||
+    formData.recommendedToHire === "HIRE"
+  const recommendation = recommendedToHire ? "HIRE" : "NO_HIRE"
+
+  return { totalScore, maxScore, scorePercentage, recommendation }
+}
+
+function validateFormData(formData: AssessmentForm) {
+  if (!formData) return "Form data is required"
+  if (!formData.skills || Object.keys(formData.skills).length === 0) return "Skills are required"
+  const hasMissingSkill = Object.entries(DEFAULT_SKILL_MAX).some(([key]) => {
+    const rating = (formData.skills as any)?.[key]?.rating
+    return rating === undefined || rating === null
+  })
+  if (hasMissingSkill) return "All skill ratings are required"
+  if (!formData.recommendedToHire) return "Recommendation is required"
+  return null
+}
+
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates/[candidateId]/assessment - Get existing assessment
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string; roundId: string; candidateId: string } }
 ) {
   try {
+    console.log("[Assessment API] Starting GET request")
     const user = await requireStaff()
     
     if (!user) {
+      console.log("[Assessment API] Unauthorized")
       return NextResponse.json(
         { error: "Unauthorized - Admin or Interviewer access required" },
         { status: 401 }
       )
     }
 
+    console.log("[Assessment API] Parsing params:", params)
+    // Parse BigInt params safely
+    let roundId, candidateId, jobId;
+    try {
+      roundId = BigInt(params.roundId)
+      candidateId = BigInt(params.candidateId)
+      jobId = BigInt(params.id)
+    } catch (e) {
+       console.error("[Assessment API] Error parsing BigInt params:", e)
+       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
+    }
+
+    console.log("[Assessment API] Fetching pipeline step")
     // Find pipeline step for this candidate and round
     const pipelineStep = await prisma.candidatePipelineStep.findFirst({
       where: {
-        workflowStepId: BigInt(params.roundId),
+        workflowStepId: roundId,
         pipeline: {
-          candidateId: BigInt(params.candidateId),
-          jobId: BigInt(params.id)
+          candidateId: candidateId,
+          jobId: jobId
         }
       },
       include: {
@@ -80,8 +151,11 @@ export async function GET(
     })
 
     if (!pipelineStep) {
+      console.log("[Assessment API] Pipeline step not found")
       return NextResponse.json({ error: "Pipeline step not found" }, { status: 404 })
     }
+
+    console.log("[Assessment API] Pipeline step found, extracting data")
 
     const evaluation = pipelineStep.stageEvaluations[0]
     const candidate = pipelineStep.pipeline.candidate
@@ -92,7 +166,7 @@ export async function GET(
     const stepMetadata = pipelineStep.workflowStep.stepMetadata as any
     const stepInterviewerIds = stepMetadata?.interviewerIds || []
 
-    return NextResponse.json({
+    const responseData = {
       candidate: {
         id: candidate.id.toString(),
         name: `${candidate.firstname} ${candidate.lastname}`,
@@ -118,10 +192,26 @@ export async function GET(
       stepName: pipelineStep.workflowStep.stepName,
       stepInterviewerIds: stepInterviewerIds,
       formData: evaluation?.formData || null,
-      submittedAt: evaluation?.submittedAt,
-      interviewer: evaluation?.interviewer ? 
-        `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}` : null
-    })
+      submittedAt: evaluation?.submittedAt ? evaluation.submittedAt.toString() : null,
+      interviewer: evaluation?.interviewer ?
+        `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}` : null,
+      evaluation: evaluation
+        ? (() => {
+            const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(
+              evaluation.formData as AssessmentForm
+            )
+            return {
+              score: totalScore,
+              maxScore,
+              scorePercentage,
+              recommendation
+            }
+          })()
+        : null
+    }
+
+    console.log("[Assessment API] Sending response")
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error("Error fetching assessment:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -144,10 +234,11 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { formData } = body
+    const { formData } = body as { formData: AssessmentForm }
 
-    if (!formData) {
-      return NextResponse.json({ error: "Form data is required" }, { status: 400 })
+    const validationError = validateFormData(formData)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
     // Find pipeline step
@@ -165,27 +256,8 @@ export async function POST(
       return NextResponse.json({ error: "Pipeline step not found" }, { status: 404 })
     }
 
-    // Calculate score based on skill ratings
-    let totalScore = 0
-    let maxScore = 0
-    
-    if (formData.skills) {
-      // Calculate score from skill ratings
-      Object.keys(formData.skills).forEach((skillKey) => {
-        const skill = formData.skills[skillKey]
-        const rating = skill.rating || 0
-        const max = skill.max || 10
-        totalScore += rating
-        maxScore += max
-      })
-    }
-    
-    // Calculate percentage
-    const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
-    
-    // Determine recommendation based on score and form data
-    const recommendedToHire = formData.recommendedToHire === "Recommended" || formData.recommendedToHire === "yes"
-    const recommendation = recommendedToHire ? "HIRE" : "NO_HIRE"
+    const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(formData)
+    const recommendedToHire = recommendation === "HIRE"
 
     // Create or update stage evaluation
     const evaluation = await prisma.stageEvaluation.upsert({
@@ -200,13 +272,13 @@ export async function POST(
         interviewerId: BigInt(user.id),
         formData: formData,
         score: totalScore,
-        recommendation: recommendation,
+        recommendation: recommendation as any,
         submittedAt: BigInt(Math.floor(Date.now() / 1000))
       },
       update: {
         formData: formData,
         score: totalScore,
-        recommendation: recommendation,
+        recommendation: recommendation as any,
         submittedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })

@@ -11,13 +11,12 @@ interface Candidate {
     email: string
     status: string
     appliedAt: string
-    assessment?: {
-        score: number
-        recommendation: string
-        interviewer?: {
-            name: string
-        }
-    }
+    shortlistedAt?: string
+    assessmentStatus?: string
+    assessmentScore?: number | null
+    recommendation?: string | null
+    interviewer?: string
+    assessedAt?: string
 }
 
 export default function ShortlistedCandidatesPage() {
@@ -148,13 +147,13 @@ export default function ShortlistedCandidatesPage() {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 text-sm font-medium">
-                                    {candidate.assessment ? candidate.assessment.score : '-'}
+                                    {candidate.assessmentScore !== undefined && candidate.assessmentScore !== null ? candidate.assessmentScore : '-'}
                                 </td>
                                 <td className="px-6 py-4">
-                                    {candidate.assessment ? (
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.assessment.recommendation === 'HIRE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    {candidate.recommendation ? (
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.recommendation === 'HIRE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                             }`}>
-                                            {candidate.assessment.recommendation}
+                                            {candidate.recommendation}
                                         </span>
                                     ) : '-'}
                                 </td>

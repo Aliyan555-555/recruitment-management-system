@@ -136,6 +136,8 @@ export default function AssessmentPage() {
   const [candidate, setCandidate] = useState<CandidateInfo | null>(null)
   const [jobTitle, setJobTitle] = useState("")
   const [saving, setSaving] = useState(false)
+  const [isReadOnly, setIsReadOnly] = useState(false)
+  const [submittedInfo, setSubmittedInfo] = useState<{ submittedAt?: string | null; interviewer?: string | null; evaluation?: { score: number; maxScore: number; scorePercentage: number; recommendation: string } | null }>({ submittedAt: null, interviewer: null, evaluation: null })
   const [interviewers, setInterviewers] = useState<Interviewer[]>([])
   const [loadingInterviewers, setLoadingInterviewers] = useState(false)
   const [formData, setFormData] = useState<FormData>({
@@ -263,6 +265,12 @@ export default function AssessmentPage() {
               interviewerIds: defaultInterviewerIds
             }))
           }
+          setIsReadOnly(!!data.submittedAt)
+          setSubmittedInfo({
+            submittedAt: data.submittedAt,
+            interviewer: data.interviewer || null,
+            evaluation: data.evaluation || null
+          })
         } else {
           // If API returns error, still set candidate and job if available
           const errorData = await res.json().catch(() => ({}))
@@ -313,6 +321,7 @@ export default function AssessmentPage() {
   }, [formData.skills])
 
   const saveDraft = useCallback(async () => {
+    if (isReadOnly) return
     try {
       setSaving(true)
       await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${params.candidateId}/assessment`, {
@@ -347,10 +356,11 @@ export default function AssessmentPage() {
       })
 
       if (res.ok) {
-        router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}`)
+        router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)
       } else {
-        alert("Error submitting assessment")
-      }
+      const error = await res.json().catch(() => ({}))
+      alert(error?.error || "Error submitting assessment")
+    }
     } catch (error) {
       console.error("Error submitting:", error)
       alert("Error submitting assessment")
@@ -360,6 +370,7 @@ export default function AssessmentPage() {
   }
 
   const updateSkillRating = (skillKey: string, rating: number) => {
+    if (isReadOnly) return
     setFormData(prev => ({
       ...prev,
       skills: {
@@ -393,7 +404,16 @@ export default function AssessmentPage() {
     )
   }
 
-  const scores = calculateScores()
+  const scores = submittedInfo.evaluation
+    ? {
+        scoreWithoutExperience: submittedInfo.evaluation.score,
+        scoreWithExperience: submittedInfo.evaluation.score,
+        maxWithoutExperience: submittedInfo.evaluation.maxScore,
+        maxWithExperience: submittedInfo.evaluation.maxScore,
+        percentageWithoutExperience: submittedInfo.evaluation.scorePercentage,
+        percentageWithExperience: submittedInfo.evaluation.scorePercentage
+      }
+    : calculateScores()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
@@ -443,6 +463,33 @@ export default function AssessmentPage() {
             </div>
           </div>
         </div>
+
+        {isReadOnly && (
+          <div className="mb-8 bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-sm text-blue-600 font-semibold">Assessment submitted</p>
+                <p className="text-sm text-slate-600">
+                  {submittedInfo.interviewer ? `By ${submittedInfo.interviewer}` : "Interviewer"} ·{" "}
+                  {submittedInfo.submittedAt ? new Date(Number(submittedInfo.submittedAt) * 1000).toLocaleString() : ""}
+                </p>
+              </div>
+              {submittedInfo.evaluation && (
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-slate-900">
+                    {submittedInfo.evaluation.score}/{submittedInfo.evaluation.maxScore}
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    {submittedInfo.evaluation.scorePercentage}% · {submittedInfo.evaluation.recommendation}
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-slate-700">
+              This assessment is locked because it has already been submitted. You can review the details below.
+            </p>
+          </div>
+        )}
 
         {/* Step 1: Skills Assessment */}
         {step === 1 && (
@@ -578,7 +625,8 @@ export default function AssessmentPage() {
                             max={skill.max}
                             value={skillData.rating}
                             onChange={(e) => updateSkillRating(skill.key, parseInt(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            disabled={isReadOnly}
+                            className={`w-full h-2 bg-gray-200 rounded-lg appearance-none ${isReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} accent-blue-600`}
                             style={{
                               background: `linear-gradient(to right, ${barColor.replace('bg-', 'rgb(var(--color-')} 0%, ${barColor.replace('bg-', 'rgb(var(--color-')} ${percentage}%, #e5e7eb ${percentage}%, #e5e7eb 100%)`
                             }}
@@ -645,7 +693,7 @@ export default function AssessmentPage() {
                 onClick={() => setStep(2)}
                 className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
               >
-                Continue to Review
+                {isReadOnly ? "View Review" : "Continue to Review"}
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
@@ -675,7 +723,8 @@ export default function AssessmentPage() {
                 <textarea
                   value={formData.comments}
                   onChange={(e) => setFormData(prev => ({ ...prev, comments: e.target.value }))}
-                  className="w-full border-2 border-gray-200 rounded-lg p-4 h-32 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
+                disabled={isReadOnly}
+                className={`w-full border-2 border-gray-200 rounded-lg p-4 h-32 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all resize-none ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
                   placeholder="Please provide any additional comments or observations about the candidate..."
                 />
               </div>
@@ -689,7 +738,8 @@ export default function AssessmentPage() {
                   <select
                     value={formData.recommendedToHire}
                     onChange={(e) => setFormData(prev => ({ ...prev, recommendedToHire: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium"
+                disabled={isReadOnly}
+                className={`w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
                   >
                     <option value="Not Recommended">❌ Not Recommended</option>
                     <option value="Recommended">✅ Recommended</option>
@@ -703,7 +753,8 @@ export default function AssessmentPage() {
                   <select
                     value={formData.priorityToOffer}
                     onChange={(e) => setFormData(prev => ({ ...prev, priorityToOffer: e.target.value }))}
-                    className="w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium"
+                disabled={isReadOnly}
+                className={`w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
                   >
                     <option value="Low">🔵 Low Priority</option>
                     <option value="Medium">🟡 Medium Priority</option>
@@ -777,28 +828,37 @@ export default function AssessmentPage() {
                 </svg>
                 Back to Assessment
               </button>
-              <button
-                onClick={handleSubmit}
-                disabled={saving}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Submit Assessment
-                  </>
-                )}
-              </button>
+              {isReadOnly ? (
+                <button
+                  onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
+                  className="bg-blue-600 text-white px-10 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2"
+                >
+                  Back to Assessments
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Submit Assessment
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
