@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { InterviewTimer } from "@/components/InterviewTimer"
 
+
 async function fetchAssignment(id: string) {
   const res = await fetch(`/api/interviewer/assignments/${id}`, { cache: "no-store" })
   if (!res.ok) throw new Error("Failed to load assignment")
@@ -23,24 +24,184 @@ async function updateAssignment(id: string, data: any) {
   return res.json()
 }
 
+// Focus Group Assessment Component
+function FocusGroupAssessment({
+  schema,
+  evaluations,
+  onUpdate,
+  readOnly = false
+}: {
+  schema: any,
+  evaluations: any,
+  onUpdate: (data: any) => void,
+  readOnly?: boolean
+}) {
+  const [activeTab, setActiveTab] = useState<"internal" | "external">("internal")
+  const [expandedBehavior, setExpandedBehavior] = useState<string | null>(null)
+
+  const behaviors = schema?.focusGroup?.[activeTab] || []
+
+  const handleRate = (behaviorId: string, rating: number) => {
+    if (readOnly) return
+    const current = evaluations?.focusGroup?.[activeTab]?.[behaviorId] || {}
+    const newData = {
+      ...evaluations,
+      focusGroup: {
+        ...evaluations?.focusGroup,
+        [activeTab]: {
+          ...evaluations?.focusGroup?.[activeTab],
+          [behaviorId]: { ...current, rating }
+        }
+      }
+    }
+    onUpdate(newData)
+    setExpandedBehavior(behaviorId) // expand to show feedback
+  }
+
+  const handleFeedback = (behaviorId: string, feedback: string) => {
+    if (readOnly) return
+    const current = evaluations?.focusGroup?.[activeTab]?.[behaviorId] || {}
+    const newData = {
+      ...evaluations,
+      focusGroup: {
+        ...evaluations?.focusGroup,
+        [activeTab]: {
+          ...evaluations?.focusGroup?.[activeTab],
+          [behaviorId]: { ...current, feedback }
+        }
+      }
+    }
+    onUpdate(newData)
+  }
+
+  const getRatingColor = (r: number) => {
+    if (r >= 4) return "bg-green-500 hover:bg-green-600"
+    if (r === 3) return "bg-yellow-500 hover:bg-yellow-600"
+    return "bg-red-500 hover:bg-red-600"
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("internal")}
+          className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${activeTab === "internal"
+            ? "bg-blue-50 text-blue-700 border-b-2 border-blue-600"
+            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+        >
+          Internal Assessment
+        </button>
+        <button
+          onClick={() => setActiveTab("external")}
+          className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${activeTab === "external"
+            ? "bg-purple-50 text-purple-700 border-b-2 border-purple-600"
+            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+        >
+          External Assessment
+        </button>
+      </div>
+
+      <div className="p-6">
+        <div className="space-y-6">
+          {behaviors.map((behavior: any) => {
+            const val = evaluations?.focusGroup?.[activeTab]?.[behavior.id] || {}
+            const rating = val.rating
+            const isExpanded = expandedBehavior === behavior.id || !!val.feedback || !!rating
+
+            return (
+              <div key={behavior.id} className="border border-gray-100 rounded-lg bg-gray-50/50 p-4 transition-all hover:shadow-md">
+                <div className="flex items-start justify-between gap-4 cursor-pointer" onClick={() => setExpandedBehavior(isExpanded ? null : behavior.id)}>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900">{behavior.name}</h4>
+                    <p className="text-sm text-gray-600 mt-1">{behavior.description}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {rating ? (
+                      <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold text-white ${getRatingColor(rating)}`}>
+                        {rating}/5
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400 font-medium">Not rated</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rating & Feedback Area */}
+                {(isExpanded || !readOnly) && (
+                  <div className={`mt-4 pt-4 border-t border-gray-200 ${!isExpanded ? 'hidden' : ''}`}>
+                    {!readOnly && (
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="text-sm font-medium text-gray-700">Rating:</span>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map((r) => (
+                            <button
+                              key={r}
+                              onClick={(e) => { e.stopPropagation(); handleRate(behavior.id, r); }}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${rating === r
+                                ? "bg-blue-600 text-white scale-110 shadow-md"
+                                : "bg-white border border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
+                                }`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <textarea
+                        value={val.feedback || ""}
+                        onChange={(e) => handleFeedback(behavior.id, e.target.value)}
+                        disabled={readOnly}
+                        placeholder={`Add feedback for ${behavior.name}...`}
+                        className="w-full min-h-[80px] p-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white resize-y disabled:bg-gray-100 disabled:text-gray-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {behaviors.length === 0 && (
+            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+              No behaviors defined for this section.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 export default function Page({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [assignment, setAssignment] = useState<any>(null)
   const [feedback, setFeedback] = useState("")
   const [rating, setRating] = useState<number | "">("")
   const [recommendation, setRecommendation] = useState("")
+
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [bookedSlot, setBookedSlot] = useState<any>(null)
+  const [focusGroupEvaluations, setFocusGroupEvaluations] = useState<any>(null)
 
   useEffect(() => {
     fetchAssignment(params.id)
+
       .then((data) => {
         setAssignment(data.assignment)
         setFeedback(data.assignment.feedback ?? "")
+        setFocusGroupEvaluations(data.assignment.focusGroupEvaluations || {})
         fetchBookedSlot(data.assignment)
       })
       .catch((e) => setError(e.message))
+
   }, [params.id])
 
   const fetchBookedSlot = async (assignmentData?: any) => {
@@ -99,10 +260,13 @@ export default function Page({ params }: { params: { id: string } }) {
     startTransition(() => {
       updateAssignment(assignment.id, {
         action,
+
         feedback: feedback || undefined,
         rating: typeof rating === "number" ? rating : undefined,
         recommendation: recommendation || undefined,
+        focusGroupEvaluations: focusGroupEvaluations || undefined,
       })
+
         .then(() => {
           router.refresh()
           fetchAssignment(params.id).then((d) => setAssignment(d.assignment))
@@ -170,49 +334,76 @@ export default function Page({ params }: { params: { id: string } }) {
           </div>
         )}
 
-        {/* Assessment Button */}
+
+        {/* Assessment Button / Form */}
         <div className="mb-6">
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 shadow-lg">
-            <div className="flex items-center justify-between">
+          {(metadata.stepType === "FOCUS_GROUP" || assignment.workflowStep.evaluationSchema?.focusGroup) ? (
+            <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-lg bg-blue-600 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-lg bg-indigo-600 flex items-center justify-center">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Professional Assessment Form</h3>
+                  <h3 className="text-xl font-bold text-gray-900">Focus Group Assessment</h3>
                   <p className="text-sm text-gray-600">
-                    {assignment.status === "COMPLETED"
-                      ? "Assessment completed. Click to view details."
-                      : "Complete the 2-step evaluation for this candidate"}
+                    Evaluate the candidate on both Internal and External behaviors.
                   </p>
                 </div>
               </div>
-              <a
-                href={`/admin/jobs/${assignment.pipeline.job.id}/rounds/${assignment.workflowStep.id}/candidates/${assignment.pipeline.candidate.id}/assessment`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200"
-              >
-                {assignment.status === "COMPLETED" ? (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    View Assessment
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Complete Assessment
-                  </>
-                )}
-              </a>
+
+              <FocusGroupAssessment
+                schema={assignment.workflowStep.evaluationSchema}
+                evaluations={focusGroupEvaluations}
+                onUpdate={setFocusGroupEvaluations}
+                readOnly={assignment.status === "COMPLETED" || assignment.status === "REJECTED"}
+              />
             </div>
-          </Card>
+          ) : (
+            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Professional Assessment Form</h3>
+                    <p className="text-sm text-gray-600">
+                      {assignment.status === "COMPLETED"
+                        ? "Assessment completed. Click to view details."
+                        : "Complete the 2-step evaluation for this candidate"}
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={`/admin/jobs/${assignment.pipeline.job.id}/rounds/${assignment.workflowStep.id}/candidates/${assignment.pipeline.candidate.id}/assessment`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  {assignment.status === "COMPLETED" ? (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      View Assessment
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Complete Assessment
+                    </>
+                  )}
+                </a>
+              </div>
+            </Card>
+          )}
         </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Basic Info & Links */}

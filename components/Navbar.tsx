@@ -4,29 +4,42 @@ import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  User, 
-  LogOut, 
-  Briefcase, 
-  Edit, 
-  Mail,
-  Shield
+import {
+    User,
+    LogOut,
+    Briefcase,
+    Edit,
+    Mail,
+    Shield
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export function Navbar() {
     const { data: session, status } = useSession()
     const [userInitials, setUserInitials] = useState("")
+    const [orgName, setOrgName] = useState("TalentHub")
+    const [orgLogo, setOrgLogo] = useState<string | null>(null)
 
     useEffect(() => {
+        // Fetch organization settings
+        fetch("/api/organization")
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    if (data.name) setOrgName(data.name)
+                    if (data.logo) setOrgLogo(data.logo)
+                }
+            })
+            .catch(err => console.error("Error fetching org info:", err))
+
         if (session?.user?.name) {
             const names = session.user.name.split(" ")
             const initials = names
@@ -61,8 +74,12 @@ export function Navbar() {
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex items-center">
                         <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity group">
-                            <Briefcase className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
-                            <span className="text-xl font-bold text-foreground">TalentHub</span>
+                            {orgLogo ? (
+                                <img src={orgLogo} alt="Logo" className="h-12 w-12 object-contain" />
+                            ) : (
+                                <Briefcase className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                            )}
+                            <span className="text-xl font-bold text-foreground">{orgName}</span>
                         </Link>
                     </div>
 
@@ -84,9 +101,9 @@ export function Navbar() {
                                         </Avatar>
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent 
-                                    className="w-56 mt-2" 
-                                    align="end" 
+                                <DropdownMenuContent
+                                    className="w-56 mt-2"
+                                    align="end"
                                     forceMount
                                 >
                                     <DropdownMenuLabel className="font-normal">
@@ -109,10 +126,10 @@ export function Navbar() {
                                         </div>
                                     </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    
+
                                     {session.user?.role === "CANDIDATE" && (
                                         <>
-                                            <DropdownMenuItem 
+                                            <DropdownMenuItem
                                                 asChild
                                                 className="cursor-pointer"
                                             >
@@ -121,7 +138,7 @@ export function Navbar() {
                                                     <span>View Profile</span>
                                                 </Link>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem 
+                                            <DropdownMenuItem
                                                 asChild
                                                 className="cursor-pointer"
                                             >
@@ -136,7 +153,7 @@ export function Navbar() {
 
                                     {session.user?.role === "ADMIN" && (
                                         <>
-                                            <DropdownMenuItem 
+                                            <DropdownMenuItem
                                                 asChild
                                                 className="cursor-pointer"
                                             >
@@ -151,7 +168,7 @@ export function Navbar() {
 
                                     {session.user?.role === "INTERVIEWER" && (
                                         <>
-                                            <DropdownMenuItem 
+                                            <DropdownMenuItem
                                                 asChild
                                                 className="cursor-pointer"
                                             >
@@ -164,7 +181,7 @@ export function Navbar() {
                                         </>
                                     )}
 
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                         onClick={handleLogout}
                                         className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
                                     >
@@ -193,4 +210,3 @@ export function Navbar() {
         </nav>
     )
 }
-

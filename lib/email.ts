@@ -630,3 +630,123 @@ export async function sendPasswordResetEmail(
     html
   })
 }
+
+/**
+ * Send notification email when LOI is sent
+ */
+export async function sendLOISentEmail(
+  candidateEmail: string,
+  candidateName: string,
+  jobTitle: string,
+  jobCompany: string,
+  jobId: string,
+  loiId: string
+): Promise<void> {
+  const subject = `Action Required: Letter of Intent - ${jobTitle}`
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+        .button { display: inline-block; padding: 12px 24px; background: #3b82f6; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📋 Letter of Intent Received</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${candidateName},</p>
+          <p>We are pleased to inform you that we have issued a Letter of Intent (LOI) for the position <strong>${jobTitle}</strong> at <strong>${jobCompany}</strong>.</p>
+          
+          <div class="info-box">
+            <h3>Action Required</h3>
+            <p>Please review the Letter of Intent and provide your response (Accept or Decline) through our candidate portal.</p>
+          </div>
+
+          <p>Click the button below to view and respond to the LOI:</p>
+          
+          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/applications/${jobId}" class="button">View Letter of Intent</a>
+          
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            This is an automated notification from the Recruitment Management System.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: candidateEmail,
+    subject,
+    html
+  })
+}
+
+/**
+ * Send notification email when Offer Letter is sent
+ */
+export async function sendOfferLetterSentEmail(
+  candidateEmail: string,
+  candidateName: string,
+  jobTitle: string,
+  jobCompany: string,
+  jobId: string,
+  offerId: string
+): Promise<void> {
+  const subject = `Congratulations! Official Offer Letter - ${jobTitle}`
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .success-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #10b981; }
+        .button { display: inline-block; padding: 12px 24px; background: #10b981; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 Official Offer Letter</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${candidateName},</p>
+          <p>Congratulations! We are delighted to extend you an official offer for the position <strong>${jobTitle}</strong> at <strong>${jobCompany}</strong>.</p>
+          
+          <div class="success-box">
+            <h3>Next Steps</h3>
+            <p>Please review the detailed Offer Letter and indicate your acceptance through our candidate portal.</p>
+          </div>
+
+          <p>Click the button below to view and respond to your Offer Letter:</p>
+          
+          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/applications/${jobId}" class="button">View Offer Letter</a>
+          
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            This is an automated notification from the Recruitment Management System.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: candidateEmail,
+    subject,
+    html
+  })
+}

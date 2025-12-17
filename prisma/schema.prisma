@@ -65,6 +65,8 @@ model User {
   slotInterviewer         InterviewSlot[]         @relation("SlotInterviewer")
   slotBookings            SlotBooking[]
   stageEvaluations        StageEvaluation[]
+  lois                    LetterOfIntent[]        @relation("CandidateLOIs")
+  offerLetters            OfferLetter[]           @relation("CandidateOfferLetters")
 
   // Batch Relations
   batchesCreated             Batch[]                    @relation("BatchCreator")
@@ -257,6 +259,8 @@ model Job {
   locations             JobLocation[]
   educationRequirements JobEducationRequirement[]
   batches               Batch[]
+  lois                  LetterOfIntent[]
+  offerLetters          OfferLetter[]
 
   @@index([createdBy])
   @@index([updatedBy])
@@ -473,6 +477,14 @@ enum StepType {
   OFFER
 }
 
+enum LetterStatus {
+  DRAFTED
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
 // ============================================
 // Workflow System Models
 // ============================================
@@ -636,6 +648,8 @@ model CandidatePipelineStep {
   batch            Batch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
   interviews       Interview[]
   stageEvaluations StageEvaluation[]
+  lois             LetterOfIntent[]
+  offerLetters     OfferLetter[]
 
   @@index([pipelineId])
   @@index([workflowStepId])
@@ -792,4 +806,83 @@ model BatchCandidateEvaluation {
   @@index([batchCandidateId])
   @@index([interviewerId])
   @@map("batch_candidate_evaluation")
+}
+
+// ============================================
+// LOI and Offer Letter Management
+// ============================================
+
+model LetterOfIntent {
+  id             BigInt       @id @default(autoincrement())
+  pipelineStepId BigInt       @map("pipeline_step_id")
+  candidateId    BigInt       @map("candidate_id")
+  jobId          BigInt       @map("job_id")
+  status         LetterStatus @default(DRAFTED)
+  formData       Json         @map("form_data")
+  generatedAt    BigInt?      @map("generated_at")
+  sentAt         BigInt?      @map("sent_at")
+  acceptedAt     BigInt?      @map("accepted_at")
+  rejectedAt     BigInt?      @map("rejected_at")
+  expiredAt      BigInt?      @map("expired_at")
+  createdAt      BigInt       @map("created_at")
+  updatedAt      BigInt       @map("updated_at")
+
+  // Relations
+  pipelineStep CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
+  candidate    User                  @relation("CandidateLOIs", fields: [candidateId], references: [id], onDelete: Cascade)
+  job          Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  offerLetter  OfferLetter?
+
+  @@unique([pipelineStepId, candidateId])
+  @@index([candidateId])
+  @@index([jobId])
+  @@index([pipelineStepId])
+  @@index([status])
+  @@map("letter_of_intent")
+}
+
+model OfferLetter {
+  id                BigInt       @id @default(autoincrement())
+  letterOfIntentId  BigInt       @unique @map("letter_of_intent_id")
+  pipelineStepId    BigInt       @map("pipeline_step_id")
+  candidateId       BigInt       @map("candidate_id")
+  jobId             BigInt       @map("job_id")
+  status            LetterStatus @default(DRAFTED)
+  formData          Json         @map("form_data")
+  generatedAt       BigInt?      @map("generated_at")
+  sentAt            BigInt?      @map("sent_at")
+  acceptedAt        BigInt?      @map("accepted_at")
+  rejectedAt        BigInt?      @map("rejected_at")
+  expiredAt         BigInt?      @map("expired_at")
+  createdAt         BigInt       @map("created_at")
+  updatedAt         BigInt       @map("updated_at")
+
+  // Relations
+  letterOfIntent LetterOfIntent      @relation(fields: [letterOfIntentId], references: [id], onDelete: Cascade)
+  pipelineStep   CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
+  candidate      User                @relation("CandidateOfferLetters", fields: [candidateId], references: [id], onDelete: Cascade)
+  job            Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([candidateId])
+  @@index([jobId])
+  @@index([pipelineStepId])
+  @@index([letterOfIntentId])
+  @@index([status])
+  @@map("offer_letter")
+}
+
+model OrganizationSettings {
+  id          BigInt   @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  logo        String?  @db.VarChar(255)
+  website     String?  @db.VarChar(255)
+  contactEmail String? @map("contact_email") @db.VarChar(100)
+  contactPhone String? @map("contact_phone") @db.VarChar(20)
+  address     String?  @db.VarChar(500)
+  description String?  @db.Text
+  socialLinks Json?    @map("social_links")
+  locations   Json?    @map("locations")
+  updatedAt   BigInt   @map("updated_at")
+
+  @@map("organization_settings")
 }

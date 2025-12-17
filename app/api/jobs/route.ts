@@ -56,14 +56,71 @@ export async function GET(req: NextRequest) {
       }
     })
 
+    // Fetch counts for all rounds for each job in parallel
+    const jobsWithCounts = await Promise.all(
+      jobs.map(async (job) => {
+        const workflow = (job as any).workflow
+        const steps = workflow?.steps || []
+        
+        const roundCounts: Record<string, { shortlisted: number; unshortlisted: number }> = {}
+
+        // Calculate counts for each step type
+        const stepTypes = ["TEST", "SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW", "OFFER"]
+        
+        for (const stepType of stepTypes) {
+          const step = steps.find((s: any) => s.stepType === stepType)
+          
+          if (step) {
+            // Count shortlisted candidates (in progress or completed in this step)
+            const shortlisted = await prisma.candidatePipelineStep.count({
+              where: {
+                workflowStepId: step.id,
+                pipeline: {
+                  jobId: job.id,
+                  application: {
+                    status: "SHORTLISTED"
+                  }
+                },
+                status: { in: ["IN_PROGRESS", "COMPLETED"] }
+              }
+            })
+
+            // Count unshortlisted candidates (pending, in progress, or rejected in this step)
+            const unshortlisted = await prisma.candidatePipelineStep.count({
+              where: {
+                workflowStepId: step.id,
+                pipeline: {
+                  jobId: job.id,
+                  application: {
+                    status: { not: "SHORTLISTED" }
+                  }
+                },
+                status: { in: ["PENDING", "IN_PROGRESS", "REJECTED"] }
+              }
+            })
+
+            roundCounts[stepType] = {
+              shortlisted,
+              unshortlisted
+            }
+          }
+        }
+
+        return {
+          job,
+          roundCounts
+        }
+      })
+    )
+
     return NextResponse.json({
-      jobs: jobs.map(job => ({
+      jobs: jobsWithCounts.map(({ job, roundCounts }) => ({
         id: job.id.toString(),
         title: job.title,
         company: job.company,
-        status:job.status,
+        status: job.status,
         jobType: (job as any).jobType || "NORMAL",
-                jobStatus: (job as any).jobStatus || "ACTIVE",
+        jobStatus: (job as any).jobStatus || "ACTIVE",
         shortDescription: job.shortDescription || "",
         description: job.description || undefined,
         locations: job.locations?.map((loc) => ({
@@ -88,7 +145,8 @@ export async function GET(req: NextRequest) {
             type: step.stepType,
             order: step.stepOrder
           })).sort((a: any, b: any) => a.order - b.order)
-        } : null
+        } : null,
+        roundCounts: roundCounts
       }))
     })
   } catch (error: any) {

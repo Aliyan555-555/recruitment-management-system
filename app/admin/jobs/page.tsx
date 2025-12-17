@@ -30,6 +30,12 @@ interface Job {
     id: string
     steps: WorkflowStep[]
   }
+  roundCounts?: {
+    [key: string]: {
+      shortlisted: number
+      unshortlisted: number
+    }
+  }
 }
 
 export default function AdminJobsPage() {
@@ -201,6 +207,8 @@ export default function AdminJobsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const step = getStepByType(row.original, "TEST")
+        const counts = row.original.roundCounts?.["TEST"]
+        
         return (
           <div className="text-center">
             {step ? (
@@ -209,7 +217,15 @@ export default function AdminJobsPage() {
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
                 title={step.name}
               >
-                {step.name}
+                {counts ? (
+                  <span className="whitespace-nowrap">
+                    <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                    <span className="text-gray-400 mx-1">/</span>
+                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                  </span>
+                ) : (
+                  step.name
+                )}
               </Link>
             ) : (
               <span className="text-sm text-gray-400">N/A</span>
@@ -224,6 +240,8 @@ export default function AdminJobsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const step = getStepByType(row.original, "SCREENING_INTERVIEW")
+        const counts = row.original.roundCounts?.["SCREENING_INTERVIEW"]
+        
         return (
           <div className="text-center">
             {step ? (
@@ -232,7 +250,15 @@ export default function AdminJobsPage() {
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
                 title={step.name}
               >
-                {step.name}
+                {counts ? (
+                  <span className="whitespace-nowrap">
+                    <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                    <span className="text-gray-400 mx-1">/</span>
+                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                  </span>
+                ) : (
+                  step.name
+                )}
               </Link>
             ) : (
               <span className="text-sm text-gray-400">N/A</span>
@@ -247,6 +273,8 @@ export default function AdminJobsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const step = getStepByType(row.original, "FOCUS_GROUP")
+        const counts = row.original.roundCounts?.["FOCUS_GROUP"]
+        
         return (
           <div className="text-center">
             {step ? (
@@ -255,7 +283,15 @@ export default function AdminJobsPage() {
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
                 title={step.name}
               >
-                {step.name}
+                {counts ? (
+                  <span className="whitespace-nowrap">
+                    <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                    <span className="text-gray-400 mx-1">/</span>
+                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                  </span>
+                ) : (
+                  step.name
+                )}
               </Link>
             ) : (
               <span className="text-sm text-gray-400">N/A</span>
@@ -270,6 +306,8 @@ export default function AdminJobsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const step = getStepByType(row.original, "FINAL_INTERVIEW")
+        const counts = row.original.roundCounts?.["FINAL_INTERVIEW"]
+        
         return (
           <div className="text-center">
             {step ? (
@@ -278,7 +316,15 @@ export default function AdminJobsPage() {
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
                 title={step.name}
               >
-                {step.name}
+                {counts ? (
+                  <span className="whitespace-nowrap">
+                    <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                    <span className="text-gray-400 mx-1">/</span>
+                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                  </span>
+                ) : (
+                  step.name
+                )}
               </Link>
             ) : (
               <span className="text-sm text-gray-400">N/A</span>
@@ -293,6 +339,8 @@ export default function AdminJobsPage() {
       enableSorting: false,
       cell: ({ row }) => {
         const step = getStepByType(row.original, "OFFER")
+        const counts = row.original.roundCounts?.["OFFER"]
+        
         return (
           <div className="text-center">
             {step ? (
@@ -301,7 +349,15 @@ export default function AdminJobsPage() {
                 className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
                 title={step.name}
               >
-                {step.name}
+                {counts ? (
+                  <span className="whitespace-nowrap">
+                    <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                    <span className="text-gray-400 mx-1">/</span>
+                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                  </span>
+                ) : (
+                  step.name
+                )}
               </Link>
             ) : (
               <span className="text-sm text-gray-400">N/A</span>

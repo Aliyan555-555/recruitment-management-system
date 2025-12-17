@@ -447,12 +447,6 @@ export default function CandidatePipelineDetailPage() {
                     })}
                   </p>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">CV/Resume</label>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Profile information is used for applications. CV uploads are deprecated.
-                </p>
-                </div>
               </div>
             </div>
 

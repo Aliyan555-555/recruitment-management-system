@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, MapPin, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,6 +46,18 @@ export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
     const [search, setSearch] = useState("")
     const [department, setDepartment] = useState("all")
     const [location, setLocation] = useState("all")
+    const [orgName, setOrgName] = useState("leading companies")
+
+    useEffect(() => {
+        fetch("/api/organization")
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.name) {
+                    setOrgName(data.name)
+                }
+            })
+            .catch(err => console.error(err))
+    }, [])
 
     const handleSearch = () => {
         onSearch({ search, department, location })
@@ -57,10 +69,10 @@ export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
                 {/* Header */}
                 <div className="text-center mb-12">
                     <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-                        Find Your Dream Job
+                        Find Your Dream Job at {orgName !== "leading companies" ? orgName : "TalentHub"}
                     </h1>
                     <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
-                        Discover exciting career opportunities with leading companies
+                        Discover exciting career opportunities with {orgName}
                     </p>
                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                         <Briefcase className="h-4 w-4" />

@@ -20,23 +20,17 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status") // 'applied', 'shortlisted', etc.
 
-    const workflowStep = await prisma.workflowStep.findUnique({
-      where: { id: BigInt(params.roundId) },
-      select: { stepOrder: true }
-    })
-
-    if (!workflowStep) {
-      return NextResponse.json({ error: "Workflow step not found" }, { status: 404 })
-    }
-
     // Get all pipeline steps for this workflow step
     const pipelineSteps = await prisma.candidatePipelineStep.findMany({
       where: {
         workflowStepId: BigInt(params.roundId),
         pipeline: {
           jobId: BigInt(params.id),
-          // Only keep candidates whose current pipeline step matches this workflow step
-          currentStepOrder: workflowStep.stepOrder,
+          // Filter out shortlisted applications when status="applied"
+          // When status="applied", we want all candidates in this step regardless of global status
+          // EXCEPT those who have already completed this step (moved to next) or are rejected in this step
+          // But actually, the status filter on the step itself handles most of this.
+          // The global application status filter was hiding candidates who were shortlisted in previous rounds.
           ...(status === "shortlisted" ? {
             application: {
               status: "SHORTLISTED"
@@ -136,7 +130,6 @@ export async function POST(
     const roundId = BigInt(params.roundId)
     const jobId = BigInt(params.id)
     const now = BigInt(Math.floor(Date.now() / 1000))
-    const candidateIdsBigInt = candidateIds.map((id: string) => BigInt(id))
 
     switch (action) {
       case "shortlist":
@@ -146,7 +139,7 @@ export async function POST(
             workflowStepId: roundId,
             pipeline: {
               jobId: jobId,
-              candidateId: { in: candidateIdsBigInt }
+              candidateId: { in: candidateIds.map(id => BigInt(id)) }
             }
           },
           data: {
@@ -159,7 +152,7 @@ export async function POST(
         await prisma.jobsApplied.updateMany({
           where: {
             jobId: jobId,
-            userId: { in: candidateIdsBigInt }
+            userId: { in: candidateIds.map(id => BigInt(id)) }
           },
           data: {
             status: "SHORTLISTED",
@@ -175,7 +168,7 @@ export async function POST(
             workflowStepId: roundId,
             pipeline: {
               jobId: jobId,
-              candidateId: { in: candidateIdsBigInt }
+              candidateId: { in: candidateIds.map(id => BigInt(id)) }
             }
           },
           data: {
@@ -188,7 +181,7 @@ export async function POST(
         await prisma.candidatePipeline.updateMany({
           where: {
             jobId: jobId,
-            candidateId: { in: candidateIdsBigInt }
+            candidateId: { in: candidateIds.map(id => BigInt(id)) }
           },
           data: {
             overallStatus: "REJECTED",
@@ -197,34 +190,34 @@ export async function POST(
         })
         break
 
-      case "move_next": {
+      case "move_next":
+        // Complete current step
+        await prisma.candidatePipelineStep.updateMany({
+          where: {
+            workflowStepId: roundId,
+            pipeline: {
+              jobId: jobId,
+              candidateId: { in: candidateIds.map(id => BigInt(id)) }
+            }
+          },
+          data: {
+            status: "COMPLETED",
+            completedAt: now
+          }
+        })
+
+        // Get next workflow step
+        const currentStep = await prisma.workflowStep.findUnique({
+          where: { id: roundId },
+          select: { stepOrder: true, workflowId: true }
+        })
+
         let nextStepId: string | null = null
 
-        await prisma.$transaction(async (tx) => {
-          // Complete current step
-          await tx.candidatePipelineStep.updateMany({
-            where: {
-              workflowStepId: roundId,
-              pipeline: {
-                jobId: jobId,
-                candidateId: { in: candidateIdsBigInt }
-              }
-            },
-            data: {
-              status: "COMPLETED",
-              completedAt: now
-            }
-          })
+        if (currentStep) {
+          const candidateIdsBigInt = candidateIds.map((id: string) => BigInt(id))
 
-          // Get next workflow step
-          const currentStep = await tx.workflowStep.findUnique({
-            where: { id: roundId },
-            select: { stepOrder: true, workflowId: true }
-          })
-
-          if (!currentStep) return
-
-          const nextStep = await tx.workflowStep.findFirst({
+          const nextStep = await prisma.workflowStep.findFirst({
             where: {
               workflowId: currentStep.workflowId,
               stepOrder: { gt: currentStep.stepOrder }
@@ -236,7 +229,7 @@ export async function POST(
             nextStepId = nextStep.id.toString()
             
             // Update pipeline current step
-            await tx.candidatePipeline.updateMany({
+            await prisma.candidatePipeline.updateMany({
               where: {
                 jobId: jobId,
                 candidateId: { in: candidateIdsBigInt }
@@ -247,16 +240,16 @@ export async function POST(
             })
 
             // Ensure a pipeline step exists for the next step for each candidate
-            const pipelines = await tx.candidatePipeline.findMany({
+            const pipelines = await prisma.candidatePipeline.findMany({
               where: {
                 jobId: jobId,
                 candidateId: { in: candidateIdsBigInt }
               },
-              select: { id: true }
+              select: { id: true, candidateId: true }
             })
 
             for (const pipeline of pipelines) {
-              const existingNextStep = await tx.candidatePipelineStep.findFirst({
+              const existingNextStep = await prisma.candidatePipelineStep.findFirst({
                 where: {
                   workflowStepId: nextStep.id,
                   pipelineId: pipeline.id
@@ -264,33 +257,32 @@ export async function POST(
               })
 
               if (existingNextStep) {
-                await tx.candidatePipelineStep.update({
+                await prisma.candidatePipelineStep.update({
                   where: { id: existingNextStep.id },
                   data: {
-                    stepOrder: nextStep.stepOrder,
                     status: "PENDING",
                     startedAt: now,
                     completedAt: null
                   }
                 })
               } else {
-                await tx.candidatePipelineStep.create({
+                await prisma.candidatePipelineStep.create({
                   data: {
                     workflowStepId: nextStep.id,
                     pipelineId: pipeline.id,
-                    stepOrder: nextStep.stepOrder,
                     status: "PENDING",
-                    startedAt: now
+                    startedAt: now,
+                    stepOrder: nextStep.stepOrder
                   }
                 })
               }
             }
           } else {
             // No next step - mark pipeline as completed
-            await tx.candidatePipeline.updateMany({
+            await prisma.candidatePipeline.updateMany({
               where: {
                 jobId: jobId,
-                candidateId: { in: candidateIdsBigInt }
+                candidateId: { in: candidateIds.map(id => BigInt(id)) }
               },
               data: {
                 overallStatus: "COMPLETED",
@@ -298,7 +290,7 @@ export async function POST(
               }
             })
           }
-        })
+        }
         
         return NextResponse.json({ 
           success: true, 
@@ -306,7 +298,6 @@ export async function POST(
           count: candidateIds.length,
           nextStepId
         })
-      }
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 })

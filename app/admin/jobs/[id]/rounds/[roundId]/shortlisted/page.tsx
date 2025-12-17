@@ -17,52 +17,77 @@ interface Candidate {
     recommendation?: string | null
     interviewer?: string
     assessedAt?: string
+    loiStatus?: string
+    offerStatus?: string
+}
+
+interface WorkflowStep {
+    id: string
+    stepName: string
+    stepType: string | null
+    stepOrder: number
 }
 
 export default function ShortlistedCandidatesPage() {
     const params = useParams()
     const router = useRouter()
     const [candidates, setCandidates] = useState<Candidate[]>([])
+    const [workflowStep, setWorkflowStep] = useState<WorkflowStep | null>(null)
     const [loading, setLoading] = useState(true)
-    const [selectedIds, setSelectedIds] = useState<string[]>([])
 
     useEffect(() => {
-        fetchCandidates()
+        fetchData()
     }, [])
 
-    const fetchCandidates = async () => {
+    const fetchData = async () => {
         try {
+            // Fetch workflow step details
+            const stepRes = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+            let stepType: string | null = null
+            if (stepRes.ok) {
+                const stepData = await stepRes.json()
+                setWorkflowStep(stepData.workflowStep)
+                stepType = stepData.workflowStep?.stepType || null
+            }
+
+            // Fetch candidates
             const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates?status=shortlisted`)
             if (res.ok) {
                 const data = await res.json()
-                setCandidates(data.candidates || [])
+                let candidatesData = data.candidates || []
+
+                // If this is an OFFER round, fetch LOI and Offer Letter status for each candidate
+                if (stepType === "OFFER") {
+                    candidatesData = await Promise.all(
+                        candidatesData.map(async (candidate: Candidate) => {
+                            try {
+                                // Fetch LOI status
+                                const loiRes = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/loi`)
+                                if (loiRes.ok) {
+                                    const loiData = await loiRes.json()
+                                    candidate.loiStatus = loiData.loi?.status || null
+                                }
+
+                                // Fetch Offer Letter status
+                                const offerRes = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/offer`)
+                                if (offerRes.ok) {
+                                    const offerData = await offerRes.json()
+                                    candidate.offerStatus = offerData.offerLetter?.status || null
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching LOI/Offer for candidate ${candidate.id}:`, error)
+                            }
+                            return candidate
+                        })
+                    )
+                }
+
+                setCandidates(candidatesData)
             }
         } catch (error) {
-            console.error("Error fetching candidates:", error)
+            console.error("Error fetching data:", error)
         } finally {
             setLoading(false)
-        }
-    }
-
-    const handleBulkAction = async (action: "move_next" | "reject") => {
-        if (selectedIds.length === 0) return
-
-        try {
-            const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action,
-                    candidateIds: selectedIds
-                })
-            })
-
-            if (res.ok) {
-                fetchCandidates()
-                setSelectedIds([])
-            }
-        } catch (error) {
-            console.error("Error performing action:", error)
         }
     }
 
@@ -76,15 +101,6 @@ export default function ShortlistedCandidatesPage() {
                     <h2 className="text-2xl font-bold text-gray-900">Shortlisted Candidates</h2>
                     <p className="text-gray-500">Track assessments and move to next round</p>
                 </div>
-                <div className="flex gap-3">
-                    <button
-                        onClick={() => handleBulkAction("move_next")}
-                        disabled={selectedIds.length === 0}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                        Move to Next Round ({selectedIds.length})
-                    </button>
-                </div>
             </div>
 
             {/* Candidates Table */}
@@ -92,42 +108,25 @@ export default function ShortlistedCandidatesPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className="px-6 py-3 text-left">
-                                <input
-                                    type="checkbox"
-                                    onChange={(e) => {
-                                        if (e.target.checked) {
-                                            setSelectedIds(candidates.map(c => c.id))
-                                        } else {
-                                            setSelectedIds([])
-                                        }
-                                    }}
-                                    checked={selectedIds.length === candidates.length && candidates.length > 0}
-                                />
-                            </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assessment Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recommendation</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            {workflowStep?.stepType !== "OFFER" && (
+                                <>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assessment Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recommendation</th>
+                                </>
+                            )}
+                            {workflowStep?.stepType === "OFFER" && (
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LOI Status</th>
+                            )}
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                {workflowStep?.stepType === "FOCUS_GROUP" ? "Assessments" : workflowStep?.stepType === "OFFER" ? "Actions" : "Actions"}
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                         {candidates.map((candidate) => (
                             <tr key={candidate.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedIds.includes(candidate.id)}
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedIds([...selectedIds, candidate.id])
-                                            } else {
-                                                setSelectedIds(selectedIds.filter(id => id !== candidate.id))
-                                            }
-                                        }}
-                                    />
-                                </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center">
                                         <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
@@ -139,36 +138,95 @@ export default function ShortlistedCandidatesPage() {
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                            'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                        {candidate.status === 'COMPLETED' ? 'Assessed' : 'Pending Assessment'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm font-medium">
-                                    {candidate.assessmentScore !== undefined && candidate.assessmentScore !== null ? candidate.assessmentScore : '-'}
-                                </td>
-                                <td className="px-6 py-4">
-                                    {candidate.recommendation ? (
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.recommendation === 'HIRE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                            }`}>
-                                            {candidate.recommendation}
-                                        </span>
-                                    ) : '-'}
-                                </td>
+                                {workflowStep?.stepType !== "OFFER" && (
+                                    <>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                {candidate.status === 'COMPLETED' ? 'Assessed' : 'Pending Assessment'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm font-medium">
+                                            {candidate.assessmentScore !== undefined && candidate.assessmentScore !== null ? candidate.assessmentScore : '-'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {candidate.recommendation ? (
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.recommendation === 'HIRE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                    }`}>
+                                                    {candidate.recommendation}
+                                                </span>
+                                            ) : '-'}
+                                        </td>
+                                    </>
+                                )}
+                                {workflowStep?.stepType === "OFFER" && (
+                                    <td className="px-6 py-4">
+                                        {candidate.loiStatus ? (
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.loiStatus === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
+                                                candidate.loiStatus === 'SENT' ? 'bg-blue-100 text-blue-800' :
+                                                    candidate.loiStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                                        candidate.loiStatus === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                {candidate.loiStatus}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400 text-xs">-</span>
+                                        )}
+                                    </td>
+                                )}
                                 <td className="px-6 py-4 text-right text-sm font-medium">
-                                    <Link
-                                        href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/assessment`}
-                                        className="text-blue-600 hover:text-blue-900"
-                                    >
-                                        {candidate.status === 'COMPLETED' ? 'View Assessment' : 'Assess'}
-                                    </Link>
+                                    {workflowStep?.stepType === "FOCUS_GROUP" ? (
+                                        <div className="flex items-center justify-end gap-3">
+                                            <Link
+                                                href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/assessment/internal`}
+                                                className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-all"
+                                            >
+                                                Internal
+                                            </Link>
+                                            <Link
+                                                href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/assessment/external`}
+                                                className="px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-all"
+                                            >
+                                                External
+                                            </Link>
+                                        </div>
+                                    ) : workflowStep?.stepType === "OFFER" ? (
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Link
+                                                href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/loi`}
+                                                className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all"
+                                            >
+                                                {candidate.loiStatus ? 'View LOI' : 'Generate LOI'}
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        <Link
+                                            href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/assessment`}
+                                            className="text-blue-600 hover:text-blue-900"
+                                        >
+                                            {candidate.status === 'COMPLETED' ? 'View Assessment' : 'Assess'}
+                                        </Link>
+                                    )}
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Next Button */}
+            <div className="flex justify-end">
+                <Link
+                    href={workflowStep?.stepType === "OFFER" ? `/admin/jobs/${params.id}/rounds/${params.roundId}/offers` : `/admin/jobs/${params.id}/rounds/${params.roundId}/results`}
+                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+                >
+                    Next
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </Link>
             </div>
         </div>
     )

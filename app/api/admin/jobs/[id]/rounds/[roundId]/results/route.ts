@@ -60,15 +60,17 @@ export async function GET(
       )
     }
 
-    // Get current workflow step to check stepOrder
+    // Get current workflow step to check stepOrder and stepType
     const currentWorkflowStep = await prisma.workflowStep.findUnique({
       where: { id: BigInt(params.roundId) },
-      select: { stepOrder: true }
+      select: { stepOrder: true, stepType: true }
     })
 
     if (!currentWorkflowStep) {
       return NextResponse.json({ error: "Workflow step not found" }, { status: 404 })
     }
+
+    const isFocusGroup = currentWorkflowStep.stepType === "FOCUS_GROUP"
 
     const pipelineSteps = await prisma.candidatePipelineStep.findMany({
       where: {
@@ -114,7 +116,38 @@ export async function GET(
     const candidates = pipelineSteps.map(step => {
       const evaluation = step.stageEvaluations[0]
       const formData = evaluation?.formData as any
-      const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(formData, evaluation?.score)
+      
+      let totalScore = 0
+      let maxScore = 0
+      let scorePercentage = 0
+      let recommendation: string | null = null
+
+      if (isFocusGroup && formData?.focusGroup) {
+        // For focus group, aggregate internal and external scores
+        const internal = formData.focusGroup.internal
+        const external = formData.focusGroup.external
+        
+        const internalScore = internal?.score || 0
+        const internalMax = internal?.maxScore || 0
+        const externalScore = external?.score || 0
+        const externalMax = external?.maxScore || 0
+        
+        totalScore = internalScore + externalScore
+        maxScore = internalMax + externalMax
+        scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+        
+        // Both assessments must be completed for focus group
+        const bothCompleted = internal?.submittedAt && external?.submittedAt
+        recommendation = bothCompleted ? (scorePercentage >= 50 ? "HIRE" : "NO_HIRE") : null
+      } else {
+        // For other assessment types, use the existing calculateScore function
+        const result = calculateScore(formData, evaluation?.score)
+        totalScore = result.totalScore
+        maxScore = result.maxScore
+        scorePercentage = result.scorePercentage
+        recommendation = evaluation?.recommendation || result.recommendation
+      }
+
       const status =
         step.status === "COMPLETED"
           ? "PASSED"
@@ -131,7 +164,7 @@ export async function GET(
         score: totalScore,
         maxScore,
         scorePercentage,
-        recommendation: evaluation?.recommendation || recommendation,
+        recommendation,
         status,
         interviewer: evaluation?.interviewer
           ? `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}`

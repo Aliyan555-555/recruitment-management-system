@@ -73,7 +73,7 @@ export default function PublicProfilePage() {
       setLoading(true)
       setError(null)
       const response = await fetch(`/api/candidate/profile/${candidateId}`)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         const errorMessage = errorData.error || errorData.message || `Failed to fetch profile (${response.status})`
@@ -107,7 +107,7 @@ export default function PublicProfilePage() {
   if (error || !profile) {
     const isNotFound = error?.toLowerCase().includes("not found") || error?.toLowerCase().includes("doesn't exist")
     const isUnauthorized = error?.toLowerCase().includes("unauthorized")
-    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
         <Navbar />
@@ -173,177 +173,120 @@ export default function PublicProfilePage() {
   const profileDetails = user.profileDetails
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
+    <div className="min-h-screen bg-[#f0f2f5]">
       <Navbar />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Candidate Profile</h1>
-          <p className="text-muted-foreground mt-1">Public profile view</p>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Info */}
-            <Card>
+      {/* Cover Photo Area */}
+      <div className="bg-white shadow-sm pb-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative h-60 md:h-80 rounded-b-xl bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
+            {/* Abstract Cover Pattern */}
+            <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-10 px-4 pb-4 gap-4 md:gap-6">
+            <div className="relative">
+              <div className="h-32 w-32 md:h-40 md:w-40 rounded-full border-4 border-white bg-gray-200 flex items-center justify-center overflow-hidden shadow-md">
+                <User className="h-16 w-16 text-gray-400" />
+              </div>
+              {/* Online Status Dot */}
+              <div className="absolute bottom-2 right-2 h-6 w-6 rounded-full bg-green-500 border-4 border-white"></div>
+            </div>
+
+            <div className="flex-1 text-center md:text-left mb-2 md:mb-0">
+              <h1 className="text-3xl font-bold text-gray-900">{fullName}</h1>
+              {profileDetails?.title && (
+                <p className="text-gray-600 font-medium">{profileDetails.title}</p>
+              )}
+              <div className="flex justify-center md:justify-start gap-3 mt-1 text-sm text-gray-500">
+                {user.city && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {user.city}, {user.country}
+                  </span>
+                )}
+                {profileDetails?.professionalGrade && (
+                  <span className="flex items-center gap-1 font-semibold text-blue-600">
+                    <Award className="h-3 w-3" /> {profileDetails.professionalGrade} Candidate
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 min-w-40 justify-center md:justify-end">
+              {/* Buttons removed as per request */}
+            </div>
+          </div>
+
+          <div className="flex border-t px-4 mt-2">
+            <div className="flex gap-1">
+              {["About"].map((tab, i) => (
+                <button
+                  key={tab}
+                  className={`px-4 py-3 font-semibold text-sm border-b-2 hover:bg-gray-50 transition-colors border-blue-600 text-blue-600`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Sidebar (Intro) */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Intro Card */}
+            <Card className="shadow-sm border-0">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Basic Information
-                </CardTitle>
+                <CardTitle className="text-xl font-bold">Intro</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <h2 className="text-2xl font-bold">{fullName}</h2>
-                  {profileDetails?.title && (
-                    <p className="text-lg text-muted-foreground">{profileDetails.title}</p>
-                  )}
-                  {profileDetails?.professionalGrade && (
-                    <Badge variant="secondary" className="mt-2">
-                      {profileDetails.professionalGrade}
-                    </Badge>
-                  )}
-                </div>
                 {profileDetails?.bio && (
-                  <p className="text-muted-foreground">{profileDetails.bio}</p>
+                  <p className="text-center text-sm text-gray-700 mb-4">{profileDetails.bio}</p>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {user.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{user.email}</span>
+                <div className="space-y-3">
+                  {profileDetails?.title && (
+                    <div className="flex items-center gap-3 text-gray-600">
+                      <Briefcase className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm">Works as <span className="font-semibold text-gray-900">{profileDetails.title}</span></span>
                     </div>
                   )}
-                  {user.phone1 && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{user.phone1}</span>
+                  {user.institution && (
+                    <div className="flex items-center gap-3 text-gray-600">
+                      <GraduationCap className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm">Studied at <span className="font-semibold text-gray-900">{user.institution}</span></span>
                     </div>
                   )}
                   {(user.city || user.country) && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">
-                        {[user.city, user.country].filter(Boolean).join(", ")}
-                      </span>
+                    <div className="flex items-center gap-3 text-gray-600">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      <span className="text-sm">Lives in <span className="font-semibold text-gray-900">{[user.city, user.country].filter(Boolean).join(", ")}</span></span>
                     </div>
                   )}
-                  {profileDetails?.availability && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{profileDetails.availability}</span>
+                  {profileDetails?.websiteUrl && (
+                    <div className="flex items-center gap-3 text-gray-600">
+                      <Globe className="h-5 w-5 text-gray-400" />
+                      <a href={profileDetails.websiteUrl} target="_blank" className="text-sm text-blue-600 hover:underline">{profileDetails.websiteUrl}</a>
                     </div>
                   )}
                 </div>
-                {(profileDetails?.linkedinUrl || profileDetails?.githubUrl || profileDetails?.portfolioUrl || profileDetails?.websiteUrl) && (
-                  <div className="flex flex-wrap gap-4 pt-2">
-                    {profileDetails.linkedinUrl && (
-                      <a href={profileDetails.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                        <Linkedin className="h-4 w-4" />
-                        LinkedIn
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                    {profileDetails.githubUrl && (
-                      <a href={profileDetails.githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                        <Github className="h-4 w-4" />
-                        GitHub
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                    {profileDetails.portfolioUrl && (
-                      <a href={profileDetails.portfolioUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                        <Globe className="h-4 w-4" />
-                        Portfolio
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                    {profileDetails.websiteUrl && (
-                      <a href={profileDetails.websiteUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                        <Globe className="h-4 w-4" />
-                        Website
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
 
-            {/* Education */}
-            {user.educations.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5" />
-                    Education
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {user.educations.map((edu) => (
-                    <div key={edu.id} className="border-l-2 border-primary pl-4">
-                      <h3 className="font-semibold">{edu.degreeTitle}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {edu.educationLevel.name}
-                        {edu.institute && ` • ${edu.institute}`}
-                        {edu.majorSubject && ` • ${edu.majorSubject}`}
-                      </p>
-                      <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                        {edu.grade && <span>Grade: {edu.grade}</span>}
-                        {edu.passingYear && <span>Year: {edu.passingYear}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Experience */}
-            {user.experiences.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Briefcase className="h-5 w-5" />
-                    Experience
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {user.experiences.map((exp) => (
-                    <div key={exp.id} className="border-l-2 border-primary pl-4">
-                      <h3 className="font-semibold">{exp.jobTitle}</h3>
-                      {exp.company && (
-                        <p className="text-sm text-muted-foreground">{exp.company}</p>
-                      )}
-                      {exp.location && (
-                        <p className="text-sm text-muted-foreground">{exp.location}</p>
-                      )}
-                      <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                        {exp.startDate && (
-                          <span>
-                            {exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate || "N/A"}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Skills */}
+            {/* Skills Card (Photos style) */}
             {user.skills.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Award className="h-5 w-5" />
-                    Skills
-                  </CardTitle>
+              <Card className="shadow-sm border-0">
+                <CardHeader className="flex flex-row justify-between items-center pb-2">
+                  <CardTitle className="text-xl font-bold">Skills</CardTitle>
+                  <Button variant="ghost" className="text-blue-600 hover:bg-blue-50">See all skills</Button>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {user.skills.map((skill) => (
-                      <Badge key={skill.id} variant="secondary">
-                        {skill.skillName} ({skill.level}/10)
+                      <Badge key={skill.id} variant="secondary" className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 border-0">
+                        {skill.skillName} • {skill.level}/10
                       </Badge>
                     ))}
                   </div>
@@ -352,28 +295,151 @@ export default function PublicProfilePage() {
             )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {user.institution && (
-                  <div>
-                    <p className="text-sm font-medium">Institution</p>
-                    <p className="text-sm text-muted-foreground">{user.institution}</p>
-                  </div>
-                )}
-                {profileDetails?.professionalGrade && (
-                  <div>
-                    <p className="text-sm font-medium">Professional Grade</p>
-                    <p className="text-sm text-muted-foreground">{profileDetails.professionalGrade}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Right Feed (Content) */}
+          <div className="lg:col-span-7 space-y-4">
+
+            {/* About / Bio "Post" - if not in sidebar or to emphasize */}
+            {profileDetails?.bio && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-center justify-between mb-2 border-b pb-2">
+                  <h2 className="text-xl font-bold text-gray-900">About</h2>
+                </div>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profileDetails.bio}</p>
+              </div>
+            )}
+
+            {/* Experience "Posts" */}
+            {user.experiences.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-center justify-between mb-4 border-b pb-2">
+                  <h2 className="text-xl font-bold text-gray-900">Experience</h2>
+                </div>
+                <div className="space-y-6">
+                  {user.experiences.map((exp) => (
+                    <div key={exp.id} className="flex gap-4 group">
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-200 transition-colors">
+                        <Briefcase className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-lg">{exp.jobTitle}</h3>
+                        <p className="text-gray-700 font-medium">{exp.company}</p>
+                        {exp.location && <p className="text-gray-500 text-sm">{exp.location}</p>}
+                        <p className="text-sm text-gray-500 mt-1">
+                          {exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Education "Posts" */}
+            {user.educations.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-center justify-between mb-4 border-b pb-2">
+                  <h2 className="text-xl font-bold text-gray-900">Education</h2>
+                </div>
+                <div className="space-y-6">
+                  {user.educations.map((edu) => (
+                    <div key={edu.id} className="flex gap-4 group">
+                      <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 group-hover:bg-indigo-200 transition-colors">
+                        <GraduationCap className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 text-lg">{edu.institute}</h3>
+                        <p className="text-gray-800 font-medium">{edu.degreeTitle}</p>
+                        <p className="text-gray-600 text-sm">
+                          {edu.educationLevel.name} {edu.majorSubject && `• ${edu.majorSubject}`}
+                        </p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
+                          {edu.passingYear && <span>Class of {edu.passingYear}</span>}
+                          {edu.grade && <span className="text-indigo-600 font-medium">Grade: {edu.grade}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contact/Social Mock Post */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="flex items-start gap-4 mb-3">
+                <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="h-6 w-6 text-gray-500" />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{fullName}</p>
+                  <p className="text-xs text-gray-500">Full Contact Information</p>
+                </div>
+              </div>
+              <div className="pl-0 md:pl-14">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  {user.email && (
+                    <a href={`mailto:${user.email}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        <Mail className="h-4 w-4" />
+                      </div>
+                      <span className="truncate">{user.email}</span>
+                    </a>
+                  )}
+                  {user.phone1 && (
+                    <a href={`tel:${user.phone1}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                        <Phone className="h-4 w-4" />
+                      </div>
+                      <span>{user.phone1}</span>
+                    </a>
+                  )}
+                  {profileDetails?.linkedinUrl && (
+                    <a href={profileDetails.linkedinUrl} target="_blank" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-[#0077b5]/10 flex items-center justify-center text-[#0077b5]">
+                        <Linkedin className="h-4 w-4" />
+                      </div>
+                      <span>LinkedIn</span>
+                    </a>
+                  )}
+                  {profileDetails?.githubUrl && (
+                    <a href={profileDetails.githubUrl} target="_blank" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-800">
+                        <Github className="h-4 w-4" />
+                      </div>
+                      <span>GitHub</span>
+                    </a>
+                  )}
+                  {profileDetails?.portfolioUrl && (
+                    <a href={profileDetails.portfolioUrl} target="_blank" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center text-pink-600">
+                        <Globe className="h-4 w-4" />
+                      </div>
+                      <span>Portfolio</span>
+                    </a>
+                  )}
+                  {profileDetails?.websiteUrl && (
+                    <a href={profileDetails.websiteUrl} target="_blank" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                        <Globe className="h-4 w-4" />
+                      </div>
+                      <span>Website</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Details (Availability etc) if not fitting elsewhere */}
+            {profileDetails?.availability && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <h3 className="font-bold text-gray-900 mb-2 flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-gray-500" /> Availability
+                </h3>
+                <p className="text-gray-700 bg-green-50 inline-block px-3 py-1 rounded-full text-sm font-medium border border-green-100">
+                  {profileDetails.availability}
+                </p>
+              </div>
+            )}
+
           </div>
         </div>
       </div>

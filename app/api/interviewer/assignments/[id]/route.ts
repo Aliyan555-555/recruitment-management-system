@@ -19,6 +19,7 @@ export async function GET(
 
     const step = await prisma.candidatePipelineStep.findFirst({
       where: { id: stepId, interviewerId: interviewerId },
+
       include: {
         workflowStep: true,
         pipeline: {
@@ -63,6 +64,9 @@ export async function GET(
           },
         },
         interviews: true,
+        stageEvaluations: {
+          where: { interviewerId: interviewerId } // Only get my specific evaluation
+        }
       },
     })
 
@@ -89,12 +93,15 @@ export async function GET(
           durationMins: metadata.durationMins,
           interviewMode: metadata.interviewMode,
           meetingLink: metadata.meetingLink,
+
           interviewerInstructions: metadata.interviewerInstructions,
           evaluationCriteria: metadata.evaluationCriteria || [],
+          evaluationSchema: step.workflowStep.evaluationSchema, // Pass schema to frontend
           attachments: metadata.attachments?.filter((att: any) => 
             att.access?.includes("INTERVIEWER")
           ) || [],
         },
+        focusGroupEvaluations: step.stageEvaluations?.[0]?.formData || null,
         pipeline: {
           id: step.pipeline.id.toString(),
           job: {
@@ -187,6 +194,7 @@ export async function GET(
   }
 }
 
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -200,11 +208,12 @@ export async function PUT(
     const stepId = BigInt(params.id)
     const interviewerId = BigInt(user.id)
     const body = await req.json()
-    const { action, feedback, rating, recommendation } = body as {
+    const { action, feedback, rating, recommendation, focusGroupEvaluations } = body as {
       action: "start" | "submit_feedback" | "complete" | "reject" | "skip"
       feedback?: string
       rating?: number
       recommendation?: InterviewRecommendation
+      focusGroupEvaluations?: any // Json
     }
 
     if (!action) {
@@ -248,6 +257,38 @@ export async function PUT(
               recommendation: recommendation ?? null,
               submittedAt: now,
             },
+          })
+        }
+      }
+
+      // Handle Focus Group Evaluations (StageEvaluation)
+      if (focusGroupEvaluations) {
+        // Check if a StageEvaluation already exists
+        const existingEval = await tx.stageEvaluation.findUnique({
+           where: {
+             pipelineStepId_interviewerId: {
+               pipelineStepId: step.id,
+               interviewerId: interviewerId
+             }
+           }
+        })
+
+        if (existingEval) {
+          await tx.stageEvaluation.update({
+             where: { id: existingEval.id },
+             data: {
+               formData: focusGroupEvaluations,
+               submittedAt: now
+             }
+          })
+        } else {
+          await tx.stageEvaluation.create({
+            data: {
+              pipelineStepId: step.id,
+              interviewerId: interviewerId,
+              formData: focusGroupEvaluations,
+              submittedAt: now
+            }
           })
         }
       }
@@ -310,5 +351,6 @@ export async function PUT(
     )
   }
 }
+
 
 

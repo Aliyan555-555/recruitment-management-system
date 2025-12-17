@@ -63,6 +63,20 @@ export async function GET(
                 recommendation: true,
                 submittedAt: true
               }
+            },
+            lois: {
+              select: {
+                id: true,
+                status: true,
+                sentAt: true
+              }
+            },
+            offerLetters: {
+              select: {
+                id: true,
+                status: true,
+                sentAt: true
+              }
             }
           },
           orderBy: {
@@ -110,6 +124,16 @@ export async function GET(
               submittedAt: interview.submittedAt?.toString(),
             }))
           : [],
+        lois: pipelineStep?.lois?.map((loi: any) => ({
+          id: loi.id.toString(),
+          status: loi.status,
+          sentAt: loi.sentAt?.toString()
+        })) || [],
+        offerLetters: pipelineStep?.offerLetters?.map((offer: any) => ({
+          id: offer.id.toString(),
+          status: offer.status,
+          sentAt: offer.sentAt?.toString()
+        })) || []
       }
     })
 

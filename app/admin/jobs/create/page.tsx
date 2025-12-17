@@ -30,6 +30,7 @@ interface FormErrors {
       durationMins?: string
       weightage?: string
       scoreThreshold?: string
+      interviewerIds?: string
     }
     _general?: string
   }
@@ -99,10 +100,12 @@ export default function CreateJobPage() {
   useEffect(() => {
     const loadCompanyInfo = async () => {
       try {
-        const res = await fetch("/api/company")
+        const res = await fetch("/api/admin/organization")
         if (res.ok) {
           const data = await res.json()
-          setFormData(prev => ({ ...prev, company: data.name }))
+          if (data) {
+            setFormData(prev => ({ ...prev, company: data.name }))
+          }
         }
       } catch (error) {
         console.error("Error loading company info:", error)
@@ -112,6 +115,11 @@ export default function CreateJobPage() {
     }
     loadCompanyInfo()
   }, [])
+
+  const pakistanCities = [
+    "Karachi", "Lahore", "Islamabad", "Rawalpindi", "Faisalabad",
+    "Multan", "Peshawar", "Quetta", "Sialkot", "Hyderabad", "Gujranwala"
+  ]
 
   // Load interviewers list once
   useState(() => {
@@ -319,6 +327,7 @@ export default function CreateJobPage() {
       }
     }
 
+
     if (step.scoreThreshold !== undefined && step.scoreThreshold !== null) {
       const threshold = Number(step.scoreThreshold)
       if (isNaN(threshold) || threshold < 0 || threshold > 100) {
@@ -326,6 +335,9 @@ export default function CreateJobPage() {
       }
     }
 
+    if (!step.interviewerIds || step.interviewerIds.length === 0) {
+      stepErrors.interviewerIds = "At least one interviewer is required"
+    }
 
     return stepErrors
   }
@@ -1168,31 +1180,35 @@ export default function CreateJobPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
+                <select
                   value={newLocation.city}
                   onChange={(e) => {
-                    setNewLocation({ ...newLocation, city: e.target.value })
+                    setNewLocation({
+                      city: e.target.value,
+                      country: "Pakistan" // Auto-select Pakistan
+                    })
                     setLocationError("")
                   }}
-                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"
-                    }`}
-                  placeholder="e.g., New York"
-                />
+                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                >
+                  <option value="">Select City</option>
+                  {pakistanCities.map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                <input
-                  type="text"
+                <select
                   value={newLocation.country}
                   onChange={(e) => {
                     setNewLocation({ ...newLocation, country: e.target.value })
                     setLocationError("")
                   }}
-                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"
-                    }`}
-                  placeholder="e.g., USA"
-                />
+                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                >
+                  <option value="Pakistan">Pakistan</option>
+                </select>
               </div>
               <div className="flex items-end">
                 <button
@@ -1368,15 +1384,18 @@ export default function CreateJobPage() {
                         }`}
                     >
                       <option value="">Select step type</option>
-                      {stepTypeOptions.map(opt => (
-                        <option
-                          key={opt.value}
-                          value={opt.value}
-                          disabled={opt.value === "OFFER" && index < workflowSteps.length - 1}
-                        >
-                          {opt.label}
-                        </option>
-                      ))}
+                      {stepTypeOptions.map(opt => {
+                        const isSelectedInOtherStep = workflowSteps.some((s, i) => i !== index && s.stepType === opt.value)
+                        return (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            disabled={(opt.value === "OFFER" && index < workflowSteps.length - 1) || isSelectedInOtherStep}
+                          >
+                            {opt.label} {isSelectedInOtherStep ? "(Already added)" : ""}
+                          </option>
+                        )
+                      })}
                     </select>
                     {errors.workflowSteps?.[index]?.stepType && (
                       <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
@@ -1535,20 +1554,61 @@ export default function CreateJobPage() {
                   )}
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Interviewer(s)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Assigned Interviewer(s) <span className="text-red-500">*</span>
+                    </label>
                     <select
                       multiple
                       value={step.interviewerIds || []}
                       onChange={(e) => {
                         const options = Array.from(e.target.selectedOptions).map(o => o.value)
                         handleStepChange(index, "interviewerIds", options)
+
+                        // Clear error if at least one interviewer is selected
+                        if (options.length > 0 && errors.workflowSteps?.[index]?.interviewerIds) {
+                          setErrors(prev => {
+                            const newErrors = { ...prev }
+                            if (newErrors.workflowSteps?.[index]) {
+                              delete newErrors.workflowSteps[index].interviewerIds
+                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
+                                delete newErrors.workflowSteps[index]
+                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
+                                  delete newErrors.workflowSteps
+                                }
+                              }
+                            }
+                            return newErrors
+                          })
+                        }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md h-28"
+                      onBlur={() => {
+                        if ((!step.interviewerIds || step.interviewerIds.length === 0)) {
+                          setErrors(prev => ({
+                            ...prev,
+                            workflowSteps: {
+                              ...prev.workflowSteps,
+                              [index]: {
+                                ...prev.workflowSteps?.[index],
+                                interviewerIds: "At least one interviewer is required"
+                              }
+                            }
+                          }))
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md h-28 ${errors.workflowSteps?.[index]?.interviewerIds ? "border-red-500 bg-red-50" : "border-gray-300"}`}
                     >
                       {interviewers.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.name}</option>
                       ))}
                     </select>
+                    {errors.workflowSteps?.[index]?.interviewerIds && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {errors.workflowSteps[index].interviewerIds}
+                      </p>
+                    )}
                   </div>
 
 

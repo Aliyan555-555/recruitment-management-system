@@ -83,7 +83,7 @@ export function PublicJobCard({ job }: PublicJobCardProps) {
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
               <Building className="h-4 w-4" />
               <CardDescription className="text-base font-medium">
@@ -101,7 +101,7 @@ export function PublicJobCard({ job }: PublicJobCardProps) {
                   )}
                 </div>
               )}
-              
+
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 <span>{formatEmploymentType(job.employmentType)}</span>
@@ -155,12 +155,6 @@ export function PublicJobCard({ job }: PublicJobCardProps) {
             </div>
           )}
 
-          {job.minimumSalary && (
-            <div className="text-sm">
-              <span className="font-medium text-foreground">Salary: </span>
-              <span className="text-muted-foreground">{job.minimumSalary}</span>
-            </div>
-          )}
         </div>
 
         {/* Skills */}
@@ -184,7 +178,7 @@ export function PublicJobCard({ job }: PublicJobCardProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4">
-          <Button 
+          <Button
             onClick={handleApply}
             disabled={isApplying || daysLeft <= 0}
             className="flex-1"
@@ -204,9 +198,9 @@ export function PublicJobCard({ job }: PublicJobCardProps) {
               </>
             )}
           </Button>
-          
-          <Button 
-            variant="outline" 
+
+          <Button
+            variant="outline"
             onClick={handleViewDetails}
             size="lg"
           >
