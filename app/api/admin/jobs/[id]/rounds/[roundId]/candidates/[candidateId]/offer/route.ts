@@ -414,6 +414,17 @@ export async function PATCH(
       }
     })
 
+    // Mark pipeline step as COMPLETED when offer letter is sent
+    if (status === "SENT" && !existingOffer.sentAt) {
+      await prisma.candidatePipelineStep.update({
+        where: { id: pipelineStep.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: now
+        }
+      })
+    }
+
     // Send email notification if marked as SENT
     if (status === "SENT" && !existingOffer.sentAt) {
       await sendOfferLetterSentEmail(

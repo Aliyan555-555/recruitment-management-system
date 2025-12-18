@@ -13,33 +13,30 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const loiId = BigInt(params.id)
+    const offerId = BigInt(params.id)
     const { status } = await req.json()
 
     if (!["ACCEPTED", "REJECTED"].includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 })
     }
 
-    const loi = await prisma.letterOfIntent.findUnique({
-      where: { id: loiId },
+    const offer = await prisma.offerLetter.findUnique({
+      where: { id: offerId },
       include: {
         candidate: true
       }
     })
 
-    if (!loi) {
-      return NextResponse.json({ error: "LOI not found" }, { status: 404 })
+    if (!offer) {
+      return NextResponse.json({ error: "Offer letter not found" }, { status: 404 })
     }
 
-    if (loi.candidateId !== BigInt(session.user.id)) {
+    if (offer.candidateId !== BigInt(session.user.id)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
     }
 
-    if (loi.status !== "SENT") {
-       // Allow changing if it was already accepted/rejected? Maybe not for now to keep it simple.
-       // The user said "option to candidate have see LOI and make action".
-       // If it's already acted upon, maybe we shouldn't allow changing it easily.
-       return NextResponse.json({ error: "LOI is not in a pending state" }, { status: 400 })
+    if (offer.status !== "SENT") {
+      return NextResponse.json({ error: "Offer letter is not in a pending state" }, { status: 400 })
     }
 
     const updateData: any = {
@@ -53,22 +50,22 @@ export async function POST(
       updateData.rejectedAt = BigInt(Math.floor(Date.now() / 1000))
     }
 
-    const updatedLoi = await prisma.letterOfIntent.update({
-      where: { id: loiId },
+    const updatedOffer = await prisma.offerLetter.update({
+      where: { id: offerId },
       data: updateData
     })
 
     // Convert BigInt values to strings for JSON serialization
-    const serializedLoi = JSON.parse(
-      JSON.stringify(updatedLoi, (key, value) =>
+    const serializedOffer = JSON.parse(
+      JSON.stringify(updatedOffer, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value
       )
     )
 
-    return NextResponse.json({ success: true, loi: serializedLoi })
+    return NextResponse.json({ success: true, offer: serializedOffer })
 
   } catch (error: any) {
-    console.error("Error updating LOI status:", error)
-    return NextResponse.json({ error: "Failed to update LOI status" }, { status: 500 })
+    console.error("Error updating offer letter status:", error)
+    return NextResponse.json({ error: "Failed to update offer letter status" }, { status: 500 })
   }
 }
