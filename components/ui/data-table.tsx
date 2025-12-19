@@ -72,16 +72,16 @@ export function DataTable<TData, TValue>({
       )}
 
       {/* Table */}
-      <div className="rounded-md border border-gray-200">
+      <div className="rounded-md border border-border">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider"
+                      className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
                     >
                       {header.isPlaceholder ? null : (
                         <div
@@ -97,7 +97,7 @@ export function DataTable<TData, TValue>({
                             header.getContext()
                           )}
                           {header.column.getCanSort() && (
-                            <span className="text-gray-400">
+                            <span className="text-muted-foreground/50">
                               {{
                                 asc: " ↑",
                                 desc: " ↓",
@@ -111,12 +111,12 @@ export function DataTable<TData, TValue>({
                 </tr>
               ))}
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <tr
                     key={row.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className="hover:bg-muted/50 transition-colors"
                   >
                     {row.getVisibleCells().map((cell) => (
                       <td
@@ -135,7 +135,7 @@ export function DataTable<TData, TValue>({
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="h-24 text-center text-gray-500"
+                    className="h-24 text-center text-muted-foreground"
                   >
                     No results found.
                   </td>
@@ -149,7 +149,7 @@ export function DataTable<TData, TValue>({
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-muted-foreground">
             Showing{" "}
             <span className="font-medium">
               {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1}
@@ -178,11 +178,11 @@ export function DataTable<TData, TValue>({
             Previous
           </Button>
           <div className="flex items-center gap-1">
-            <span className="text-sm text-gray-700">Page</span>
+            <span className="text-sm text-muted-foreground">Page</span>
             <span className="font-medium">
               {table.getState().pagination.pageIndex + 1}
             </span>
-            <span className="text-sm text-gray-700">of</span>
+            <span className="text-sm text-muted-foreground">of</span>
             <span className="font-medium">
               {table.getPageCount()}
             </span>
@@ -202,7 +202,7 @@ export function DataTable<TData, TValue>({
             onChange={(e) => {
               table.setPageSize(Number(e.target.value))
             }}
-            className="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+            className="px-3 py-1.5 border border-input rounded-md text-sm bg-background text-foreground"
           >
             {[10, 25, 50, 100].map((pageSize) => (
               <option key={pageSize} value={pageSize}>

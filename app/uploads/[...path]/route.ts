@@ -27,7 +27,7 @@ export async function GET(
       return NextResponse.json({ error: "File not specified" }, { status: 400 })
     }
 
-    const uploadsDir = path.join(process.cwd(), "uploads")
+    const uploadsDir = path.join(process.cwd(), "public", "uploads")
     const requestedPath = path.join(uploadsDir, ...pathSegments)
 
     if (!requestedPath.startsWith(uploadsDir)) {

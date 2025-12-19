@@ -92,23 +92,22 @@ export default function JobDetailPage() {
       <div className="mb-6">
         <Link
           href="/admin/jobs"
-          className="text-blue-600 hover:underline mb-2 inline-block"
+          className="text-primary hover:underline mb-2 inline-block"
         >
           ← Back to Jobs
         </Link>
-        <h2 className="text-2xl font-bold text-gray-900">{job.title}</h2>
+        <h2 className="text-2xl font-bold text-foreground">{job.title}</h2>
       </div>
 
       {/* Job Details */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
+      <div className="bg-card rounded-lg shadow p-6 mb-6 border border-border">
         <div className="flex justify-between items-start mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Job Information</h3>
+          <h3 className="text-lg font-semibold text-foreground">Job Information</h3>
           <span
-            className={`px-3 py-1 text-sm font-semibold rounded-full ${
-              job.status
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
+            className={`px-3 py-1 text-sm font-semibold rounded-full ${job.status
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                : "bg-destructive/10 text-destructive border border-destructive/20"
+              }`}
           >
             {job.status ? "Active" : "Inactive"}
           </span>
@@ -116,46 +115,46 @@ export default function JobDetailPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm text-gray-500">Company</label>
-            <p className="font-medium text-gray-900">{job.company}</p>
+            <label className="text-sm text-muted-foreground">Company</label>
+            <p className="font-medium text-foreground">{job.company}</p>
           </div>
           <div>
-            <label className="text-sm text-gray-500">Employment Type</label>
-            <p className="font-medium text-gray-900">{job.employmentType}</p>
+            <label className="text-sm text-muted-foreground">Employment Type</label>
+            <p className="font-medium text-foreground">{job.employmentType}</p>
           </div>
           <div>
-            <label className="text-sm text-gray-500">Posting Period</label>
-            <p className="font-medium text-gray-900">
+            <label className="text-sm text-muted-foreground">Posting Period</label>
+            <p className="font-medium text-foreground">
               {new Date(job.postFrom).toLocaleDateString()} - {new Date(job.postTo).toLocaleDateString()}
             </p>
           </div>
           <div>
-            <label className="text-sm text-gray-500">Total Applications</label>
-            <p className="font-medium text-gray-900">{job._count.applications}</p>
+            <label className="text-sm text-muted-foreground">Total Applications</label>
+            <p className="font-medium text-foreground">{job._count.applications}</p>
           </div>
           {job.minimumExperience && (
             <div>
-              <label className="text-sm text-gray-500">Experience Required</label>
-              <p className="font-medium text-gray-900">{job.minimumExperience}</p>
+              <label className="text-sm text-muted-foreground">Experience Required</label>
+              <p className="font-medium text-foreground">{job.minimumExperience}</p>
             </div>
           )}
           {job.minimumSalary && (
             <div>
-              <label className="text-sm text-gray-500">Salary Range</label>
-              <p className="font-medium text-gray-900">{job.minimumSalary}</p>
+              <label className="text-sm text-muted-foreground">Salary Range</label>
+              <p className="font-medium text-foreground">{job.minimumSalary}</p>
             </div>
           )}
           {job.locations && job.locations.length > 0 ? (
             <div>
-              <label className="text-sm text-gray-500">Locations</label>
-              <p className="font-medium text-gray-900">
+              <label className="text-sm text-muted-foreground">Locations</label>
+              <p className="font-medium text-foreground">
                 {job.locations.map(loc => `${loc.city}, ${loc.country}`).join(' | ')}
               </p>
             </div>
           ) : job.city && job.country ? (
             <div>
-              <label className="text-sm text-gray-500">Location</label>
-              <p className="font-medium text-gray-900">
+              <label className="text-sm text-muted-foreground">Location</label>
+              <p className="font-medium text-foreground">
                 {job.city}, {job.country}
               </p>
             </div>
@@ -163,17 +162,17 @@ export default function JobDetailPage() {
         </div>
 
         {job.description && (
-         <div className="prose-lg mt-4" dangerouslySetInnerHTML={{ __html: job.description }}></div>
+          <div className="prose-lg mt-4" dangerouslySetInnerHTML={{ __html: job.description }}></div>
         )}
 
         {job.skills.length > 0 && (
           <div className="mt-4">
-            <label className="text-sm text-gray-500 block mb-2">Required Skills</label>
+            <label className="text-sm text-muted-foreground block mb-2">Required Skills</label>
             <div className="flex flex-wrap gap-2">
               {job.skills.map((skill, index) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                  className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
                 >
                   {skill.skillName}
                 </span>
@@ -185,29 +184,29 @@ export default function JobDetailPage() {
 
       {/* Workflow */}
       {job.workflow && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-card rounded-lg shadow p-6 mb-6 border border-border">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Interview Workflow ({job.workflow.steps.length} steps)
           </h3>
           <div className="space-y-3">
             {job.workflow.steps.map((step) => (
               <div
                 key={step.id}
-                className="border border-gray-200 rounded-lg p-4"
+                className="border border-border rounded-lg p-4"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h4 className="font-medium text-gray-900">
+                    <h4 className="font-medium text-foreground">
                       Step {step.stepOrder}: {step.stepName}
                     </h4>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {step.isRequired ? "Required" : "Optional"}
                       {step.isSkippable && " • Skippable"}
                     </p>
                     {step.interviewer && (
-                      <p className="text-sm text-gray-600 mt-2">
+                      <p className="text-sm text-muted-foreground mt-2">
                         Assigned to: {step.interviewer.firstname} {step.interviewer.lastname}
-                        <span className="text-gray-500"> ({step.interviewer.email})</span>
+                        <span className="text-muted-foreground/80"> ({step.interviewer.email})</span>
                       </p>
                     )}
                   </div>
@@ -222,7 +221,7 @@ export default function JobDetailPage() {
       <div className="flex gap-3">
         <Link
           href={`/admin/candidates?jobId=${job.id}`}
-          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
         >
           View Candidates ({job._count.applications})
         </Link>

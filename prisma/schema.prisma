@@ -42,6 +42,7 @@ model User {
   suspended    Boolean    @default(false)
   createdAt    BigInt     @map("created_at")
   updatedAt    BigInt     @map("updated_at")
+  avatar       String?    @db.VarChar(255)
 
   // Relations
   educations     UserEducation[]

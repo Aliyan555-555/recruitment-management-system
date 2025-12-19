@@ -13,6 +13,7 @@ interface JobsLandingHeroProps {
         location: string
     }) => void
     totalJobs: number
+    compact?: boolean
 }
 
 const departments = [
@@ -42,7 +43,7 @@ const locations = [
     "Hyderabad"
 ]
 
-export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
+export function JobsLandingHero({ onSearch, totalJobs, compact }: JobsLandingHeroProps) {
     const [search, setSearch] = useState("")
     const [department, setDepartment] = useState("all")
     const [location, setLocation] = useState("all")
@@ -64,42 +65,44 @@ export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
     }
 
     return (
-        <div className="relative bg-gradient-to-b from-muted/50 to-background">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+        <div className={`relative ${compact ? 'bg-transparent py-0' : 'bg-gradient-to-b from-muted/50 to-background py-16 lg:py-24'}`}>
+            <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${compact ? 'p-0' : ''}`}>
                 {/* Header */}
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-                        Find Your Dream Job at {orgName !== "leading companies" ? orgName : "TalentHub"}
-                    </h1>
-                    <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
-                        Discover exciting career opportunities with {orgName}
-                    </p>
-                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                        <Briefcase className="h-4 w-4" />
-                        <span className="font-medium">{totalJobs} active job openings</span>
+                {!compact && (
+                    <div className="text-center mb-12">
+                        <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+                            Find Your Dream Job at {orgName !== "leading companies" ? orgName : "TalentHub"}
+                        </h1>
+                        <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
+                            Discover exciting career opportunities with {orgName}
+                        </p>
+                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                            <Briefcase className="h-4 w-4" />
+                            <span className="font-medium">{totalJobs} active job openings</span>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Modern Single Search Bar */}
-                <div className="max-w-5xl mx-auto">
-                    <div className="bg-background rounded-full shadow-2xl border border-border/50 p-2 flex flex-col lg:flex-row gap-2">
+                <div className="w-full max-w-5xl mx-auto">
+                    <div className="bg-background rounded-2xl lg:rounded-full shadow-sm border border-border/50 p-2 flex flex-col lg:flex-row gap-2">
                         {/* Search Input */}
-                        <div className="relative flex-1">
+                        <div className="relative flex-1 min-w-0">
                             <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                             <Input
-                                placeholder="Search jobs, companies, or keywords..."
+                                placeholder="Search jobs..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                                className="pl-12 h-12 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base rounded-full"
+                                className="pl-12 h-12 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-base rounded-xl lg:rounded-full w-full"
                             />
                         </div>
 
                         {/* Department Dropdown */}
-                        <div className="relative min-w-[200px]">
+                        <div className="relative w-full lg:w-[200px] shrink-0">
                             <Briefcase className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                             <Select value={department} onValueChange={setDepartment}>
-                                <SelectTrigger className="h-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 pl-11 rounded-full">
+                                <SelectTrigger className="h-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 pl-11 rounded-xl lg:rounded-full w-full">
                                     <SelectValue placeholder="Department" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -114,10 +117,10 @@ export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
                         </div>
 
                         {/* Location Dropdown */}
-                        <div className="relative min-w-[180px]">
+                        <div className="relative w-full lg:w-[180px] shrink-0">
                             <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
                             <Select value={location} onValueChange={setLocation}>
-                                <SelectTrigger className="h-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 pl-11 rounded-full">
+                                <SelectTrigger className="h-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 pl-11 rounded-xl lg:rounded-full w-full">
                                     <SelectValue placeholder="Location" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -135,10 +138,10 @@ export function JobsLandingHero({ onSearch, totalJobs }: JobsLandingHeroProps) {
                         <Button
                             onClick={handleSearch}
                             size="lg"
-                            className="h-12 px-8 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
+                            className="h-12 w-full lg:w-auto px-8 rounded-xl lg:rounded-full font-semibold shadow-lg hover:shadow-xl transition-all whitespace-nowrap shrink-0"
                         >
                             <Search className="h-4 w-4 mr-2" />
-                            Search Jobs
+                            Search
                         </Button>
                     </div>
 

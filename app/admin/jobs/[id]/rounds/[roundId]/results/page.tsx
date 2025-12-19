@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 
 interface ResultsStats {
@@ -26,6 +27,7 @@ interface CandidateResult {
   status: string
   interviewer?: string
   assessedAt?: string
+  movedToNext?: boolean
 }
 
 export default function ResultsPage() {
@@ -77,15 +79,24 @@ export default function ResultsPage() {
     })
   }, [candidates, search, statusFilter, recFilter])
 
+  // Only allow selection of candidates who completed the round and haven't been moved yet
+  const isSelectable = (candidate: CandidateResult) => {
+    return candidate.status === "COMPLETED" && !candidate.movedToNext
+  }
+
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(filteredCandidates.map((c) => c.id))
+      const selectableCandidates = filteredCandidates.filter(isSelectable)
+      setSelectedIds(selectableCandidates.map((c) => c.id))
     } else {
       setSelectedIds([])
     }
   }
 
   const toggleSelectOne = (id: string, checked: boolean) => {
+    const candidate = candidates.find(c => c.id === id)
+    if (!candidate || !isSelectable(candidate)) return
+
     setSelectedIds((prev) =>
       checked ? [...prev, id] : prev.filter((x) => x !== id)
     )
@@ -98,21 +109,21 @@ export default function ResultsPage() {
     const base = "px-2 py-1 text-xs font-semibold rounded-full"
     switch (status) {
       case "PASSED":
-        return `${base} bg-green-100 text-green-800`
+        return `${base} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400`
       case "FAILED":
-        return `${base} bg-red-100 text-red-800`
+        return `${base} bg-destructive/10 text-destructive`
       case "IN_PROGRESS":
-        return `${base} bg-yellow-100 text-yellow-800`
+        return `${base} bg-yellow-500/10 text-yellow-600 dark:text-yellow-400`
       default:
-        return `${base} bg-gray-100 text-gray-700`
+        return `${base} bg-muted text-muted-foreground`
     }
   }
 
   const recommendationBadge = (rec?: string | null) => {
-    if (!rec) return <span className="text-sm text-gray-400">-</span>
+    if (!rec) return <span className="text-sm text-muted-foreground">-</span>
     const base = "px-2 py-1 text-xs font-semibold rounded-full"
     return (
-      <span className={rec === "HIRE" ? `${base} bg-green-100 text-green-800` : `${base} bg-red-100 text-red-800`}>
+      <span className={rec === "HIRE" ? `${base} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400` : `${base} bg-destructive/10 text-destructive`}>
         {rec}
       </span>
     )
@@ -130,7 +141,7 @@ export default function ResultsPage() {
       if (res.ok) {
         const data = await res.json()
         setSelectedIds([])
-        
+
         // Redirect to next round's applied list if nextStepId is available
         if (data.nextStepId) {
           router.push(`/admin/jobs/${params.id}/rounds/${data.nextStepId}/applied`)
@@ -141,6 +152,8 @@ export default function ResultsPage() {
       } else {
         const err = await res.json().catch(() => ({}))
         alert(err?.error || "Failed to move candidates to next round")
+        // Refresh the current page to show updated statuses
+        await fetchResults()
       }
     } catch (error) {
       console.error("Error moving to next round:", error)
@@ -154,20 +167,20 @@ export default function ResultsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Round Results</h2>
-          <p className="text-sm text-gray-500">Job #{params.id} · Round #{params.roundId}</p>
+          <h2 className="text-2xl font-bold text-foreground">Round Results</h2>
+          <p className="text-sm text-muted-foreground">Job #{params.id} · Round #{params.roundId}</p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search candidate or email"
-            className="w-full sm:w-64 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full sm:w-64 border border-input bg-background text-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="border border-input bg-background text-foreground rounded-lg px-3 py-2 text-sm"
           >
             <option value="all">All statuses</option>
             <option value="PASSED">Passed</option>
@@ -178,7 +191,7 @@ export default function ResultsPage() {
           <select
             value={recFilter}
             onChange={(e) => setRecFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            className="border border-input bg-background text-foreground rounded-lg px-3 py-2 text-sm"
           >
             <option value="all">All recommendations</option>
             <option value="HIRE">HIRE</option>
@@ -189,99 +202,107 @@ export default function ResultsPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4 bg-blue-50 border-blue-100">
-          <div className="text-sm text-blue-600 font-medium">Total Candidates</div>
-          <div className="text-2xl font-bold text-blue-900">{stats.total}</div>
+        <Card className="p-4 bg-primary/5 border-primary/10">
+          <div className="text-sm text-primary font-medium">Total Candidates</div>
+          <div className="text-2xl font-bold text-foreground">{stats.total}</div>
         </Card>
-        <Card className="p-4 bg-green-50 border-green-100">
-          <div className="text-sm text-green-600 font-medium">Passed</div>
-          <div className="text-2xl font-bold text-green-900">{stats.passed}</div>
+        <Card className="p-4 bg-emerald-500/5 border-emerald-500/10">
+          <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Passed</div>
+          <div className="text-2xl font-bold text-foreground">{stats.passed}</div>
         </Card>
-        <Card className="p-4 bg-red-50 border-red-100">
-          <div className="text-sm text-red-600 font-medium">Failed</div>
-          <div className="text-2xl font-bold text-red-900">{stats.failed}</div>
+        <Card className="p-4 bg-destructive/5 border-destructive/10">
+          <div className="text-sm text-destructive font-medium">Failed</div>
+          <div className="text-2xl font-bold text-foreground">{stats.failed}</div>
         </Card>
-        <Card className="p-4 bg-purple-50 border-purple-100">
-          <div className="text-sm text-purple-600 font-medium">Average Score</div>
-          <div className="text-2xl font-bold text-purple-900">{formattedAverage}</div>
+        <Card className="p-4 bg-purple-500/5 border-purple-500/10">
+          <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">Average Score</div>
+          <div className="text-2xl font-bold text-foreground">{formattedAverage}</div>
         </Card>
-        <Card className="p-4 bg-yellow-50 border-yellow-100">
-          <div className="text-sm text-yellow-600 font-medium">In Progress</div>
-          <div className="text-2xl font-bold text-yellow-900">{stats.inProgress}</div>
+        <Card className="p-4 bg-yellow-500/5 border-yellow-500/10">
+          <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">In Progress</div>
+          <div className="text-2xl font-bold text-foreground">{stats.inProgress}</div>
         </Card>
-        <Card className="p-4 bg-slate-50 border-slate-200">
-          <div className="text-sm text-slate-600 font-medium">Pending</div>
-          <div className="text-2xl font-bold text-slate-900">{stats.pending}</div>
+        <Card className="p-4 bg-muted/50 border-border">
+          <div className="text-sm text-muted-foreground font-medium">Pending</div>
+          <div className="text-2xl font-bold text-foreground">{stats.pending}</div>
         </Card>
-        <Card className="p-4 bg-emerald-50 border-emerald-100">
-          <div className="text-sm text-emerald-600 font-medium">Completed</div>
-          <div className="text-2xl font-bold text-emerald-900">{stats.completed}</div>
+        <Card className="p-4 bg-emerald-500/5 border-emerald-500/10">
+          <div className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Completed</div>
+          <div className="text-2xl font-bold text-foreground">{stats.completed}</div>
         </Card>
-        <Card className="p-4 bg-rose-50 border-rose-100">
-          <div className="text-sm text-rose-600 font-medium">Rejected</div>
-          <div className="text-2xl font-bold text-rose-900">{stats.rejected}</div>
+        <Card className="p-4 bg-destructive/5 border-destructive/10">
+          <div className="text-sm text-destructive font-medium">Rejected</div>
+          <div className="text-2xl font-bold text-foreground">{stats.rejected}</div>
         </Card>
       </div>
 
       {/* Candidates Table */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Candidate Assessments</h3>
+          <h3 className="text-lg font-semibold text-foreground">Candidate Assessments</h3>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               {filteredCandidates.length} shown · {selectedIds.length} selected
             </div>
             <button
               onClick={moveToNextRound}
               disabled={selectedIds.length === 0 || bulkLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {bulkLoading ? "Moving..." : "Move to Next Round"}
             </button>
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-border">
+            <thead className="bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left">
                   <input
                     type="checkbox"
                     onChange={(e) => toggleSelectAll(e.target.checked)}
-                    checked={selectedIds.length > 0 && selectedIds.length === filteredCandidates.length}
+                    checked={
+                      filteredCandidates.filter(isSelectable).length > 0 &&
+                      filteredCandidates.filter(isSelectable).every(c => selectedIds.includes(c.id))
+                    }
                     aria-label="Select all"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Score</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Recommendation</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interviewer</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assessed At</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Candidate</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Score</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">% Score</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Recommendation</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Interviewer</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Assessed At</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-border">
               {filteredCandidates.map((candidate) => (
-                <tr key={candidate.id} className="hover:bg-gray-50">
+                <tr
+                  key={candidate.id}
+                  className={`hover:bg-muted/50 ${!isSelectable(candidate) ? 'bg-muted/30 opacity-60' : ''}`}
+                >
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(candidate.id)}
                       onChange={(e) => toggleSelectOne(candidate.id, e.target.checked)}
+                      disabled={!isSelectable(candidate)}
+                      className={!isSelectable(candidate) ? 'cursor-not-allowed opacity-50' : ''}
                       aria-label={`Select ${candidate.name}`}
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                    <div className="text-xs text-gray-500">{candidate.email}</div>
+                    <div className="text-sm font-medium text-foreground">{candidate.name}</div>
+                    <div className="text-xs text-muted-foreground">{candidate.email}</div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900">
+                  <td className="px-4 py-3 text-sm font-semibold text-foreground">
                     {candidate.score !== undefined && candidate.score !== null
                       ? `${candidate.score}/${candidate.maxScore ?? 150}`
                       : "-"}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-foreground">
                     {candidate.scorePercentage !== undefined && candidate.scorePercentage !== null
                       ? `${candidate.scorePercentage}%`
                       : "-"}
@@ -290,8 +311,8 @@ export default function ResultsPage() {
                   <td className="px-4 py-3">
                     <span className={statusBadge(candidate.status)}>{candidate.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{candidate.interviewer || "-"}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
+                  <td className="px-4 py-3 text-sm text-foreground">{candidate.interviewer || "-"}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">
                     {candidate.assessedAt ? new Date(Number(candidate.assessedAt) * 1000).toLocaleString() : "-"}
                   </td>
                 </tr>
@@ -299,10 +320,23 @@ export default function ResultsPage() {
             </tbody>
           </table>
           {candidates.length === 0 && (
-            <div className="py-6 text-center text-sm text-gray-500">No candidates assessed yet.</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">No candidates assessed yet.</div>
           )}
         </div>
       </Card>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-start items-center mt-6">
+        <Link
+          href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
+          className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent transition-all shadow-sm hover:shadow-md"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </Link>
+      </div>
     </div>
   )
 }

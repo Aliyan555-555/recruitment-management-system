@@ -35,6 +35,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               firstname: true,
               lastname: true,
               role: true,
+              avatar: true,
               lastLogin: true,
               userStatus: true,
               suspended: true,
@@ -71,6 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: `${user.firstname} ${user.lastname}`,
             username: user.username,
             role: user.role,
+            avatar: user.avatar || undefined,
           }
         } catch (error) {
           console.error("Authentication error:", error)
@@ -88,11 +90,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string
         token.username = (user as any).username
         token.role = (user as any).role
+        token.avatar = (user as any).avatar
+      }
+      // Update session if requested (e.g., when profile is updated)
+      if (trigger === "update" && session?.user) {
+        token.avatar = session.user.avatar
       }
       return token
     },
@@ -101,6 +108,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string
         session.user.username = token.username as string
         session.user.role = token.role as string
+        session.user.avatar = token.avatar as string | undefined
       }
       return session
     }

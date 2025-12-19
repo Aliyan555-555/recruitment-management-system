@@ -8,6 +8,7 @@ import { JobsLandingHero } from "@/components/JobsLandingHero"
 import { PublicJobCard } from "@/components/PublicJobCard"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Briefcase, Users, FileCheck, TrendingUp, Calendar, Clock, CheckCircle2, XCircle, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useDashboardStore } from "@/store/useDashboardStore"
@@ -132,95 +133,155 @@ export default function HomePage() {
   // Show public landing page if not authenticated
   if (!session) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         <Navbar />
 
         {/* Hero Section */}
-        <JobsLandingHero
-          onSearch={fetchPublicJobs}
-          totalJobs={publicJobs.length}
-        />
-
-        {/* Jobs Listing */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {publicJobsError && (
-            <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <p className="text-sm text-destructive">{publicJobsError}</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchPublicJobs()}
-                className="mt-2"
-              >
-                Try Again
-              </Button>
-            </div>
-          )}
-
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground mb-2">
-              Available Positions
-            </h2>
-            <p className="text-muted-foreground">
-              Explore our latest job openings and start your career journey
-            </p>
+        <div className="relative isolate overflow-hidden">
+          {/* Background Gradient/Pattern */}
+          <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
+            <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary/30 to-purple-500/30 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
           </div>
 
-          {publicJobsLoading ? (
-            <div className="grid grid-cols-1 gap-6 max-w-4xl mx-auto">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-96 bg-muted animate-pulse rounded-lg" />
-              ))}
-            </div>
-          ) : publicJobs.length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 w-full">
-              {publicJobs.map((job) => (
-                <PublicJobCard key={job.id} job={job} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Briefcase className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                No jobs found
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                Try adjusting your search filters or check back later for new opportunities.
+          <div className="mx-auto max-w-7xl px-6 pb-24  sm:pb-32 lg:flex lg:px-8  flex flex-col">
+            <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 ">
+              <div className="mt-24 sm:mt-32 lg:mt-16">
+                <a href="#" className="inline-flex space-x-6">
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold leading-6 text-primary ring-1 ring-inset ring-primary/10">
+                    New Features
+                  </span>
+                  <span className="inline-flex items-center space-x-2 text-sm font-medium leading-6 text-muted-foreground">
+                    <span>Just shipped v1.0</span>
+                    <TrendingUp className="h-4 w-4" />
+                  </span>
+                </a>
+              </div>
+              <h1 className="mt-10 text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
+                Recruitment <span className="text-primary">Elevated.</span>
+                <br />
+                Talent <span className="text-purple-600">Unleashed.</span>
+              </h1>
+              <p className="mt-6 text-lg leading-8 text-muted-foreground">
+                Experience a recruitment platform built for the modern era. Connect with top-tier talent and world-class organizations through our intelligent matchmaking system.
               </p>
-              <Button onClick={() => fetchPublicJobs()}>
-                Refresh Jobs
-              </Button>
-            </div>
-          )}
-
-          {/* Call to Action */}
-          {publicJobs.length > 0 && (
-            <div className="mt-16 text-center bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl p-8">
-              <h3 className="text-2xl font-bold text-foreground mb-4">
-                Ready to Start Your Journey?
-              </h3>
-              <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-                Join our talent network and get access to exclusive job opportunities,
-                personalized recommendations, and application tracking.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/register">
-                  <Button size="lg" className="min-w-[200px]">
-                    Create Account
+              <div className="mt-10 flex items-center gap-x-6">
+                <Link href="/jobs">
+                  <Button size="lg" className="h-12 px-8 text-lg shadow-lg hover:shadow-primary/25 transition-all">
+                    Browse Positions
                   </Button>
                 </Link>
-                <Link href="/login">
-                  <Button variant="outline" size="lg" className="min-w-[200px]">
-                    Sign In
-                  </Button>
+                <Link href="/register" className="text-sm font-semibold leading-6 text-foreground hover:text-primary transition-colors">
+                  Create Account <span aria-hidden="true">→</span>
                 </Link>
               </div>
             </div>
-          )}
-        </main>
+
+            {/* Premium CTA */}
+            <div className="mx-auto mt-12 flex max-w-2xl sm:mt-16 lg:ml-10 lg:mt-0 lg:mr-0 lg:max-w-none lg:flex-none xl:ml-32 items-center justify-center">
+
+            </div>
+          </div>
+        </div>
+
+        {/* Search & Jobs Listing Section */}
+        <div className="bg-muted/30 py-24 sm:py-32">
+          <div className="mx-auto max-w-7xl px-6 lg:px-8">
+            {/* Search Section */}
+            <div className="relative z-10 -mt-32 mb-12">
+              <div className="rounded-xl bg-background shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10 p-2 md:p-4">
+                <JobsLandingHero
+                  onSearch={fetchPublicJobs}
+                  totalJobs={publicJobs.length}
+                  compact={true}
+                />
+              </div>
+            </div>
+
+            <div className="mx-auto max-w-2xl lg:mx-0">
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Featured Opportunities</h2>
+              <p className="mt-6 text-lg leading-8 text-muted-foreground">
+                Discover roles that match your ambition.
+              </p>
+            </div>
+
+            <div className="mx-auto mt-16 max-w-2xl lg:mx-0 lg:max-w-none">
+              {publicJobsError && (
+                <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-destructive" />
+                    <p className="text-sm text-destructive">{publicJobsError}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchPublicJobs()}
+                    className="mt-2"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              )}
+
+              {publicJobsLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="h-64 bg-card animate-pulse rounded-xl border border-border" />
+                  ))}
+                </div>
+              ) : publicJobs.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6">
+                  {publicJobs.map((job) => (
+                    <PublicJobCard key={job.id} job={job} />
+                  ))}
+
+                  <div className="mt-10 flex justify-center">
+                    <Button onClick={() => fetchPublicJobs()} variant="secondary" size="lg">
+                      Load More Positions
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-20 bg-card rounded-2xl border border-border shadow-sm">
+                  <Briefcase className="h-16 w-16 text-muted-foreground/50 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                    No positions found
+                  </h3>
+                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                    We couldn't find any jobs matching your current criteria. Try adjusting your filters.
+                  </p>
+                  <Button onClick={() => fetchPublicJobs()}>
+                    Refresh Listings
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Premium CTA */}
+        <div className="relative isolate px-6 py-24 sm:px-6 sm:py-32 lg:px-8">
+          <div className="absolute inset-0 -z-10 bg-gradient-to-t from-primary/10 via-transparent to-transparent opacity-50" />
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Ready to take the next step?
+              <br />
+              Join the elite today.
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
+              Unlock full access to premium listings, salary insights, and direct recruiter messaging. Your future starts here.
+            </p>
+            <div className="mt-10 flex items-center justify-center gap-x-6">
+              <Link href="/register">
+                <Button size="lg" className="px-8 bg-foreground text-background hover:bg-foreground/90">
+                  Get Started
+                </Button>
+              </Link>
+              <Link href="/about" className="text-sm font-semibold leading-6 text-foreground">
+                Learn more <span aria-hidden="true">→</span>
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -229,27 +290,37 @@ export default function HomePage() {
   const recentJobs = jobs.slice(0, 3)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <div className="min-h-screen bg-muted/20">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl mb-4">
-            Welcome back, {session.user?.name || "User"}!
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            Manage your recruitment journey from one place
-          </p>
-        </div>
 
+      {/* Dashboard Header */}
+      <div className="bg-background border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Welcome back, <span className="text-primary">{session?.user?.name?.split(' ')[0] || "User"}</span>
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Here is what's happening with your job applications today.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error State */}
         {error && (
-          <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <p className="text-sm text-destructive">{error}</p>
+          <div className="mb-6 bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">Error loading dashboard</p>
+              <p className="text-sm text-destructive/80">{error}</p>
+            </div>
             <Button
               variant="outline"
               size="sm"
               onClick={fetchDashboardData}
-              className="mt-2"
+              className="ml-auto"
             >
               Retry
             </Button>
@@ -257,253 +328,257 @@ export default function HomePage() {
         )}
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                <Briefcase className="h-4 w-4 text-blue-500" />
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.activeJobs}</div>
-                  <p className="text-xs text-muted-foreground">Available positions</p>
+                  <div className="text-2xl font-bold text-foreground">{stats.activeJobs}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Available positions</p>
                 </>
               )}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Applications</CardTitle>
-              <FileCheck className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+                <FileCheck className="h-4 w-4 text-purple-500" />
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.applications}</div>
-                  <p className="text-xs text-muted-foreground">Your applications</p>
+                  <div className="text-2xl font-bold text-foreground">{stats.applications}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Your applications</p>
                 </>
               )}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Interviews</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center">
+                <Users className="h-4 w-4 text-amber-500" />
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.interviews}</div>
-                  <p className="text-xs text-muted-foreground">Scheduled</p>
+                  <div className="text-2xl font-bold text-foreground">{stats.interviews}</div>
+                  <p className="text-xs text-muted-foreground mt-1">Scheduled</p>
                 </>
               )}
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">{stats.successRate}%</div>
-                  <p className="text-xs text-muted-foreground">Application success</p>
+                  <div className="text-2xl font-bold text-foreground">{stats.successRate}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">Application success</p>
                 </>
               )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Get started with your recruitment journey</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Link href="/jobs" className="block">
-                <Button className="w-full" size="lg">
-                  <Briefcase className="mr-2 h-5 w-5" />
-                  Browse Jobs
-                </Button>
-              </Link>
-              <Link href="/candidate/profile" className="block">
-                <Button variant="outline" className="w-full" size="lg">
-                  Complete Your Profile
-                </Button>
-              </Link>
-              {stats.applications > 0 && (
-                <Link href="/applications" className="block">
-                  <Button variant="outline" className="w-full" size="lg">
-                    <FileCheck className="mr-2 h-5 w-5" />
-                    View Applications
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Feed */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Recent Jobs */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight">Recent Opportunities</h2>
+                  <p className="text-sm text-muted-foreground">Jobs that match your profile</p>
+                </div>
+                <Link href="/jobs">
+                  <Button variant="ghost" className="hover:bg-transparent hover:text-primary p-0 h-auto font-medium">
+                    View All <span aria-hidden="true" className="ml-1">→</span>
                   </Button>
                 </Link>
-              )}
-            </CardContent>
-          </Card>
+              </div>
 
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Your latest actions and updates</CardDescription>
-            </CardHeader>
-            <CardContent>
               {loading ? (
-                <div className="space-y-3">
+                <div className="grid gap-4">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+                    <JobCardSkeleton key={i} />
                   ))}
                 </div>
-              ) : recentApplications.length > 0 ? (
-                <div className="space-y-3">
-                  {recentApplications.map((app) => (
-                    <div
-                      key={app.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{app.jobTitle}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {app.jobCompany} • {new Date(app.appliedAt).toLocaleDateString()}
+              ) : recentJobs.length > 0 ? (
+                <div className="grid gap-4">
+                  {recentJobs.map((job: Job) => (
+                    <Card key={job.id} className="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 border-border/50">
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <CardHeader>
+                        <div className="flex justify-between items-start gap-4">
+                          <div>
+                            <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{job.title}</CardTitle>
+                            <CardDescription className="flex items-center gap-2 mt-1">
+                              <span className="font-medium text-foreground/80">{job.company}</span>
+                              {(job.city || (job.locations && job.locations.length > 0 && job.locations[0].city)) && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                                  {job.city || job.locations![0].city}
+                                </span>
+                              )}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={job.employmentType === 'FULL_TIME' ? 'default' : 'secondary'}>
+                            {job.employmentType?.replace('_', ' ') || 'Part Time'}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                          {job.shortDescription || job.description}
                         </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {app.status === "COMPLETED" ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        ) : app.status === "REJECTED" ? (
-                          <XCircle className="h-4 w-4 text-red-500" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-blue-500" />
-                        )}
-                      </div>
-                    </div>
+                        <div className="flex items-center gap-4 pt-2">
+                          <Link href={`/jobs/${job.id}`} className="flex-1">
+                            <Button className="w-full shadow-sm" size="sm">View Details</Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
-                  <Link href="/applications">
-                    <Button variant="outline" className="w-full mt-2" size="sm">
-                      View All Applications
-                    </Button>
-                  </Link>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No recent activity
+                <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                  <Briefcase className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                  <h3 className="text-lg font-medium">No jobs found</h3>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Upcoming Interviews */}
-        {upcomingInterviews.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Upcoming Interviews</CardTitle>
-              <CardDescription>Your scheduled interview sessions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {upcomingInterviews.map((interview) => (
-                  <div
-                    key={interview.slotId}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm font-medium">{interview.jobTitle}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {interview.stepName} • {interview.jobCompany}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(interview.startsAt).toLocaleString()}
-                      </p>
-                    </div>
-                    {interview.meetingLink && (
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer">
-                          Join Meeting
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Recent Jobs */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Recent Job Opportunities</CardTitle>
-              <CardDescription>Latest job postings available</CardDescription>
             </div>
-            <Link href="/jobs">
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <JobCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : recentJobs.length > 0 ? (
-              <div className="space-y-4">
-                {recentJobs.map((job: Job) => (
-                  <Card key={job.id} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-lg">{job.title}</CardTitle>
-                          <CardDescription>{job.company}</CardDescription>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link href="/jobs" className="block">
+                  <Button variant="outline" className="w-full justify-start h-10 hover:bg-primary/5 hover:text-primary hover:border-primary/20">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Browse Jobs
+                  </Button>
+                </Link>
+                <Link href="/candidate/profile" className="block">
+                  <Button variant="outline" className="w-full justify-start h-10 hover:bg-primary/5 hover:text-primary hover:border-primary/20">
+                    <Users className="mr-2 h-4 w-4" />
+                    Profile
+                  </Button>
+                </Link>
+                <Link href="/applications" className="block">
+                  <Button variant="outline" className="w-full justify-start h-10 hover:bg-primary/5 hover:text-primary hover:border-primary/20">
+                    <FileCheck className="mr-2 h-4 w-4" />
+                    Applications
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Upcoming Interviews */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Upcoming Interviews</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {upcomingInterviews.length > 0 ? (
+                  <div className="space-y-4">
+                    {upcomingInterviews.map((interview) => (
+                      <div key={interview.slotId} className="flex flex-col gap-2 p-3 bg-secondary/20 rounded-lg border border-border/50">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold text-sm">{interview.jobTitle}</p>
+                            <p className="text-xs text-muted-foreground">{interview.jobCompany}</p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] h-5 bg-background">
+                            {interview.stepName}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {new Date(interview.startsAt).toLocaleString(undefined, {
+                            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+                          })}
+                        </div>
+                        {interview.meetingLink && (
+                          <Button size="sm" variant="secondary" className="w-full h-8 mt-1 text-xs" asChild>
+                            <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer">
+                              Join Meeting
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground">
+                    No interviews scheduled
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Recent Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recentApplications.length > 0 ? (
+                  <div className="space-y-4">
+                    {recentApplications.slice(0, 4).map((app) => (
+                      <div key={app.id} className="flex items-start gap-3 pb-3 border-b last:border-0 last:pb-0">
+                        <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${app.status === 'COMPLETED' ? 'bg-green-500' :
+                          app.status === 'REJECTED' ? 'bg-red-500' : 'bg-blue-500'
+                          }`} />
+                        <div className="space-y-0.5">
+                          <p className="text-sm font-medium leading-none">
+                            Applied for {app.jobTitle}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {app.jobCompany} • {new Date(app.appliedAt).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      {job.shortDescription && (
-                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                          {job.shortDescription}
-                        </p>
-                      )}
-                      <Link href={`/jobs/${job.id}`}>
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No jobs available at the moment
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-sm text-muted-foreground">
+                    No recent activity
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </main>
     </div>
   )

@@ -3,39 +3,54 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Building2 } from "lucide-react"
+import {
+  LayoutDashboard,
+  Briefcase,
+  Users,
+  FileText,
+  Settings,
+  Building2,
+  ChevronRight,
+  LogOut
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const navItems = [
   {
-    href: "/admin/dashboard", label: "Dashboard", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6" /></svg>
-    )
+    href: "/admin/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard
   },
   {
-    href: "/admin/jobs", label: "Jobs", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2z" /></svg>
-    )
+    href: "/admin/jobs",
+    label: "Jobs",
+    icon: Briefcase
   },
   {
-    href: "/admin/applications", label: "Applications", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8H6a2 2 0 01-2-2V6a2 2 0 012-2h8l6 6v8a2 2 0 01-2 2h-3" /></svg>
-    )
+    href: "/admin/applications",
+    label: "Applications",
+    icon: FileText
   },
   {
-    href: "/admin/users", label: "Users", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-    )
+    href: "/admin/candidates",
+    label: "Candidates",
+    icon: Users
   },
   {
-    href: "/admin/settings", label: "Settings", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17a4 4 0 100-8 4 4 0 000 8z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9M3 12a9 9 0 019-9" /></svg>
-    )
+    href: "/admin/users",
+    label: "Team",
+    icon: Building2
+  },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: Settings
   },
 ]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [orgName, setOrgName] = useState("Admin")
+  const [orgName, setOrgName] = useState("Admin Dashboard")
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
 
   useEffect(() => {
@@ -51,36 +66,78 @@ export function Sidebar() {
   }, [])
 
   return (
-    <aside className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 bg-white border-r border-gray-200">
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-gray-200">
+    <aside className="hidden md:flex md:flex-col md:w-72 md:fixed md:inset-y-0 bg-card border-r border-border shadow-xl z-50 transition-colors duration-300">
+      {/* Header / Logo Area */}
+      <div className="h-20 flex items-center gap-4 px-6 border-b border-border bg-card/50 backdrop-blur-xl">
         {orgLogo ? (
-          <img src={orgLogo} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-white shadow-sm p-0.5" />
+          <img
+            src={orgLogo}
+            alt="Logo"
+            className="w-14 h-14 object-contain p-1"
+          />
         ) : (
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow">
-            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white">
+            <Building2 className="w-5 h-5" />
           </div>
         )}
-        <div className="overflow-hidden">
-          <div className="text-sm font-bold text-gray-900 truncate" title={orgName}>{orgName}</div>
-          <div className="text-xs text-gray-600">Recruitment System</div>
+        <div className="flex flex-col overflow-hidden">
+          <span className="text-base font-bold text-foreground tracking-tight truncate">
+            {orgName}
+          </span>
+          <span className="text-xs text-muted-foreground font-medium tracking-wide uppercase">
+            Recruitment
+          </span>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="px-2 space-y-1">
-          {navItems.map(item => {
-            const active = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href))
-            return (
-              <li key={item.href}>
-                <Link href={item.href} className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${active ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-700 hover:bg-gray-50"}`}>
-                  <span className={`${active ? "text-blue-700" : "text-gray-500"}`}>{item.icon}</span>
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
+        <p className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Menu
+        </p>
+
+        {navItems.map((item) => {
+          const isActive = pathname === item.href || (item.href !== "/admin" && pathname?.startsWith(item.href))
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "group flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ease-in-out",
+                isActive
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                  : "hover:bg-accent hover:text-accent-foreground text-muted-foreground"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <item.icon className={cn(
+                  "w-5 h-5 transition-colors",
+                  isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                )} />
+                <span>{item.label}</span>
+              </div>
+              {isActive && <ChevronRight className="w-4 h-4 text-primary-foreground/70" />}
+            </Link>
+          )
+        })}
       </nav>
-      <div className="p-3 text-xs text-gray-400 border-t">v1.0</div>
+
+      {/* Footer / Version */}
+      <div className="p-4 border-t border-border bg-card/50">
+        <div className="bg-muted/50 rounded-xl p-4 flex items-center gap-3 border border-border/50">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <Settings className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-medium text-foreground">System Status</p>
+            <p className="text-[10px] text-emerald-500 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Operational
+            </p>
+          </div>
+        </div>
+      </div>
     </aside>
   )
 }

@@ -641,17 +641,17 @@ export default function CreateJobPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Job</h1>
-            <p className="text-gray-600">Fill in the details to post a new job opening</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Create New Job</h1>
+            <p className="text-muted-foreground">Fill in the details to post a new job opening</p>
           </div>
           <Link
             href="/admin/jobs"
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent hover:text-accent-foreground transition-all duration-200 shadow-sm hover:shadow"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -688,19 +688,19 @@ export default function CreateJobPage() {
           )}
 
           {/* Job Overview */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 md:p-8 transition-all duration-200 hover:shadow-xl">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
+          <div className="bg-card rounded-xl shadow-lg border border-border p-6 md:p-8 transition-all duration-200 hover:shadow-xl">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
               <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">Job Overview</h3>
+              <h3 className="text-xl font-semibold text-foreground">Job Overview</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Job Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -715,7 +715,7 @@ export default function CreateJobPage() {
                   }}
                   onBlur={(e) => handleBlur("title", e.target.value)}
                   data-error={errors.title ? "true" : "false"}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 ${errors.title ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent ${errors.title ? "border-destructive bg-destructive/10" : "border-input bg-background"
                     }`}
                   placeholder="e.g., Senior Frontend Engineer"
                 />
@@ -745,7 +745,7 @@ export default function CreateJobPage() {
                   data-error={errors.shortDescription ? "true" : "false"}
                   rows={3}
                   maxLength={300}
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 bg-white text-gray-900 placeholder:text-gray-400 resize-none ${errors.shortDescription ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background text-foreground placeholder:text-muted-foreground resize-none ${errors.shortDescription ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                   placeholder="Brief overview (max 300 characters)"
                 />
@@ -775,7 +775,7 @@ export default function CreateJobPage() {
                     value={formData.company}
                     disabled
                     readOnly
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-700"
+                    className="w-full px-4 py-2.5 border border-input rounded-lg bg-muted cursor-not-allowed text-muted-foreground"
                     title="Company name is set from organization configuration"
                   />
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -794,7 +794,7 @@ export default function CreateJobPage() {
                   required
                   value={formData.jobType}
                   onChange={(e) => setFormData({ ...formData, jobType: e.target.value as "NORMAL" | "BULK" })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 bg-white"
+                  className="w-full px-4 py-2.5 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background"
                 >
                   <option value="NORMAL">Normal Hiring</option>
                   <option value="BULK">Bulk Hiring</option>
@@ -817,7 +817,7 @@ export default function CreateJobPage() {
                   required
                   value={formData.employmentType}
                   onChange={(e) => setFormData({ ...formData, employmentType: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 bg-white"
+                  className="w-full px-4 py-2.5 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background"
                 >
                   <option value="Permanent">Permanent</option>
                   <option value="Part Time">Part Time</option>
@@ -832,7 +832,7 @@ export default function CreateJobPage() {
                 <select
                   value={formData.employmentShift}
                   onChange={(e) => setFormData({ ...formData, employmentShift: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
                 >
                   <option value="Morning">Morning</option>
                   <option value="Evening">Evening</option>
@@ -863,7 +863,7 @@ export default function CreateJobPage() {
                   data-error={errors.postFrom ? "true" : "false"}
                   min={todayStr}
                   placeholder="Select opening date"
-                  className={`w-full px-3 py-2 border rounded-md ${errors.postFrom ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.postFrom ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                 />
                 {errors.postFrom && (
@@ -894,7 +894,7 @@ export default function CreateJobPage() {
                   data-error={errors.postTo ? "true" : "false"}
                   min={formData.postFrom || todayStr}
                   placeholder="Select closing date"
-                  className={`w-full px-3 py-2 border rounded-md ${errors.postTo ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.postTo ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                 />
                 {errors.postTo && (
@@ -922,7 +922,7 @@ export default function CreateJobPage() {
                   }}
                   onBlur={(e) => handleBlur("minimumExperience", e.target.value)}
                   data-error={errors.minimumExperience ? "true" : "false"}
-                  className={`w-full px-3 py-2 border rounded-md ${errors.minimumExperience ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.minimumExperience ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                   placeholder="e.g., 3–5 years of SaaS experience"
                 />
@@ -954,7 +954,7 @@ export default function CreateJobPage() {
                   }}
                   onBlur={(e) => handleBlur("totalPositions", Number(e.target.value))}
                   data-error={errors.totalPositions ? "true" : "false"}
-                  className={`w-full px-3 py-2 border rounded-md ${errors.totalPositions ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.totalPositions ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                   placeholder="e.g., 3"
                 />
@@ -1012,7 +1012,7 @@ export default function CreateJobPage() {
                   }}
                   onBlur={(e) => handleBlur("minimumSalary", e.target.value)}
                   data-error={errors.minimumSalary ? "true" : "false"}
-                  className={`w-full px-3 py-2 border rounded-md ${errors.minimumSalary ? "border-red-500 bg-red-50" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.minimumSalary ? "border-destructive bg-destructive/10" : "border-input"
                     }`}
                   placeholder="e.g., $90,000 - $130,000"
                 />
@@ -1114,7 +1114,7 @@ export default function CreateJobPage() {
                         setSkillInput("")
                       }
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                   >
                     Add
                   </button>
@@ -1124,7 +1124,7 @@ export default function CreateJobPage() {
                     {formData.skills.map((skill, skillIndex) => (
                       <span
                         key={skillIndex}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
                       >
                         {skill}
                         <button
@@ -1151,7 +1151,7 @@ export default function CreateJobPage() {
                   value={formData.benefits}
                   onChange={(e) => setFormData({ ...formData, benefits: e.target.value })}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
                   placeholder="Perks and benefits..."
                 />
               </div>
@@ -1173,8 +1173,8 @@ export default function CreateJobPage() {
           </div>
 
           {/* Locations */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               Job Locations <span className="text-red-500">*</span>
             </h3>
             <div className="grid grid-cols-3 gap-3">
@@ -1189,7 +1189,7 @@ export default function CreateJobPage() {
                     })
                     setLocationError("")
                   }}
-                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${locationError ? "border-destructive bg-destructive/10" : "border-input"}`}
                 >
                   <option value="">Select City</option>
                   {pakistanCities.map(city => (
@@ -1205,7 +1205,7 @@ export default function CreateJobPage() {
                     setNewLocation({ ...newLocation, country: e.target.value })
                     setLocationError("")
                   }}
-                  className={`w-full px-3 py-2 border rounded-md ${locationError ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                  className={`w-full px-3 py-2 border rounded-md bg-background ${locationError ? "border-destructive bg-destructive/10" : "border-input"}`}
                 >
                   <option value="Pakistan">Pakistan</option>
                 </select>
@@ -1294,22 +1294,22 @@ export default function CreateJobPage() {
           </div>
 
           {/* Workflow Steps */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Workflow Steps</h3>
+              <h3 className="text-lg font-semibold text-foreground">Workflow Steps</h3>
               <button
                 type="button"
                 onClick={handleAddStep}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
               >
                 + Add Step
               </button>
             </div>
 
             {workflowSteps.map((step, index) => (
-              <div key={index} className="mb-4 p-4 border border-gray-200 rounded-md">
+              <div key={index} className="mb-4 p-4 border border-border rounded-md bg-card">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium text-gray-700">Step {step.stepOrder}</h4>
+                  <h4 className="font-medium text-foreground">Step {step.stepOrder}</h4>
                   {workflowSteps.length > 1 && (
                     <button
                       type="button"
@@ -1380,7 +1380,7 @@ export default function CreateJobPage() {
                         }
                       }}
                       data-error={errors.workflowSteps?.[index]?.stepType ? "true" : "false"}
-                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 outline-none hover:border-gray-400 bg-white ${errors.workflowSteps?.[index]?.stepType ? "border-red-500 bg-red-50" : "border-gray-300"
+                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background ${errors.workflowSteps?.[index]?.stepType ? "border-destructive bg-destructive/10" : "border-input"
                         }`}
                     >
                       <option value="">Select step type</option>
@@ -1462,7 +1462,7 @@ export default function CreateJobPage() {
                         }
                       }}
                       data-error={errors.workflowSteps?.[index]?.durationMins ? "true" : "false"}
-                      className={`w-full px-3 py-2 border rounded-md ${errors.workflowSteps?.[index]?.durationMins ? "border-red-500 bg-red-50" : "border-gray-300"
+                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.durationMins ? "border-destructive bg-destructive/10" : "border-input"
                         }`}
                       placeholder="e.g., 60"
                     />
@@ -1537,7 +1537,7 @@ export default function CreateJobPage() {
                           }
                         }}
                         data-error={errors.workflowSteps?.[index]?.meetingLink ? "true" : "false"}
-                        className={`w-full px-3 py-2 border rounded-md ${errors.workflowSteps?.[index]?.meetingLink ? "border-red-500 bg-red-50" : "border-gray-300"
+                        className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.meetingLink ? "border-destructive bg-destructive/10" : "border-input"
                           }`}
                         placeholder="https://meet.google.com/... or zoom://..."
                         required={step.interviewMode === "Remote"}
@@ -1595,7 +1595,7 @@ export default function CreateJobPage() {
                           }))
                         }
                       }}
-                      className={`w-full px-3 py-2 border rounded-md h-28 ${errors.workflowSteps?.[index]?.interviewerIds ? "border-red-500 bg-red-50" : "border-gray-300"}`}
+                      className={`w-full px-3 py-2 border rounded-md h-28 bg-background ${errors.workflowSteps?.[index]?.interviewerIds ? "border-destructive bg-destructive/10" : "border-input"}`}
                     >
                       {interviewers.map(opt => (
                         <option key={opt.id} value={opt.id}>{opt.name}</option>

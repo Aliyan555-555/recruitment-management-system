@@ -358,9 +358,9 @@ export default function AssessmentPage() {
       if (res.ok) {
         router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)
       } else {
-      const error = await res.json().catch(() => ({}))
-      alert(error?.error || "Error submitting assessment")
-    }
+        const error = await res.json().catch(() => ({}))
+        alert(error?.error || "Error submitting assessment")
+      }
     } catch (error) {
       console.error("Error submitting:", error)
       alert("Error submitting assessment")
@@ -385,10 +385,10 @@ export default function AssessmentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading assessment...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading assessment...</p>
         </div>
       </div>
     )
@@ -396,9 +396,9 @@ export default function AssessmentPage() {
 
   if (!candidate) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">Candidate information not found</p>
+          <p className="text-muted-foreground">Candidate information not found</p>
         </div>
       </div>
     )
@@ -406,24 +406,24 @@ export default function AssessmentPage() {
 
   const scores = submittedInfo.evaluation
     ? {
-        scoreWithoutExperience: submittedInfo.evaluation.score,
-        scoreWithExperience: submittedInfo.evaluation.score,
-        maxWithoutExperience: submittedInfo.evaluation.maxScore,
-        maxWithExperience: submittedInfo.evaluation.maxScore,
-        percentageWithoutExperience: submittedInfo.evaluation.scorePercentage,
-        percentageWithExperience: submittedInfo.evaluation.scorePercentage
-      }
+      scoreWithoutExperience: submittedInfo.evaluation.score,
+      scoreWithExperience: submittedInfo.evaluation.score,
+      maxWithoutExperience: submittedInfo.evaluation.maxScore,
+      maxWithExperience: submittedInfo.evaluation.maxScore,
+      percentageWithoutExperience: submittedInfo.evaluation.scorePercentage,
+      percentageWithExperience: submittedInfo.evaluation.scorePercentage
+    }
     : calculateScores()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             Screening Interview Assessment
           </h1>
-          <p className="text-lg text-slate-600">
+          <p className="text-lg text-muted-foreground">
             Batch Recruitment - {jobTitle}
           </p>
         </div>
@@ -433,12 +433,12 @@ export default function AssessmentPage() {
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             {/* Step 1 */}
             <div className="flex items-center flex-1">
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${step >= 1 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-gray-200 text-gray-500'
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${step >= 1 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' : 'bg-muted text-muted-foreground'
                 }`}>
                 1
               </div>
               <div className="ml-3">
-                <div className={`font-semibold text-sm ${step >= 1 ? 'text-blue-600' : 'text-gray-500'}`}>
+                <div className={`font-semibold text-sm ${step >= 1 ? 'text-primary' : 'text-muted-foreground'}`}>
                   Skills Assessment
                 </div>
               </div>
@@ -446,17 +446,17 @@ export default function AssessmentPage() {
 
             {/* Connector Line */}
             <div className="flex-1 mx-4">
-              <div className={`h-1 rounded-full transition-all ${step >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+              <div className={`h-1 rounded-full transition-all ${step >= 2 ? 'bg-primary' : 'bg-muted'}`}></div>
             </div>
 
             {/* Step 2 */}
             <div className="flex items-center flex-1 justify-end">
               <div className="mr-3 text-right">
-                <div className={`font-semibold text-sm ${step >= 2 ? 'text-blue-600' : 'text-gray-500'}`}>
+                <div className={`font-semibold text-sm ${step >= 2 ? 'text-primary' : 'text-muted-foreground'}`}>
                   Comments & Review
                 </div>
               </div>
-              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${step >= 2 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'bg-gray-200 text-gray-500'
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all ${step >= 2 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30' : 'bg-muted text-muted-foreground'
                 }`}>
                 2
               </div>
@@ -465,27 +465,27 @@ export default function AssessmentPage() {
         </div>
 
         {isReadOnly && (
-          <div className="mb-8 bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
+          <div className="mb-8 bg-card border border-border rounded-xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-blue-600 font-semibold">Assessment submitted</p>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-primary font-semibold">Assessment submitted</p>
+                <p className="text-sm text-muted-foreground">
                   {submittedInfo.interviewer ? `By ${submittedInfo.interviewer}` : "Interviewer"} ·{" "}
                   {submittedInfo.submittedAt ? new Date(Number(submittedInfo.submittedAt) * 1000).toLocaleString() : ""}
                 </p>
               </div>
               {submittedInfo.evaluation && (
                 <div className="text-right">
-                  <div className="text-2xl font-bold text-slate-900">
+                  <div className="text-2xl font-bold text-foreground">
                     {submittedInfo.evaluation.score}/{submittedInfo.evaluation.maxScore}
                   </div>
-                  <div className="text-sm text-slate-600">
+                  <div className="text-sm text-muted-foreground">
                     {submittedInfo.evaluation.scorePercentage}% · {submittedInfo.evaluation.recommendation}
                   </div>
                 </div>
               )}
             </div>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-muted-foreground">
               This assessment is locked because it has already been submitted. You can review the details below.
             </p>
           </div>
@@ -493,61 +493,74 @@ export default function AssessmentPage() {
 
         {/* Step 1: Skills Assessment */}
         {step === 1 && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+          <div className="bg-card rounded-xl shadow-lg border border-border">
             {/* Candidate Information Section */}
-            <div className="border-b border-gray-200 px-8 py-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Candidate Information
-              </h3>
-              <div className="overflow-hidden rounded-lg border border-gray-200">
+            <div className="border-b border-border px-8 py-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Candidate Information
+                </h3>
+                <a
+                  href={`/candidate/profile/public/${params.candidateId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 hover:underline"
+                >
+                  View Public Profile
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+              <div className="overflow-hidden rounded-lg border border-border">
                 <table className="w-full">
-                  <tbody className="divide-y divide-gray-200">
-                    <tr className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm w-1/4">
+                  <tbody className="divide-y divide-border">
+                    <tr className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm w-1/4">
                         Name of Candidate
                       </td>
-                      <td className="px-4 py-3 text-slate-900 w-1/4">{candidate?.name || "-"}</td>
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm w-1/4">
+                      <td className="px-4 py-3 text-foreground w-1/4">{candidate?.name || "-"}</td>
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm w-1/4">
                         Education & Institution
                       </td>
-                      <td className="px-4 py-3 text-slate-900 w-1/4">
+                      <td className="px-4 py-3 text-foreground w-1/4">
                         {candidate?.education || "-"} {candidate?.institution ? `(${candidate.institution})` : ""}
                       </td>
                     </tr>
-                    <tr className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                    <tr className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Last Employer & Assignment
                       </td>
-                      <td className="px-4 py-3 text-slate-900">
+                      <td className="px-4 py-3 text-foreground">
                         {candidate?.lastEmployer || "-"} {candidate?.lastAssignment ? `(${candidate.lastAssignment})` : ""}
                       </td>
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Current / Last Salary
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{candidate?.currentSalary || "-"}</td>
+                      <td className="px-4 py-3 text-foreground">{candidate?.currentSalary || "-"}</td>
                     </tr>
-                    <tr className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                    <tr className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Total Experience
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{candidate?.totalExperience || "-"}</td>
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                      <td className="px-4 py-3 text-foreground">{candidate?.totalExperience || "-"}</td>
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Relatives in JS Bank
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{candidate?.relatives || "-"}</td>
+                      <td className="px-4 py-3 text-foreground">{candidate?.relatives || "-"}</td>
                     </tr>
-                    <tr className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                    <tr className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Liability with Present Employer
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{candidate?.liability || "-"}</td>
-                      <td className="px-4 py-3 bg-slate-50 font-medium text-slate-700 text-sm">
+                      <td className="px-4 py-3 text-foreground">{candidate?.liability || "-"}</td>
+                      <td className="px-4 py-3 bg-muted/50 font-medium text-muted-foreground text-sm">
                         Adjustment Remarks
                       </td>
-                      <td className="px-4 py-3 text-slate-900">{candidate?.remarks || "-"}</td>
+                      <td className="px-4 py-3 text-foreground">{candidate?.remarks || "-"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -555,14 +568,14 @@ export default function AssessmentPage() {
             </div>
 
             {/* Rating Scale */}
-            <div className="px-8 py-6 bg-blue-50/50 border-b border-gray-200">
+            <div className="px-8 py-6 bg-muted/30 border-b border-border">
               <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-primary mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <span className="font-semibold text-slate-900">Rating Scale Guide:</span>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm text-slate-700">
+                  <span className="font-semibold text-foreground">Rating Scale Guide:</span>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2 mt-2 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-red-500"></span>
                       0-2 Low
@@ -589,9 +602,9 @@ export default function AssessmentPage() {
             </div>
 
             {/* Skills Assessment */}
-            <div className="px-8 py-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="px-8 py-6 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Skills Assessment
@@ -607,14 +620,14 @@ export default function AssessmentPage() {
                   else if (percentage >= 30) barColor = 'bg-orange-500'
 
                   return (
-                    <div key={skill.key} className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors">
+                    <div key={skill.key} className="p-4 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <div className="font-semibold text-slate-900 mb-1">{skill.label}</div>
-                          <div className="text-sm text-slate-600 leading-relaxed">{skill.description}</div>
+                          <div className="font-semibold text-foreground mb-1">{skill.label}</div>
+                          <div className="text-sm text-muted-foreground leading-relaxed">{skill.description}</div>
                         </div>
                         <div className="ml-4 flex items-center gap-3">
-                          <span className="text-xs font-medium text-slate-500">MAX: {skill.max}</span>
+                          <span className="text-xs font-medium text-muted-foreground">MAX: {skill.max}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3">
@@ -626,14 +639,14 @@ export default function AssessmentPage() {
                             value={skillData.rating}
                             onChange={(e) => updateSkillRating(skill.key, parseInt(e.target.value))}
                             disabled={isReadOnly}
-                            className={`w-full h-2 bg-gray-200 rounded-lg appearance-none ${isReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} accent-blue-600`}
+                            className={`w-full h-2 bg-muted rounded-lg appearance-none ${isReadOnly ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} accent-primary`}
                             style={{
-                              background: `linear-gradient(to right, ${barColor.replace('bg-', 'rgb(var(--color-')} 0%, ${barColor.replace('bg-', 'rgb(var(--color-')} ${percentage}%, #e5e7eb ${percentage}%, #e5e7eb 100%)`
+                              background: `linear-gradient(to right, ${barColor.replace('bg-', 'rgb(var(--color-')} 0%, ${barColor.replace('bg-', 'rgb(var(--color-')} ${percentage}%, transparent ${percentage}%, transparent 100%)`
                             }}
                           />
                         </div>
-                        <div className="flex items-center justify-center min-w-[60px] h-10 bg-white border-2 border-blue-600 rounded-lg">
-                          <span className="text-lg font-bold text-blue-600">{skillData.rating}</span>
+                        <div className="flex items-center justify-center min-w-[60px] h-10 bg-card border-2 border-primary rounded-lg">
+                          <span className="text-lg font-bold text-primary">{skillData.rating}</span>
                         </div>
                       </div>
                     </div>
@@ -643,44 +656,44 @@ export default function AssessmentPage() {
             </div>
 
             {/* Score Summary */}
-            <div className="px-8 py-6 bg-slate-50">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="px-8 py-6 bg-muted/30">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 Score Summary
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="text-sm font-medium text-slate-600 mb-2">Without Previous Experience</div>
+                <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
+                  <div className="text-sm font-medium text-muted-foreground mb-2">Without Previous Experience</div>
                   <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-3xl font-bold text-slate-900">{scores.scoreWithoutExperience}</span>
-                    <span className="text-slate-500">/ {scores.maxWithoutExperience}</span>
+                    <span className="text-3xl font-bold text-foreground">{scores.scoreWithoutExperience}</span>
+                    <span className="text-muted-foreground">/ {scores.maxWithoutExperience}</span>
                   </div>
-                  <div className="text-sm text-slate-600">Maximum Score: {scores.maxWithoutExperience}</div>
+                  <div className="text-sm text-muted-foreground">Maximum Score: {scores.maxWithoutExperience}</div>
                 </div>
-                <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-6 rounded-lg shadow-lg">
-                  <div className="text-sm font-medium text-blue-100 mb-2">With Previous Experience</div>
+                <div className="bg-primary p-6 rounded-lg shadow-lg">
+                  <div className="text-sm font-medium text-primary-foreground/80 mb-2">With Previous Experience</div>
                   <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-3xl font-bold text-white">{scores.scoreWithExperience}</span>
-                    <span className="text-blue-100">/ {scores.maxWithExperience}</span>
+                    <span className="text-3xl font-bold text-primary-foreground">{scores.scoreWithExperience}</span>
+                    <span className="text-primary-foreground/80">/ {scores.maxWithExperience}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-blue-800/50 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 bg-primary-foreground/20 rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-white h-full rounded-full transition-all duration-500"
+                        className="bg-primary-foreground h-full rounded-full transition-all duration-500"
                         style={{ width: `${scores.percentageWithExperience}%` }}
                       ></div>
                     </div>
-                    <span className="text-lg font-bold text-white">{scores.percentageWithExperience}%</span>
+                    <span className="text-lg font-bold text-primary-foreground">{scores.percentageWithExperience}%</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="px-8 py-6 flex items-center justify-between">
-              <div className="text-sm text-slate-500">
+            <div className="px-8 py-6 flex items-center justify-between border-t border-border">
+              <div className="text-sm text-muted-foreground">
                 {saving && <span className="flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -691,7 +704,7 @@ export default function AssessmentPage() {
               </div>
               <button
                 onClick={() => setStep(2)}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
+                className="bg-primary text-primary-foreground px-8 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
               >
                 {isReadOnly ? "View Review" : "Continue to Review"}
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -704,10 +717,10 @@ export default function AssessmentPage() {
 
         {/* Step 2: Comments and Recommendation */}
         {step === 2 && (
-          <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-            <div className="px-8 py-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="bg-card rounded-xl shadow-lg border border-border">
+            <div className="px-8 py-6 border-b border-border">
+              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
                 Final Review & Recommendation
@@ -717,14 +730,14 @@ export default function AssessmentPage() {
             <div className="p-8 space-y-6">
               {/* Comments */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Behavioral Observations & Comments
                 </label>
                 <textarea
                   value={formData.comments}
                   onChange={(e) => setFormData(prev => ({ ...prev, comments: e.target.value }))}
-                disabled={isReadOnly}
-                className={`w-full border-2 border-gray-200 rounded-lg p-4 h-32 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all resize-none ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
+                  disabled={isReadOnly}
+                  className={`w-full border-2 border-input rounded-lg p-4 h-32 bg-background focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all resize-none ${isReadOnly ? 'bg-muted cursor-not-allowed text-muted-foreground' : 'text-foreground'}`}
                   placeholder="Please provide any additional comments or observations about the candidate..."
                 />
               </div>
@@ -732,14 +745,14 @@ export default function AssessmentPage() {
               {/* Recommendation and Priority */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Hiring Recommendation
                   </label>
                   <select
                     value={formData.recommendedToHire}
                     onChange={(e) => setFormData(prev => ({ ...prev, recommendedToHire: e.target.value }))}
-                disabled={isReadOnly}
-                className={`w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
+                    disabled={isReadOnly}
+                    className={`w-full border-2 border-input rounded-lg p-3 bg-background focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all font-medium ${isReadOnly ? 'bg-muted cursor-not-allowed text-muted-foreground' : 'text-foreground'}`}
                   >
                     <option value="Not Recommended">❌ Not Recommended</option>
                     <option value="Recommended">✅ Recommended</option>
@@ -747,14 +760,14 @@ export default function AssessmentPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  <label className="block text-sm font-semibold text-foreground mb-2">
                     Priority Level
                   </label>
                   <select
                     value={formData.priorityToOffer}
                     onChange={(e) => setFormData(prev => ({ ...prev, priorityToOffer: e.target.value }))}
-                disabled={isReadOnly}
-                className={`w-full border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-medium ${isReadOnly ? 'bg-slate-100 cursor-not-allowed text-slate-600' : ''}`}
+                    disabled={isReadOnly}
+                    className={`w-full border-2 border-input rounded-lg p-3 bg-background focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all font-medium ${isReadOnly ? 'bg-muted cursor-not-allowed text-muted-foreground' : 'text-foreground'}`}
                   >
                     <option value="Low">🔵 Low Priority</option>
                     <option value="Medium">🟡 Medium Priority</option>
@@ -765,7 +778,7 @@ export default function AssessmentPage() {
 
               {/* Interviewer Details */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-3">
+                <label className="block text-sm font-semibold text-foreground mb-3">
                   Interviewer Panel
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -785,28 +798,28 @@ export default function AssessmentPage() {
                     const interviewer = interviewers.find(i => i.id === interviewerId)
 
                     return (
-                      <div key={idx} className="bg-slate-50 border-2 border-slate-200 rounded-lg p-4">
-                        <div className="text-xs font-medium text-slate-500 mb-2">
+                      <div key={idx} className="bg-muted/30 border-2 border-border rounded-lg p-4">
+                        <div className="text-xs font-medium text-muted-foreground mb-2">
                           Interviewer {idx + 1}
                         </div>
                         {interviewer ? (
                           <div>
-                            <div className="text-sm font-semibold text-slate-900">
+                            <div className="text-sm font-semibold text-foreground">
                               {interviewer.firstname} {interviewer.lastname}
                             </div>
                             {interviewer.department && (
-                              <div className="text-xs text-slate-600 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 {interviewer.department}
                               </div>
                             )}
                             {interviewer.email && (
-                              <div className="text-xs text-slate-500 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 {interviewer.email}
                               </div>
                             )}
                           </div>
                         ) : (
-                          <div className="text-sm text-slate-400 italic">
+                          <div className="text-sm text-muted-foreground italic">
                             Not assigned
                           </div>
                         )}
@@ -818,10 +831,10 @@ export default function AssessmentPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="px-8 py-6 bg-slate-50 border-t border-gray-200 flex justify-between items-center">
+            <div className="px-8 py-6 bg-muted/30 border-t border-border flex justify-between items-center">
               <button
                 onClick={() => setStep(1)}
-                className="bg-white border-2 border-gray-300 text-slate-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center gap-2"
+                className="bg-background border-2 border-input text-foreground px-8 py-3 rounded-lg font-semibold hover:bg-muted transition-all flex items-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
@@ -831,7 +844,7 @@ export default function AssessmentPage() {
               {isReadOnly ? (
                 <button
                   onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
-                  className="bg-blue-600 text-white px-10 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-lg flex items-center gap-2"
+                  className="bg-primary text-primary-foreground px-10 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
                 >
                   Back to Assessments
                 </button>
@@ -839,7 +852,7 @@ export default function AssessmentPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={saving}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-10 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
+                  className="bg-primary text-primary-foreground px-10 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
                 >
                   {saving ? (
                     <>

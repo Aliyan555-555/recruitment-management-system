@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
+import { ModeToggle } from "@/components/ui/mode-toggle"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -84,6 +85,7 @@ export function Navbar() {
                     </div>
 
                     <div className="flex items-center space-x-4">
+                        <ModeToggle />
                         {status === "loading" ? (
                             <div className="h-10 w-10 bg-muted animate-pulse rounded-full" />
                         ) : session ? (
@@ -94,7 +96,7 @@ export function Navbar() {
                                         className="relative h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-accent transition-all"
                                     >
                                         <Avatar className="h-10 w-10 border-2 border-primary/20">
-                                            <AvatarImage src="" alt={session.user?.name || "User"} />
+                                            <AvatarImage src={session.user?.avatar || ""} alt={session.user?.name || "User"} />
                                             <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                                                 {userInitials || <User className="h-5 w-5" />}
                                             </AvatarFallback>

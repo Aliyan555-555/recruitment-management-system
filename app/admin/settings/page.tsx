@@ -143,8 +143,8 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight text-gray-900">Settings</h2>
-        <p className="text-gray-500 mt-2">
+        <h2 className="text-3xl font-bold tracking-tight text-foreground">Settings</h2>
+        <p className="text-muted-foreground mt-2">
           Manage your organization profile and branding
         </p>
       </div>
@@ -162,15 +162,15 @@ export default function AdminSettingsPage() {
           </CardHeader>
           <CardContent className="space-y-8">
             {/* Logo Section */}
-            <div className="flex flex-col sm:flex-row gap-6 items-start p-6 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex flex-col sm:flex-row gap-6 items-start p-6 bg-muted/50 rounded-xl border border-border">
               <div className="space-y-2">
                 <Label>Company Logo</Label>
-                <div className="w-32 h-32 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-white overflow-hidden relative group cursor-pointer hover:border-blue-400 transition-colors"
+                <div className="w-32 h-32 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-card overflow-hidden relative group cursor-pointer hover:border-primary transition-colors"
                   onClick={() => fileInputRef.current?.click()}>
                   {logoPreview ? (
                     <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
                   ) : (
-                    <Upload className="h-8 w-8 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                    <Upload className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                   )}
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-white text-xs font-medium">Change Logo</span>
@@ -183,7 +183,7 @@ export default function AdminSettingsPage() {
                   accept="image/*"
                   onChange={handleLogoChange}
                 />
-                <p className="text-xs text-gray-500 max-w-[200px]">
+                <p className="text-xs text-muted-foreground max-w-[200px]">
                   Recommended size: 512x512px. JPG, PNG or SVG allowed.
                 </p>
               </div>
@@ -216,13 +216,13 @@ export default function AdminSettingsPage() {
               {/* Contact Info */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium flex items-center gap-2 border-b pb-2">
-                  <Mail className="h-4 w-4 text-gray-500" /> Contact Information
+                  <Mail className="h-4 w-4 text-muted-foreground" /> Contact Information
                 </h3>
 
                 <div className="space-y-2">
                   <Label htmlFor="website">Website</Label>
                   <div className="relative">
-                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Globe className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="website"
                       className="pl-9"
@@ -236,7 +236,7 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Contact Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="email"
                       className="pl-9"
@@ -250,7 +250,7 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="phone"
                       className="pl-9"
@@ -264,7 +264,7 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="address"
                       className="pl-9"
@@ -279,7 +279,7 @@ export default function AdminSettingsPage() {
               {/* Social Links */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium flex items-center gap-2 border-b pb-2">
-                  <Globe className="h-4 w-4 text-gray-500" /> Social Media
+                  <Globe className="h-4 w-4 text-muted-foreground" /> Social Media
                 </h3>
 
                 <div className="space-y-2">

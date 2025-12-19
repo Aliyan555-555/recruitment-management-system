@@ -77,8 +77,6 @@ export async function GET(
         workflowStepId: BigInt(params.roundId),
         pipeline: {
           jobId: BigInt(params.id),
-          // Only show candidates who are still at this step or earlier
-          currentStepOrder: { lte: currentWorkflowStep.stepOrder }
         },
         status: { in: ["PENDING", "IN_PROGRESS", "COMPLETED", "REJECTED"] }
       },
@@ -150,12 +148,15 @@ export async function GET(
 
       const status =
         step.status === "COMPLETED"
-          ? "PASSED"
+          ? "COMPLETED"
           : step.status === "REJECTED"
-          ? "FAILED"
+          ? "REJECTED"
           : step.status === "IN_PROGRESS"
           ? "IN_PROGRESS"
           : "PENDING"
+
+      // Check if candidate has moved beyond this step
+      const movedToNext = step.pipeline.currentStepOrder > currentWorkflowStep.stepOrder
 
       return {
         id: step.pipeline.candidate.id.toString(),
@@ -166,6 +167,7 @@ export async function GET(
         scorePercentage,
         recommendation,
         status,
+        movedToNext,
         interviewer: evaluation?.interviewer
           ? `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}`
           : undefined,
@@ -173,14 +175,16 @@ export async function GET(
       }
     })
 
-    // Calculate statistics
+    // Calculate statistics - count all candidates who went through this round
     const total = candidates.length
-    const passed = candidates.filter(c => c.recommendation === "HIRE" || c.status === "PASSED").length
-    const failed = candidates.filter(c => c.recommendation === "NO_HIRE" || c.status === "FAILED").length
+    const completed = candidates.filter(c => c.status === "COMPLETED").length
+    const rejected = candidates.filter(c => c.status === "REJECTED").length
     const pending = candidates.filter(c => c.status === "PENDING").length
     const inProgress = candidates.filter(c => c.status === "IN_PROGRESS").length
-    const completed = candidates.filter(c => c.status === "PASSED").length
-    const rejected = candidates.filter(c => c.status === "FAILED").length
+    
+    // Passed/Failed based on recommendation or completion
+    const passed = candidates.filter(c => c.recommendation === "HIRE" || (c.status === "COMPLETED" && c.recommendation !== "NO_HIRE")).length
+    const failed = candidates.filter(c => c.recommendation === "NO_HIRE" || c.status === "REJECTED").length
 
     const scoresWithValues = candidates.filter(c => c.score !== undefined && c.score !== null)
     const averageScore = scoresWithValues.length > 0

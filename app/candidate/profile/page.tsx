@@ -38,6 +38,7 @@ interface ProfileData {
     firstname: string
     lastname: string
     email: string
+    avatar?: string
     phone1?: string
     phone2?: string
     city?: string
@@ -124,6 +125,7 @@ export default function CandidateProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -159,6 +161,66 @@ export default function CandidateProfilePage() {
       setError(err.message || "Failed to load profile")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file")
+      return
+    }
+
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image size must be less than 2MB")
+      return
+    }
+
+    try {
+      setIsUploading(true)
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const uploadRes = await fetch("/api/upload/avatar", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!uploadRes.ok) throw new Error("Failed to upload image")
+
+      const { path } = await uploadRes.json()
+
+      // Update profile with new image path
+      const updateRes = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar: path }),
+      })
+
+      if (!updateRes.ok) throw new Error("Failed to update profile")
+
+      // Update local state
+      if (profile) {
+        setProfile({
+          ...profile,
+          user: {
+            ...profile.user,
+            avatar: path
+          }
+        })
+      }
+
+      // Refresh to update Navbar session
+      window.location.reload()
+    } catch (error) {
+      console.error("Upload error:", error)
+      alert("Failed to update profile picture")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -228,293 +290,377 @@ export default function CandidateProfilePage() {
   const profileDetails = user.profileDetails || {}
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <div className="min-h-screen bg-muted/30">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-start justify-between gap-6 mb-6">
-          <div className="flex items-center gap-4">
-            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary">
-              {initials(user.firstname, user.lastname)}
+      {/* Cover Photo Area - Matching Public Profile */}
+      <div className="bg-card shadow-sm pb-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative h-60 md:h-80 rounded-b-xl overflow-hidden bg-gray-900">
+            {/* Banner Image */}
+            <img
+              src="/ats_banner.png"
+              alt="Cover"
+              className="w-full h-full object-cover opacity-90"
+            />
+            {/* Overlay Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center md:items-end -mt-16 md:-mt-10 px-4 pb-4 gap-4 md:gap-6">
+            <div className="relative group">
+              <div className="h-32 w-32 md:h-40 md:w-40 rounded-full border-4 border-card bg-muted flex items-center justify-center overflow-hidden shadow-md relative">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : user.firstname || user.lastname ? (
+                  <span className="text-4xl md:text-5xl font-bold text-muted-foreground">
+                    {initials(user.firstname, user.lastname)}
+                  </span>
+                ) : (
+                  <User className="h-16 w-16 text-muted-foreground" />
+                )}
+
+                {/* Upload Overlay */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <label htmlFor="avatar-upload" className="cursor-pointer p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors">
+                    {isUploading ? (
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    ) : (
+                      <Edit2 className="h-6 w-6 text-white" />
+                    )}
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    disabled={isUploading}
+                  />
+                </div>
+              </div>
+              {/* Online Status Dot */}
+              <div className="absolute bottom-2 right-2 h-6 w-6 rounded-full bg-green-500 border-4 border-card z-10"></div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">{fullName}</h1>
-              <p className="text-sm text-muted-foreground">{profileDetails.title || "Candidate"}</p>
-              {profileDetails.professionalGrade && (
-                <Badge className="mt-2 inline-flex items-center">{profileDetails.professionalGrade}</Badge>
+
+            <div className="flex-1 text-center md:text-left mb-2 md:mb-0">
+              <h1 className="text-3xl font-bold text-foreground">{fullName}</h1>
+              {profileDetails?.title && (
+                <p className="text-muted-foreground font-medium">{profileDetails.title}</p>
               )}
+              <div className="flex justify-center md:justify-start gap-3 mt-1 text-sm text-muted-foreground">
+                {(user.city || user.country) && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {[user.city, user.country].filter(Boolean).join(", ")}
+                  </span>
+                )}
+                {profileDetails?.professionalGrade && (
+                  <span className="flex items-center gap-1 font-semibold text-primary">
+                    <Award className="h-3 w-3" /> {profileDetails.professionalGrade} Candidate
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 min-w-40 justify-center md:justify-end">
+              <Link href="/candidate/profile/edit">
+                <Button className="shadow-sm">
+                  <Edit2 className="h-4 w-4 mr-2" />
+                  Edit Profile
+                </Button>
+              </Link>
+              <Link href="/applications">
+                <Button variant="outline" className="shadow-sm">View Applications</Button>
+              </Link>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Link href="/candidate/profile/edit">
-              <Button>
-                <Edit2 className="h-4 w-4 mr-2" />
-                Edit Profile
-              </Button>
-            </Link>
-            <Button variant="ghost" onClick={() => router.push("/applications")}>View Applications</Button>
+          <div className="flex border-t border-border px-4 mt-2">
+            <div className="flex gap-1">
+              {["Profile", "Preferences"].map((tab) => (
+                <button
+                  key={tab}
+                  className={`px-4 py-3 font-semibold text-sm border-b-2 hover:bg-muted transition-colors ${tab === "Profile" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left / Main Column */}
-          <section className="lg:col-span-2 space-y-6">
-            {/* Profile Summary Card */}
-            <Card>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+          {/* Left Sidebar (Intro, Skills, Contact) */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Intro Card */}
+            <Card className="shadow-sm bg-card border-border">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Profile Summary
-                </CardTitle>
+                <CardTitle className="text-lg font-bold text-foreground">Intro</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {profileDetails.bio ? (
-                  <p className="text-sm text-muted-foreground whitespace-pre-line">{profileDetails.bio}</p>
+                {profileDetails?.bio ? (
+                  <p className="text-center text-sm text-muted-foreground mb-4 whitespace-pre-line">{profileDetails.bio}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No bio added yet. Add a short summary to stand out to recruiters.</p>
+                  <p className="text-center text-sm text-muted-foreground italic mb-4">No bio added.</p>
                 )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a className="text-sm hover:underline" href={`mailto:${user.email}`}>{user.email}</a>
-                  </div>
-
-                  {user.phone1 ? (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a className="text-sm hover:underline" href={`tel:${user.phone1}`}>{user.phone1}</a>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Phone not provided</span>
+                <div className="space-y-3">
+                  {profileDetails?.title && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Briefcase className="h-5 w-5 text-muted-foreground/70" />
+                      <span className="text-sm">Works as <span className="font-semibold text-foreground">{profileDetails.title}</span></span>
                     </div>
                   )}
-
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{[user.city, user.country].filter(Boolean).join(", ") || "Location not set"}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{profileDetails.availability || "Availability not set"}</span>
-                  </div>
-                </div>
-
-                {/* Social Links */}
-                <div className="flex flex-wrap gap-4 pt-2">
-                  {profileDetails.linkedinUrl && (
-                    <a href={profileDetails.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                      <Linkedin className="h-4 w-4" />
-                      LinkedIn
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                  {user.institution && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <GraduationCap className="h-5 w-5 text-muted-foreground/70" />
+                      <span className="text-sm">Studied at <span className="font-semibold text-foreground">{user.institution}</span></span>
+                    </div>
                   )}
-                  {profileDetails.githubUrl && (
-                    <a href={profileDetails.githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                      <Github className="h-4 w-4" />
-                      GitHub
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                  {(user.city || user.country) && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <MapPin className="h-5 w-5 text-muted-foreground/70" />
+                      <span className="text-sm">Lives in <span className="font-semibold text-foreground">{[user.city, user.country].filter(Boolean).join(", ")}</span></span>
+                    </div>
                   )}
-                  {profileDetails.portfolioUrl && (
-                    <a href={profileDetails.portfolioUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline">
-                      <Globe className="h-4 w-4" />
-                      Portfolio
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
+                  {profileDetails?.websiteUrl && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Globe className="h-5 w-5 text-muted-foreground/70" />
+                      <a href={profileDetails.websiteUrl} target="_blank" className="text-sm text-primary hover:underline truncate">{profileDetails.websiteUrl}</a>
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Education */}
-            <Card>
+            {/* Skills Card */}
+            <Card className="shadow-sm bg-card border-border">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5" />
-                  Education
-                </CardTitle>
-                <CardDescription>List of degrees and institutes</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {user.educations.length > 0 ? (
-                  user.educations.map((edu) => (
-                    <div key={edu.id} className="border-l-2 border-primary pl-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">{edu.degreeTitle}</h3>
-                        <span className="text-xs text-muted-foreground">{edu.passingYear || "Year N/A"}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {edu.educationLevel?.name}
-                        {edu.institute && ` • ${edu.institute}`}
-                        {edu.majorSubject && ` • ${edu.majorSubject}`}
-                      </p>
-                      <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
-                        {edu.grade && <span>Grade: {edu.grade}</span>}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No education records — consider adding your highest qualification.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Experience */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5" />
-                  Experience
-                </CardTitle>
-                <CardDescription>Showcase your most relevant roles</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {user.experiences.length > 0 ? (
-                  user.experiences.map((exp) => (
-                    <div key={exp.id} className="border-l-2 border-primary pl-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">{exp.jobTitle}</h3>
-                        <span className="text-xs text-muted-foreground">{formatRange(exp.startDate, exp.endDate, exp.isCurrent)}</span>
-                      </div>
-                      {exp.company && <p className="text-sm text-muted-foreground">{exp.company}{exp.location && ` • ${exp.location}`}</p>}
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No experience listed — add internships or projects to strengthen your profile.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Skills */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
-                  Skills
-                </CardTitle>
-                <CardDescription>Quick visual of your abilities</CardDescription>
+                <CardTitle className="text-lg font-bold text-foreground">Skills</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex flex-wrap gap-2">
                   {user.skills.length > 0 ? (
                     user.skills.map((skill) => (
-                      <div key={skill.id}>
-                        <SkillPill name={skill.skillName} level={skill.level} />
-                      </div>
+                      <Badge key={skill.id} variant="secondary" className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground border-0">
+                        {skill.skillName} • {skill.level}/10
+                      </Badge>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">No skills added yet.</p>
+                    <p className="text-sm text-muted-foreground">No skills added.</p>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Additional Info */}
-            {(profileDetails?.certifications || profileDetails?.achievements || profileDetails?.languages) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Additional Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            {/* Contact Information */}
+            <Card className="shadow-sm bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-foreground">Contact Info</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-foreground truncate">{user.email}</span>
+                </div>
+                {user.phone1 && (
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <Phone className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-foreground">{user.phone1}</span>
+                  </div>
+                )}
+                {profileDetails?.linkedinUrl && (
+                  <a href={profileDetails.linkedinUrl} target="_blank" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-primary hover:underline">
+                    <Linkedin className="h-5 w-5" />
+                    <span>LinkedIn Profile</span>
+                  </a>
+                )}
+                {profileDetails?.githubUrl && (
+                  <a href={profileDetails.githubUrl} target="_blank" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-primary hover:underline">
+                    <Github className="h-5 w-5" />
+                    <span>GitHub Profile</span>
+                  </a>
+                )}
+                {profileDetails?.portfolioUrl && (
+                  <a href={profileDetails.portfolioUrl} target="_blank" className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors text-primary hover:underline">
+                    <Globe className="h-5 w-5" />
+                    <span>Portfolio</span>
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Job Preferences Summary */}
+            <Card className="shadow-sm bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-foreground">Preferences</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {user.jobPreference ? (
+                  <div className="space-y-3">
+                    {user.jobPreference.firstPriority && (
+                      <Badge variant="outline" className="w-full justify-start py-2 px-3 border-primary/20 bg-primary/5 text-primary">
+                        1. {user.jobPreference.firstPriority}
+                      </Badge>
+                    )}
+                    {user.jobPreference.secondPriority && (
+                      <Badge variant="outline" className="w-full justify-start py-2 px-3">
+                        2. {user.jobPreference.secondPriority}
+                      </Badge>
+                    )}
+                    {user.jobPreference.summary && (
+                      <p className="text-sm text-muted-foreground mt-2">{user.jobPreference.summary}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No preferences set.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right Main Content (Experience, Education, etc) */}
+          <div className="lg:col-span-8 space-y-6">
+
+            {/* Experience Section */}
+            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-primary" /> Experience
+                </h2>
+                <Link href="/candidate/profile/edit#experience">
+                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
+                    <Edit2 className="h-4 w-4 mr-2" /> Edit
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="space-y-8">
+                {user.experiences.length > 0 ? (
+                  user.experiences.map((exp) => (
+                    <div key={exp.id} className="flex gap-4 group">
+                      <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                        <Briefcase className="h-6 w-6 text-blue-500" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-foreground text-lg">{exp.jobTitle}</h3>
+                        <p className="text-muted-foreground font-medium">{exp.company}</p>
+                        {exp.location && <p className="text-muted-foreground/80 text-sm">{exp.location}</p>}
+                        <p className="text-sm text-muted-foreground/70 mt-1">
+                          {formatRange(exp.startDate, exp.endDate, exp.isCurrent)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 bg-muted/30 rounded-lg dashed-border">
+                    <p className="text-muted-foreground mb-4">No experience listed yet.</p>
+                    <Link href="/candidate/profile/edit">
+                      <Button variant="outline">Add Experience</Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Education Section */}
+            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                  <GraduationCap className="h-5 w-5 text-primary" /> Education
+                </h2>
+                <Link href="/candidate/profile/edit#education">
+                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
+                    <Edit2 className="h-4 w-4 mr-2" /> Edit
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="space-y-8">
+                {user.educations.length > 0 ? (
+                  user.educations.map((edu) => (
+                    <div key={edu.id} className="flex gap-4 group">
+                      <div className="h-12 w-12 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                        <GraduationCap className="h-6 w-6 text-indigo-500" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-foreground text-lg">{edu.institute}</h3>
+                        <p className="text-foreground/80 font-medium">{edu.degreeTitle}</p>
+                        <p className="text-muted-foreground text-sm">
+                          {edu.educationLevel.name} {edu.majorSubject && `• ${edu.majorSubject}`}
+                        </p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                          {edu.passingYear && <span>Class of {edu.passingYear}</span>}
+                          {edu.grade && <span className="text-indigo-500 font-medium">Grade: {edu.grade}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 bg-muted/30 rounded-lg dashed-border">
+                    <p className="text-muted-foreground mb-4">No education listed yet.</p>
+                    <Link href="/candidate/profile/edit">
+                      <Button variant="outline">Add Education</Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Additional Details (Employment / Certs) */}
+            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+              <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" /> Additional Details
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {profileDetails.expectedSalary && (
+                  <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Expected Salary</p>
+                    <p className="font-medium text-foreground">{profileDetails.expectedSalary}</p>
+                  </div>
+                )}
+                {profileDetails.noticePeriod && (
+                  <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Notice Period</p>
+                    <p className="font-medium text-foreground">{profileDetails.noticePeriod}</p>
+                  </div>
+                )}
+                {profileDetails.languages && (
+                  <div className="p-4 bg-muted/30 rounded-lg border border-border md:col-span-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Languages</p>
+                    <p className="font-medium text-foreground">{profileDetails.languages}</p>
+                  </div>
+                )}
+              </div>
+
+              {(profileDetails.certifications || profileDetails.achievements) && (
+                <div className="mt-6 space-y-6">
                   {profileDetails.certifications && (
                     <div>
-                      <h4 className="font-semibold mb-2">Certifications</h4>
+                      <h4 className="font-semibold text-foreground mb-2">Certifications</h4>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">{profileDetails.certifications}</p>
                     </div>
                   )}
                   {profileDetails.achievements && (
                     <div>
-                      <h4 className="font-semibold mb-2">Achievements</h4>
+                      <h4 className="font-semibold text-foreground mb-2">Achievements</h4>
                       <p className="text-sm text-muted-foreground whitespace-pre-line">{profileDetails.achievements}</p>
                     </div>
                   )}
-                  {profileDetails.languages && (
-                    <div>
-                      <h4 className="font-semibold mb-2">Languages</h4>
-                      <p className="text-sm text-muted-foreground">{profileDetails.languages}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </section>
+                </div>
+              )}
+            </div>
 
-          {/* Right / Sidebar */}
-          <aside className="space-y-6">
-            {/* Job Preferences */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Job Preferences</CardTitle>
-                <CardDescription>What roles and setups you prefer</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {user.jobPreference ? (
-                  <div className="text-sm text-muted-foreground">
-                    {user.jobPreference.firstPriority && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium">First Priority</p>
-                        <p>{user.jobPreference.firstPriority}</p>
-                      </div>
-                    )}
-                    {user.jobPreference.secondPriority && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium">Second Priority</p>
-                        <p>{user.jobPreference.secondPriority}</p>
-                      </div>
-                    )}
-                    {user.jobPreference.thirdPriority && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium">Third Priority</p>
-                        <p>{user.jobPreference.thirdPriority}</p>
-                      </div>
-                    )}
-                    {user.jobPreference.summary && (
-                      <div>
-                        <p className="text-xs font-medium">Summary</p>
-                        <p className="text-sm text-muted-foreground">{user.jobPreference.summary}</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No job preferences provided.</p>
-                )}
-              </CardContent>
-            </Card>
-
-
-
-            {/* Employment details */}
-            {(profileDetails?.expectedSalary || profileDetails?.noticePeriod) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Employment Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm text-muted-foreground">
-                  {profileDetails.expectedSalary && (
-                    <div>
-                      <p className="text-xs font-medium">Expected Salary</p>
-                      <p>{profileDetails.expectedSalary}</p>
-                    </div>
-                  )}
-                  {profileDetails.noticePeriod && (
-                    <div>
-                      <p className="text-xs font-medium">Notice Period</p>
-                      <p>{profileDetails.noticePeriod}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-
-          </aside>
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

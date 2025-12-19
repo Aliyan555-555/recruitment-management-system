@@ -2,11 +2,48 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import {
+  Briefcase,
+  Users,
+  Clock,
+  TrendingUp,
+  ArrowRight,
+  Loader2,
+  MoreHorizontal,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  AlertCircle
+} from "lucide-react"
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Briefcase, Users, Clock, TrendingUp, ArrowRight, Loader2, FileText, CheckCircle2 } from "lucide-react"
-import { Calendar } from "@/components/admin/Calendar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+// Mock data for charts (replace with real data in production)
+const chartData = [
+  { name: 'Mon', applications: 4, interviews: 2 },
+  { name: 'Tue', applications: 7, interviews: 1 },
+  { name: 'Wed', applications: 5, interviews: 3 },
+  { name: 'Thu', applications: 11, interviews: 5 },
+  { name: 'Fri', applications: 9, interviews: 4 },
+  { name: 'Sat', applications: 3, interviews: 1 },
+  { name: 'Sun', applications: 2, interviews: 0 },
+]
 
 interface DashboardStats {
   totalJobs: number
@@ -57,30 +94,15 @@ export default function AdminDashboard() {
     try {
       setLoading(true)
       setError(null)
-
-      const response = await fetch("/api/admin/dashboard", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(
-          errorData.error || `Failed to fetch dashboard data: ${response.statusText}`
-        )
-      }
-
+      const response = await fetch("/api/admin/dashboard")
+      if (!response.ok) throw new Error("Failed to fetch dashboard data")
       const data = await response.json()
       setStats(data.stats)
       setRecentPipelines(data.recentPipelines || [])
       setRecentJobs(data.recentJobs || [])
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to fetch dashboard data"
       console.error("Error fetching dashboard data:", err)
-      setError(errorMessage)
+      setError(err instanceof Error ? err.message : "Failed to fetch data")
     } finally {
       setLoading(false)
     }
@@ -88,281 +110,278 @@ export default function AdminDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "COMPLETED":
-        return "bg-green-100 text-green-800"
-      case "IN_PROGRESS":
-        return "bg-blue-100 text-blue-800"
-      case "REJECTED":
-        return "bg-red-100 text-red-800"
-      case "ON_HOLD":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+      case "COMPLETED": return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+      case "IN_PROGRESS": return "text-blue-500 bg-blue-500/10 border-blue-500/20"
+      case "REJECTED": return "text-red-500 bg-red-500/10 border-red-500/20"
+      case "ON_HOLD": return "text-amber-500 bg-amber-500/10 border-amber-500/20"
+      default: return "text-muted-foreground bg-muted border-border"
     }
   }
 
-  const StatCard = ({ 
-    title, 
-    value, 
-    description, 
-    href, 
-    icon: Icon 
-  }: {
-    title: string
-    value: string | number
-    description: string
-    href?: string
-    icon: React.ElementType
-  }) => {
-    const content = (
-      <Card className="hover:shadow-lg transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">{title}</CardTitle>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{value}</div>
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        </CardContent>
-      </Card>
-    )
-
-    if (href) {
-      return (
-        <Link href={href} className="block">
-          {content}
-        </Link>
-      )
-    }
-
-    return content
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+  const StatCard = ({ title, value, description, icon: Icon, trend, trendUp }: any) => (
+    <Card className="overflow-hidden border-border bg-card hover:bg-accent/5 transition-all shadow-sm dark:shadow-md dark:shadow-black/20 relative group">
+      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+        <Icon className="w-20 h-20 text-foreground" />
       </div>
-    )
-  }
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 z-10">
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className={`p-2 rounded-lg ${trendUp ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+          <Icon className="h-4 w-4" />
+        </div>
+      </CardHeader>
+      <CardContent className="z-10">
+        <div className="text-2xl font-bold text-foreground">{value}</div>
+        <div className="flex items-center text-xs text-muted-foreground mt-1">
+          {trend && (
+            <span className={`flex items-center mr-1 ${trendUp ? 'text-emerald-500' : 'text-red-500'}`}>
+              {trendUp ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingUp className="w-3 h-3 mr-0.5 rotate-180" />}
+              {trend}
+            </span>
+          )}
+          {description}
+        </div>
+      </CardContent>
+    </Card>
+  )
 
-  if (error) {
-    return (
-      <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-destructive mb-2">
-          Error Loading Dashboard
-        </h3>
-        <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={fetchDashboardData} variant="outline">
-          Try Again
-        </Button>
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[600px]">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+    </div>
+  )
+
+  if (error) return (
+    <div className="p-6 text-center">
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-destructive/10 mb-4">
+        <AlertCircle className="w-6 h-6 text-destructive" />
       </div>
-    )
-  }
+      <h3 className="text-lg font-medium text-foreground">Something went wrong</h3>
+      <p className="text-muted-foreground mb-4">{error}</p>
+      <Button onClick={fetchDashboardData}>Try Again</Button>
+    </div>
+  )
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-muted-foreground mt-2">
-          Overview of your recruitment system
-        </p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Welcome back, here's what's happening today.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="hidden sm:flex border-border text-foreground hover:bg-accent hover:text-accent-foreground">
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            Last 7 Days
+          </Button>
+          <Link href="/admin/jobs/create">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
+              <Briefcase className="mr-2 h-4 w-4" />
+              Post New Job
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Jobs"
           value={stats.totalJobs}
-          description="Active job postings"
-          href="/admin/jobs"
+          trend="+12%"
+          trendUp={true}
+          description="active postings"
           icon={Briefcase}
         />
         <StatCard
           title="Active Candidates"
           value={stats.activeCandidates}
-          description="Candidates in pipeline"
-          href="/admin/candidates"
+          trend="+5%"
+          trendUp={true}
+          description="in pipeline"
           icon={Users}
         />
         <StatCard
-          title="Pending Interviews"
+          title="Interviews"
           value={stats.pendingInterviews}
-          description="Awaiting interviewer feedback"
+          trend="+2"
+          trendUp={true}
+          description="scheduled today"
           icon={Clock}
         />
         <StatCard
-          title="Completion Rate"
+          title="Hiring Rate"
           value={`${stats.completionRate}%`}
-          description="Successful applications"
-          icon={TrendingUp}
+          trend="+1.2%"
+          trendUp={true}
+          description="this month"
+          icon={CheckCircle2}
         />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Candidates */}
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        <Card className="col-span-1 lg:col-span-4 border-border bg-card shadow-sm dark:shadow-md dark:shadow-black/20">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Candidates</CardTitle>
-                <CardDescription>Latest pipeline activity</CardDescription>
-              </div>
-              <Link href="/admin/candidates">
-                <Button variant="outline" size="sm">
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+            <CardTitle className="text-foreground">Application Overview</CardTitle>
+            <CardDescription className="text-muted-foreground">Applications vs Interview sessions over the last 7 days</CardDescription>
           </CardHeader>
-          <CardContent>
-            {recentPipelines.length > 0 ? (
-              <div className="space-y-4">
-                {recentPipelines.map((pipeline) => (
-                  <div
-                    key={pipeline.id}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium">{pipeline.candidateName}</p>
-                        <Badge className={getStatusColor(pipeline.status)}>
-                          {pipeline.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {pipeline.jobTitle} • {pipeline.jobCompany}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="flex-1 bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all"
-                            style={{
-                              width: `${Math.min(100, Math.max(0, pipeline.progressPercent))}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {pipeline.totalSteps > 0
-                            ? `${pipeline.currentStep}/${pipeline.totalSteps}`
-                            : pipeline.status === "COMPLETED"
-                              ? "Completed"
-                              : "No steps"}
-                        </span>
-                      </div>
-                    </div>
-                    <Link href={`/admin/candidates/${pipeline.id}`}>
-                      <Button variant="ghost" size="sm">
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No candidates yet</p>
-                <Link href="/admin/jobs/create">
-                  <Button variant="outline" className="mt-4" size="sm">
-                    Create a job posting
-                  </Button>
-                </Link>
-              </div>
-            )}
+          <CardContent className="pl-2">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorApps" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorInterviews" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                    itemStyle={{ fontSize: '12px' }}
+                  />
+                  <Area type="monotone" dataKey="applications" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorApps)" />
+                  <Area type="monotone" dataKey="interviews" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorInterviews)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Recent Jobs */}
-        <Card>
+        <Card className="col-span-1 lg:col-span-3 border-border bg-card shadow-sm dark:shadow-md dark:shadow-black/20">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Jobs</CardTitle>
-                <CardDescription>Latest job postings</CardDescription>
-              </div>
-              <Link href="/admin/jobs">
-                <Button variant="outline" size="sm">
-                  View All
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
+            <CardTitle className="text-foreground">Recent Activity</CardTitle>
+            <CardDescription className="text-muted-foreground">Latest updates from your team</CardDescription>
           </CardHeader>
           <CardContent>
-            {recentJobs.length > 0 ? (
-              <div className="space-y-4">
-                {recentJobs.map((job) => (
-                  <div
-                    key={job.id}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium">{job.title}</p>
-                        <Badge variant="secondary">{job.applicationCount} applications</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {job.company} • {new Date(job.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Link href={`/admin/jobs/${job.id}`}>
-                      <Button variant="ghost" size="sm">
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </Link>
+            <div className="space-y-6">
+              {[1, 2, 3, 4].map((_, i) => (
+                <div key={i} className="flex items-start gap-4">
+                  <span className="relative flex shrink-0 overflow-hidden rounded-full w-9 h-9 border border-border">
+                    <span className="flex h-full w-full items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+                      U{i}
+                    </span>
+                  </span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium leading-none text-foreground">
+                      John Doe updated a candidate
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Moved Sarah Smith to <span className="text-primary font-medium">Technical Interview</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60">2 hours ago</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No jobs yet</p>
-                <Link href="/admin/jobs/create">
-                  <Button variant="outline" className="mt-4" size="sm">
-                    Create New Job
-                  </Button>
-                </Link>
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Get started with common tasks</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/admin/jobs/create">
-              <Button className="w-full" size="lg">
-                <Briefcase className="mr-2 h-5 w-5" />
-                Create New Job
-              </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="border-border bg-card shadow-sm dark:shadow-md dark:shadow-black/20">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-foreground">Recent Candidates</CardTitle>
+              <CardDescription className="text-muted-foreground">Latest registered candidates</CardDescription>
+            </div>
+            <Link href="/admin/candidates" className="text-sm text-primary hover:text-primary/80 font-medium hover:underline">
+              View All
             </Link>
-            <Link href="/admin/candidates">
-              <Button variant="outline" className="w-full" size="lg">
-                <Users className="mr-2 h-5 w-5" />
-                Manage Candidates
-              </Button>
-            </Link>
-            <Link href="/admin/interviewers">
-              <Button variant="outline" className="w-full" size="lg">
-                <FileText className="mr-2 h-5 w-5" />
-                View Interviewers
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentPipelines.slice(0, 5).map((pipeline) => (
+                <div key={pipeline.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border border-border">
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                        {pipeline.candidateName.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{pipeline.candidateName}</p>
+                      <p className="text-xs text-muted-foreground">{pipeline.jobTitle}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className={`${getStatusColor(pipeline.status)} border bg-opacity-50`}>
+                      {pipeline.status}
+                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>View details</DropdownMenuItem>
+                        <DropdownMenuItem>Contact</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+              {recentPipelines.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Users className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
+                  No recent candidates
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Interview Calendar */}
-      <Calendar />
+        <Card className="border-border bg-card shadow-sm dark:shadow-md dark:shadow-black/20">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-foreground">Recent Job Postings</CardTitle>
+              <CardDescription className="text-muted-foreground">Recently created opportunities</CardDescription>
+            </div>
+            <Link href="/admin/jobs" className="text-sm text-primary hover:text-primary/80 font-medium hover:underline">
+              View All
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentJobs.slice(0, 5).map((job) => (
+                <div key={job.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors group">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+                      <Briefcase className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{job.title}</p>
+                      <p className="text-xs text-muted-foreground">{job.company}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-foreground">{job.applicationCount}</p>
+                      <p className="text-xs text-muted-foreground">Applicants</p>
+                    </div>
+                    <Link href={`/admin/jobs/${job.id}`}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+              {recentJobs.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
+                  No active jobs
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

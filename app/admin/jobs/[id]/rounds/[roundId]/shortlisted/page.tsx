@@ -98,51 +98,52 @@ export default function ShortlistedCandidatesPage() {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Shortlisted Candidates</h2>
-                    <p className="text-gray-500">Track assessments and move to next round</p>
+                    <h2 className="text-2xl font-bold text-foreground">Shortlisted Candidates</h2>
+                    <p className="text-muted-foreground">Track assessments and move to next round</p>
                 </div>
             </div>
 
             {/* Candidates Table */}
-            <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="bg-card rounded-xl shadow overflow-hidden border border-border">
+                <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Candidate</th>
                             {workflowStep?.stepType !== "OFFER" && (
                                 <>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assessment Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recommendation</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Assessment Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Score</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Recommendation</th>
                                 </>
                             )}
                             {workflowStep?.stepType === "OFFER" && (
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LOI Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">LOI Status</th>
                             )}
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Public Profile</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">
                                 {workflowStep?.stepType === "FOCUS_GROUP" ? "Assessments" : workflowStep?.stepType === "OFFER" ? "Actions" : "Actions"}
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-card divide-y divide-border">
                         {candidates.map((candidate) => (
-                            <tr key={candidate.id} className="hover:bg-gray-50">
+                            <tr key={candidate.id} className="hover:bg-muted/50">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center">
-                                        <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
+                                        <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-600 font-bold">
                                             {candidate.name.charAt(0)}
                                         </div>
                                         <div className="ml-4">
-                                            <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                                            <div className="text-sm text-gray-500">{candidate.email}</div>
+                                            <div className="text-sm font-medium text-foreground">{candidate.name}</div>
+                                            <div className="text-sm text-muted-foreground">{candidate.email}</div>
                                         </div>
                                     </div>
                                 </td>
                                 {workflowStep?.stepType !== "OFFER" && (
                                     <>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                                'bg-yellow-100 text-yellow-800'
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.status === 'COMPLETED' ? 'bg-emerald-500/10 text-emerald-500' :
+                                                'bg-yellow-500/10 text-yellow-500'
                                                 }`}>
                                                 {candidate.status === 'COMPLETED' ? 'Assessed' : 'Pending Assessment'}
                                             </span>
@@ -152,7 +153,7 @@ export default function ShortlistedCandidatesPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             {candidate.recommendation ? (
-                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.recommendation === 'HIRE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.recommendation === 'HIRE' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'
                                                     }`}>
                                                     {candidate.recommendation}
                                                 </span>
@@ -163,19 +164,29 @@ export default function ShortlistedCandidatesPage() {
                                 {workflowStep?.stepType === "OFFER" && (
                                     <td className="px-6 py-4">
                                         {candidate.loiStatus ? (
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.loiStatus === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                                                candidate.loiStatus === 'SENT' ? 'bg-blue-100 text-blue-800' :
-                                                    candidate.loiStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                                        candidate.loiStatus === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-gray-100 text-gray-800'
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.loiStatus === 'ACCEPTED' ? 'bg-emerald-500/10 text-emerald-500' :
+                                                candidate.loiStatus === 'SENT' ? 'bg-primary/10 text-primary' :
+                                                    candidate.loiStatus === 'REJECTED' ? 'bg-destructive/10 text-destructive' :
+                                                        candidate.loiStatus === 'EXPIRED' ? 'bg-yellow-500/10 text-yellow-500' :
+                                                            'bg-muted text-muted-foreground'
                                                 }`}>
                                                 {candidate.loiStatus}
                                             </span>
                                         ) : (
-                                            <span className="text-gray-400 text-xs">-</span>
+                                            <span className="text-muted-foreground/50 text-xs">-</span>
                                         )}
                                     </td>
                                 )}
+                                <td className="px-6 py-4 text-sm">
+                                    <Link
+                                        href={`/candidate/profile/public/${candidate.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary hover:text-primary/80 hover:underline"
+                                    >
+                                        View Profile
+                                    </Link>
+                                </td>
                                 <td className="px-6 py-4 text-right text-sm font-medium">
                                     {workflowStep?.stepType === "FOCUS_GROUP" ? (
                                         <div className="flex items-center justify-end gap-3">
@@ -204,7 +215,7 @@ export default function ShortlistedCandidatesPage() {
                                     ) : (
                                         <Link
                                             href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/assessment`}
-                                            className="text-blue-600 hover:text-blue-900"
+                                            className="text-primary hover:text-primary/80"
                                         >
                                             {candidate.status === 'COMPLETED' ? 'View Assessment' : 'Assess'}
                                         </Link>
@@ -216,11 +227,20 @@ export default function ShortlistedCandidatesPage() {
                 </table>
             </div>
 
-            {/* Next Button */}
-            <div className="flex justify-end">
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center">
+                <Link
+                    href={`/admin/jobs/${params.id}/rounds/${params.roundId}/applied`}
+                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent transition-all shadow-sm hover:shadow-md"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back
+                </Link>
                 <Link
                     href={workflowStep?.stepType === "OFFER" ? `/admin/jobs/${params.id}/rounds/${params.roundId}/offers` : `/admin/jobs/${params.id}/rounds/${params.roundId}/results`}
-                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md"
+                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
                 >
                     Next
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

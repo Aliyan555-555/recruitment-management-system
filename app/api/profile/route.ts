@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         phone1: user.phone1,
         phone2: user.phone2,
+        avatar: user.avatar,
         institution: user.institution,
         department: user.department,
         address: user.address,
@@ -158,6 +159,7 @@ export async function PUT(req: NextRequest) {
     if (body.address !== undefined) userUpdate.address = body.address || null
     if (body.city !== undefined) userUpdate.city = body.city || null
     if (body.country !== undefined) userUpdate.country = body.country || null
+    if (body.avatar !== undefined) userUpdate.avatar = body.avatar || null
 
     await prisma.user.update({
       where: { id: userId },

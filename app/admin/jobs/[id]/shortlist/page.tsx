@@ -109,25 +109,25 @@ export default function ShortlistPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Shortlist Candidates</h1>
-            <p className="text-gray-600 mt-1">Review and shortlist candidates for bulk hiring</p>
+            <h1 className="text-2xl font-bold text-foreground">Shortlist Candidates</h1>
+            <p className="text-muted-foreground mt-1">Review and shortlist candidates for bulk hiring</p>
           </div>
           <Link
             href={`/admin/jobs/${jobId}`}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 text-foreground bg-background border border-input rounded-lg hover:bg-accent"
           >
             Back to Job
           </Link>
         </div>
 
         <div className="flex items-center gap-4 mb-4">
-          <div className="px-4 py-2 bg-blue-50 rounded-lg">
-            <span className="text-sm text-gray-600">Total Applied: </span>
-            <span className="font-semibold text-blue-600">{candidates.length}</span>
+          <div className="px-4 py-2 bg-primary/10 rounded-lg">
+            <span className="text-sm text-muted-foreground">Total Applied: </span>
+            <span className="font-semibold text-primary">{candidates.length}</span>
           </div>
-          <div className="px-4 py-2 bg-green-50 rounded-lg">
-            <span className="text-sm text-gray-600">Shortlisted: </span>
-            <span className="font-semibold text-green-600">{shortlistedCount}</span>
+          <div className="px-4 py-2 bg-emerald-500/10 rounded-lg">
+            <span className="text-sm text-muted-foreground">Shortlisted: </span>
+            <span className="font-semibold text-emerald-500">{shortlistedCount}</span>
           </div>
         </div>
 
@@ -135,7 +135,7 @@ export default function ShortlistPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg"
+            className="px-4 py-2 border border-input rounded-lg bg-background text-foreground"
           >
             <option value="">All Candidates</option>
             <option value="applied">Applied Only</option>
@@ -145,20 +145,20 @@ export default function ShortlistPage() {
 
           {selectedCandidates.size > 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-muted-foreground">
                 {selectedCandidates.size} selected
               </span>
               <button
                 onClick={() => handleShortlist("select")}
                 disabled={actionLoading}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
               >
                 Shortlist Selected
               </button>
               <button
                 onClick={() => handleShortlist("reject")}
                 disabled={actionLoading}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50"
               >
                 Reject Selected
               </button>
@@ -172,13 +172,13 @@ export default function ShortlistPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
         </div>
       ) : candidates.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-600">No candidates found</p>
+        <div className="text-center py-12 bg-card rounded-lg border border-border">
+          <p className="text-muted-foreground">No candidates found</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="bg-card rounded-lg border border-border overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-muted/50 border-b border-border">
               <tr>
                 <th className="px-6 py-3 text-left">
                   <input
@@ -188,16 +188,16 @@ export default function ShortlistPage() {
                     className="rounded border-gray-300"
                   />
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Candidate</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Contact</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Applied</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">CV</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">Candidate</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">Contact</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">Status</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">Applied</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">CV</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="divide-y divide-border">
               {candidates.map((candidate) => (
-                <tr key={candidate.id} className="hover:bg-gray-50">
+                <tr key={candidate.id} className="hover:bg-muted/50">
                   <td className="px-6 py-4">
                     <input
                       type="checkbox"
@@ -207,29 +207,29 @@ export default function ShortlistPage() {
                     />
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{candidate.candidate.name}</div>
-                    <div className="text-sm text-gray-500">{candidate.candidate.email}</div>
+                    <div className="font-medium text-foreground">{candidate.candidate.name}</div>
+                    <div className="text-sm text-muted-foreground">{candidate.candidate.email}</div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     <div>{candidate.candidate.phone || "N/A"}</div>
                     <div>{candidate.candidate.location || "N/A"}</div>
                   </td>
                   <td className="px-6 py-4">
                     <span
                       className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.status === "SHORTLISTED"
-                        ? "bg-green-100 text-green-800"
+                        ? "bg-emerald-500/10 text-emerald-500"
                         : candidate.status === "REMOVED"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-blue-100 text-blue-800"
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-primary/10 text-primary"
                         }`}
                     >
                       {candidate.status.replace(/_/g, " ")}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     {new Date(Number(candidate.appliedAt) * 1000).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-muted-foreground">
                     Profile used
                   </td>
                 </tr>
@@ -240,19 +240,19 @@ export default function ShortlistPage() {
       )}
 
       {shortlistedCount > 0 && (
-        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-semibold text-green-900">
+              <p className="font-semibold text-emerald-600">
                 {shortlistedCount} candidate(s) shortlisted
               </p>
-              <p className="text-sm text-green-700 mt-1">
+              <p className="text-sm text-emerald-600/80 mt-1">
                 You can now create Batch 1 from shortlisted candidates
               </p>
             </div>
             <Link
               href={`/admin/jobs/${jobId}/batches`}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
             >
               Create Batch 1
             </Link>
