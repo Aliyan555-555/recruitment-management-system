@@ -57,4 +57,4 @@ jobs:
 
       - name: Restart Production Server
         run: |
-          pm2 restart recruitment-management-system
+          pm2 restart 2
