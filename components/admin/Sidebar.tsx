@@ -49,15 +49,35 @@ export function Sidebar() {
   const [orgLogo, setOrgLogo] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("/api/admin/organization")
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
+    // Only fetch if component is mounted
+    let mounted = true
+
+    const fetchOrgData = async () => {
+      try {
+        const data = await fetch("/api/admin/organization").then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`)
+          }
+          return res.json()
+        })
+
+        if (mounted && data) {
           if (data.name) setOrgName(data.name)
           if (data.logo) setOrgLogo(data.logo)
         }
-      })
-      .catch(err => console.error("Error fetching org settings:", err))
+      } catch (err) {
+        // Silently fail - the session check in AdminLayout will handle redirects
+        if (mounted) {
+          console.debug("Org data fetch failed:", err)
+        }
+      }
+    }
+
+    fetchOrgData()
+
+    return () => {
+      mounted = false
+    }
   }, [])
 
   return (

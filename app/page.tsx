@@ -433,7 +433,8 @@ export default function HomePage() {
                 <div className="grid gap-4">
                   {recentJobs.map((job: Job) => (
                     <Card key={job.id} className="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 border-border/50">
-                      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+
                       <CardHeader>
                         <div className="flex justify-between items-start gap-4">
                           <div>
