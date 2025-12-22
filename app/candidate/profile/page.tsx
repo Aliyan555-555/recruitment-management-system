@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Navbar } from "@/components/Navbar"
+import { toast } from "@/lib/toast"
 import {
   Card,
   CardContent,
@@ -170,13 +171,13 @@ export default function CandidateProfilePage() {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please upload an image file")
+      toast.error("Please upload an image file")
       return
     }
 
     // Validate file size (2MB)
     if (file.size > 2 * 1024 * 1024) {
-      alert("Image size must be less than 2MB")
+      toast.error("Image size must be less than 2MB")
       return
     }
 
@@ -214,11 +215,12 @@ export default function CandidateProfilePage() {
         })
       }
 
+      toast.success("Profile picture updated successfully!")
       // Refresh to update Navbar session
-      window.location.reload()
+      setTimeout(() => window.location.reload(), 500)
     } catch (error) {
       console.error("Upload error:", error)
-      alert("Failed to update profile picture")
+      toast.error("Failed to update profile picture")
     } finally {
       setIsUploading(false)
     }
