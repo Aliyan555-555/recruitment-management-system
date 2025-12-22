@@ -183,24 +183,42 @@ export default function HomePage() {
 
         {/* Hero Section */}
         <div className="relative isolate overflow-hidden">
-          {/* Background Gradient/Pattern */}
-          <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-            <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary/30 to-purple-500/30 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
+          {/* Background Patterns */}
+          <div className="absolute inset-0 -z-10">
+            {/* Gradient Blob */}
+            <div className="absolute inset-x-0 -top-40 transform-gpu overflow-hidden blur-3xl sm:-top-80">
+              <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary/30 to-purple-500/30 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" />
+            </div>
+
+            {/* Grid Pattern */}
+            <div className="absolute inset-0 bg-grid-pattern opacity-[0.02] dark:opacity-[0.05]" style={{
+              backgroundImage: 'linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)',
+              backgroundSize: '4rem 4rem'
+            }} />
+
+            {/* Animated Bubbles */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute top-10 left-10 w-72 h-72 bg-primary/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob" />
+              <div className="absolute top-20 right-10 w-72 h-72 bg-purple-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000" />
+              <div className="absolute -bottom-8 left-20 w-72 h-72 bg-blue-500/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000" />
+            </div>
+
+            {/* Dot Pattern */}
+            <div className="absolute right-0 top-0 -z-10 opacity-20 dark:opacity-10">
+              <svg width="404" height="784" fill="none" viewBox="0 0 404 784" className="text-primary">
+                <defs>
+                  <pattern id="dot-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="2" fill="currentColor" />
+                  </pattern>
+                </defs>
+                <rect width="404" height="784" fill="url(#dot-pattern)" />
+              </svg>
+            </div>
           </div>
 
-          <div className="mx-auto max-w-7xl px-6 pb-24  sm:pb-32 lg:flex lg:px-8  flex flex-col">
-            <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 ">
-              <div className="mt-24 sm:mt-32 lg:mt-16">
-                <a href="#" className="inline-flex space-x-6">
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold leading-6 text-primary ring-1 ring-inset ring-primary/10">
-                    New Features
-                  </span>
-                  <span className="inline-flex items-center space-x-2 text-sm font-medium leading-6 text-muted-foreground">
-                    <span>Just shipped v1.0</span>
-                    <TrendingUp className="h-4 w-4" />
-                  </span>
-                </a>
-              </div>
+          <div className="mx-auto h-screen max-w-7xl px-6   lg:flex lg:items-center lg:justify-center lg:px-8 lg:gap-x-10">
+            <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0">
+
               <h1 className="mt-10 text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
                 Recruitment <span className="text-primary">Elevated.</span>
                 <br />
@@ -221,11 +239,19 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Premium CTA */}
-            <div className="mx-auto mt-12 flex max-w-2xl sm:mt-16 lg:ml-10 lg:mt-0 lg:mr-0 lg:max-w-none lg:flex-none xl:ml-32 items-center justify-center">
-
+            {/* Hero Image */}
+            <div className="mx-auto mt-16 flex justify-center lg:justify-start sm:mt-24 lg:ml-10 lg:mr-0 lg:mt-0 lg:flex-none">
+              <div className="w-full max-w-md sm:max-w-lg lg:max-w-xl">
+                <img
+                  src="/banner.png"
+                  alt="Recruitment Platform"
+                  className="w-full h-auto rounded-2xl object-cover"
+                />
+              </div>
             </div>
           </div>
+
+
         </div>
 
         {/* Search & Jobs Listing Section */}
