@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { JobApplicationSuccess } from "@/components/JobApplicationSuccess"
 import { Loader2, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -44,13 +45,18 @@ interface ApplicationDetails {
 export default function JobApplicationSuccessPage() {
   const params = useParams()
   const router = useRouter()
+  const { data: session, status } = useSession()
   const jobId = params?.id as string
-  
+
   const [job, setJob] = useState<JobDetails | null>(null)
   const [application, setApplication] = useState<ApplicationDetails | null>(null)
   const [candidateName, setCandidateName] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Determine if user is authenticated
+  const isAuthenticated = status === "authenticated"
+  const userName = session?.user?.name || session?.user?.username || "New Candidate"
 
   useEffect(() => {
     const fetchData = async () => {
@@ -95,6 +101,62 @@ export default function JobApplicationSuccessPage() {
             tips.push("Review the job description carefully before interviews.")
           }
 
+          // Generate quick actions based on authentication status
+          const quickActions: Array<{
+            id: string
+            label: string
+            action: "login" | "jobs" | "jobDetails" | "custom"
+            href?: string
+            variant?: "default" | "secondary" | "outline" | "ghost"
+            icon?: "track" | "browse" | "details"
+          }> = []
+
+          if (isAuthenticated) {
+            // Authenticated users see different actions
+            quickActions.push({
+              id: "dashboard",
+              label: "View My Applications",
+              action: "custom",
+              href: "/candidate/applications",
+              variant: "default",
+              icon: "track"
+            })
+            quickActions.push({
+              id: "profile",
+              label: "Update My Profile",
+              action: "custom",
+              href: "/candidate/profile",
+              variant: "outline",
+              icon: "details"
+            })
+          } else {
+            // Unauthenticated users see sign in option
+            quickActions.push({
+              id: "login",
+              label: "Sign In to Track Status",
+              action: "login",
+              variant: "default",
+              icon: "track"
+            })
+          }
+
+          // Common actions for both
+          quickActions.push({
+            id: "browse",
+            label: "Browse More Jobs",
+            action: "jobs",
+            variant: "outline",
+            icon: "browse"
+          })
+
+          quickActions.push({
+            id: "details",
+            label: "View Job Details",
+            action: "jobDetails",
+            variant: "ghost",
+            icon: "details"
+          })
+
           setApplication({
             id: `APP-${Date.now()}`,
             appliedAt: new Date().toISOString(),
@@ -105,36 +167,15 @@ export default function JobApplicationSuccessPage() {
               phone: "+92 (21) 111-010-010",
               responseTime: "We typically respond within 2-3 business days."
             },
-            quickActions: [
-              {
-                id: "login",
-                label: "Sign In to Track Status",
-                action: "login",
-                icon: "track"
-              },
-              {
-                id: "browse",
-                label: "Browse More Jobs",
-                action: "jobs",
-                variant: "outline",
-                icon: "browse"
-              },
-              {
-                id: "details",
-                label: "View Job Details",
-                action: "jobDetails",
-                variant: "ghost",
-                icon: "details"
-              }
-            ],
+            quickActions,
             tips
           })
         } else {
           setError("Failed to load job details")
           return
         }
-        
-        setCandidateName("New Candidate")
+
+        setCandidateName(userName)
 
       } catch (err) {
         console.error("Error fetching data:", err)
@@ -150,7 +191,7 @@ export default function JobApplicationSuccessPage() {
       setError("Invalid job ID")
       setLoading(false)
     }
-  }, [jobId])
+  }, [jobId, isAuthenticated, userName])
 
   if (loading) {
     return (
@@ -190,6 +231,7 @@ export default function JobApplicationSuccessPage() {
       job={job}
       application={application}
       candidateName={candidateName}
+      isAuthenticated={isAuthenticated}
       nextSteps={application.steps}
       supportContacts={application.supportContacts}
       quickActions={application.quickActions}

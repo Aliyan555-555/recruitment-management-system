@@ -41,6 +41,7 @@ interface JobApplicationSuccessProps {
     appliedAt: string
   }
   candidateName: string
+  isAuthenticated?: boolean
   nextSteps?: ApplicationTimelineStep[]
   supportContacts?: ApplicationSupportInfo
   quickActions?: ApplicationQuickAction[]
@@ -51,6 +52,7 @@ export function JobApplicationSuccess({
   job,
   application,
   candidateName,
+  isAuthenticated = false,
   nextSteps,
   supportContacts,
   quickActions,
@@ -97,11 +99,18 @@ export function JobApplicationSuccess({
       "We typically respond to applications within 2-3 business days."
   }
 
-  const fallbackTips = [
-    `Highlight achievements that relate to the ${job.title} role.`,
-    `Review ${job.company}'s mission to align your answers during interviews.`,
-    `Have measurable outcomes ready when discussing previous experience.`
-  ]
+  // Different tips based on authentication status
+  const fallbackTips = isAuthenticated
+    ? [
+      `Your application is now visible in your dashboard for real-time tracking.`,
+      `Keep your profile updated to increase your chances of success.`,
+      `Prepare for the interview by researching ${job.company}'s recent projects and culture.`
+    ]
+    : [
+      `Sign in to track your application status and get real-time updates.`,
+      `Highlight achievements that relate to the ${job.title} role.`,
+      `Review ${job.company}'s mission to align your answers during interviews.`
+    ]
 
   const tipsToRender = tips?.length ? tips : fallbackTips
 
@@ -177,9 +186,15 @@ export function JobApplicationSuccess({
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Application Submitted Successfully!
           </h1>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-lg text-muted-foreground mb-4">
             Thank you, {candidateName}. Your application for <span className="font-semibold text-foreground">{job.title}</span> at <span className="font-semibold text-foreground">{job.company}</span> has been received.
           </p>
+          {isAuthenticated && (
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium border border-primary/20">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>You're signed in - Track your progress in your dashboard</span>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

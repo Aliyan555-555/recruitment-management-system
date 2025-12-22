@@ -58,6 +58,15 @@ export default function HomePage() {
   const [publicJobsLoading, setPublicJobsLoading] = useState(true)
   const [publicJobsError, setPublicJobsError] = useState<string | null>(null)
 
+  // Organization state for footer
+  const [orgData, setOrgData] = useState<{
+    name: string
+    description: string
+    email: string
+    phone: string
+    address: string
+  } | null>(null)
+
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       const userRole = session.user.role
@@ -79,12 +88,48 @@ export default function HomePage() {
     }
   }, [status, session, router, fetchDashboardData, fetchJobs])
 
-  // Fetch public jobs for unauthenticated users
+  // Fetch public jobs and organization data for unauthenticated users
   useEffect(() => {
     if (status === "unauthenticated") {
       fetchPublicJobs()
+      fetchOrganizationData()
     }
   }, [status])
+
+  const fetchOrganizationData = async () => {
+    try {
+      const response = await fetch('/api/organization')
+      if (response.ok) {
+        const data = await response.json()
+        setOrgData({
+          name: data.name || 'Recruitment Management System',
+          description: data.description || 'Connecting talented professionals with world-class organizations.',
+          email: data.email || 'info@recruitment.com',
+          phone: data.phone || '+1 (555) 123-4567',
+          address: data.address || ''
+        })
+      } else {
+        // Set default values if API fails
+        setOrgData({
+          name: 'Recruitment Management System',
+          description: 'Connecting talented professionals with world-class organizations.',
+          email: 'info@recruitment.com',
+          phone: '+1 (555) 123-4567',
+          address: ''
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching organization data:', error)
+      // Set default values on error
+      setOrgData({
+        name: 'Recruitment Management System',
+        description: 'Connecting talented professionals with world-class organizations.',
+        email: 'info@recruitment.com',
+        phone: '+1 (555) 123-4567',
+        address: ''
+      })
+    }
+  }
 
   const fetchPublicJobs = async (filters?: {
     search: string
@@ -270,18 +315,24 @@ export default function HomePage() {
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
               Unlock full access to premium listings, salary insights, and direct recruiter messaging. Your future starts here.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
+            <div className="mt-10 flex items-center justify-center">
               <Link href="/register">
                 <Button size="lg" className="px-8 bg-foreground text-background hover:bg-foreground/90">
                   Get Started
                 </Button>
               </Link>
-              <Link href="/about" className="text-sm font-semibold leading-6 text-foreground">
-                Learn more <span aria-hidden="true">→</span>
-              </Link>
             </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="border-t border-border bg-muted/30">
+          <div className="mx-auto max-w-7xl px-6 py-6 lg:px-8">
+            <p className="text-sm text-center text-muted-foreground">
+              © {new Date().getFullYear()} {orgData?.name || 'Recruitment Management System'}. All rights reserved.
+            </p>
+          </div>
+        </footer>
       </div>
     )
   }

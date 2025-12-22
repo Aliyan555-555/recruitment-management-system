@@ -264,11 +264,11 @@ export default function ApplicationDetailPage() {
 
   if (authStatus === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+      <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center">
+        <div className="bg-card rounded-xl shadow-lg border border-border p-8">
           <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="text-gray-700 font-medium">Loading application...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-foreground font-medium">Loading application...</p>
           </div>
         </div>
       </div>
@@ -277,15 +277,15 @@ export default function ApplicationDetailPage() {
 
   if (!pipeline) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center max-w-md">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl shadow-lg border border-border p-8 text-center max-w-md">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-lg font-semibold text-gray-900 mb-2">Application not found</p>
-          <p className="text-gray-600 mb-6">The application you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+          <p className="text-lg font-semibold text-foreground mb-2">Application not found</p>
+          <p className="text-muted-foreground mb-6">The application you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <Link
             href="/applications"
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-semibold shadow-md hover:shadow-lg"
@@ -303,17 +303,17 @@ export default function ApplicationDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "COMPLETED":
-        return "text-green-600 bg-green-50"
+        return "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30"
       case "IN_PROGRESS":
-        return "text-blue-600 bg-blue-50"
+        return "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30"
       case "PENDING":
-        return "text-gray-600 bg-gray-50"
+        return "text-muted-foreground bg-muted"
       case "SKIPPED":
-        return "text-yellow-600 bg-yellow-50"
+        return "text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/30"
       case "REJECTED":
-        return "text-red-600 bg-red-50"
+        return "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30"
       default:
-        return "text-gray-600 bg-gray-50"
+        return "text-muted-foreground bg-muted"
     }
   }
 
@@ -337,7 +337,7 @@ export default function ApplicationDetailPage() {
 
   console.log(pipeline)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -349,8 +349,8 @@ export default function ApplicationDetailPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">Application Detail</h1>
-              <p className="text-gray-600">Track your interview progress and upcoming actions</p>
+              <h1 className="text-2xl font-bold text-foreground">Application Detail</h1>
+              <p className="text-muted-foreground">Track your interview progress and upcoming actions</p>
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -364,18 +364,18 @@ export default function ApplicationDetailPage() {
               Back to applications
             </Link>
             <div className="text-right">
-              <div className="text-lg font-semibold text-gray-900">{pipeline.job.title}</div>
-              <div className="text-sm text-gray-600">{pipeline.job.company}</div>
+              <div className="text-lg font-semibold text-foreground">{pipeline.job.title}</div>
+              <div className="text-sm text-muted-foreground">{pipeline.job.company}</div>
             </div>
           </div>
         </div>
 
         {/* Overall Status */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-card rounded-lg shadow p-6 mb-6 border border-border">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Application Status</h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <h2 className="text-lg font-semibold text-foreground">Application Status</h2>
+              <p className="text-sm text-muted-foreground mt-1">
                 Applied on {new Date(Number(pipeline.startedAt) * 1000).toLocaleDateString()}
               </p>
             </div>
@@ -386,7 +386,7 @@ export default function ApplicationDetailPage() {
 
           {/* Progress Bar */}
           <div className="mt-6">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <div className="flex justify-between text-sm text-muted-foreground mb-2">
               <span>Overall Progress</span>
               <span>
                 {pipeline.totalSteps > 0
@@ -396,7 +396,7 @@ export default function ApplicationDetailPage() {
                     : "No steps"}
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
+            <div className="w-full bg-muted rounded-full h-3">
               <div
                 className="bg-blue-600 h-3 rounded-full transition-all"
                 style={{
@@ -409,7 +409,7 @@ export default function ApplicationDetailPage() {
 
         {/* Job Description */}
         {pipeline.job.description && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="bg-card rounded-lg shadow p-6 mb-6 border border-border">
             <div
               className="prose-lg max-w-none"
               style={{
@@ -422,8 +422,8 @@ export default function ApplicationDetailPage() {
         )}
 
         {/* Interview Process */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Interview Process</h2>
+        <div className="bg-card rounded-lg shadow p-6 border border-border">
+          <h2 className="text-lg font-semibold text-foreground mb-6">Interview Process</h2>
 
           <div className="space-y-6">
             {pipeline.steps.map((step, index) => {
@@ -437,7 +437,7 @@ export default function ApplicationDetailPage() {
                 <div key={step.id} className="relative">
                   {/* Connector Line */}
                   {index < pipeline.steps.length - 1 && (
-                    <div className="absolute left-4 top-12 bottom-0 w-0.5 bg-gray-200"></div>
+                    <div className="absolute left-4 top-12 bottom-0 w-0.5 bg-border"></div>
                   )}
 
                   <div className="flex">
@@ -445,12 +445,12 @@ export default function ApplicationDetailPage() {
                     <div className="flex-shrink-0 relative">
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold ${step.status === "COMPLETED"
-                            ? "bg-green-500 text-white"
-                            : step.status === "IN_PROGRESS"
-                              ? "bg-blue-500 text-white"
-                              : step.status === "REJECTED"
-                                ? "bg-red-500 text-white"
-                                : "bg-gray-300 text-gray-600"
+                          ? "bg-green-500 text-white"
+                          : step.status === "IN_PROGRESS"
+                            ? "bg-blue-500 text-white"
+                            : step.status === "REJECTED"
+                              ? "bg-red-500 text-white"
+                              : "bg-gray-300 text-gray-600"
                           }`}
                       >
                         {step.status === "COMPLETED" ? (
@@ -465,17 +465,17 @@ export default function ApplicationDetailPage() {
 
                     {/* Step Content */}
                     <div className="ml-4 flex-1 pb-8">
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-muted/30 rounded-lg p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold text-gray-900">{step.stepName}</h3>
+                            <h3 className="font-semibold text-foreground">{step.stepName}</h3>
                             <div className="flex gap-2 mt-1">
                               {step.stepType && (
                                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
                                   {step.stepType}
                                 </span>
                               )}
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-muted-foreground">
                                 {step.isRequired ? "Required" : step.isSkippable ? "Skippable" : "Optional"}
                               </p>
                             </div>
@@ -487,13 +487,13 @@ export default function ApplicationDetailPage() {
 
                         {/* LOI Section */}
                         {loi && ['SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED'].includes(loi.status) && (
-                          <div className="mt-4 p-4 bg-white border border-blue-100 rounded-lg shadow-sm">
+                          <div className="mt-4 p-4 bg-card border border-primary/20 rounded-lg shadow-sm">
                             <div className="flex justify-between items-center mb-3">
-                              <h4 className="font-semibold text-blue-900">Letter of Intent / Job Offer</h4>
+                              <h4 className="font-semibold text-primary">Letter of Intent / Job Offer</h4>
                               <span className={`px-3 py-1 text-xs font-semibold rounded-full ${loi.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                                  loi.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                    loi.status === 'EXPIRED' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-blue-100 text-blue-800'
+                                loi.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                  loi.status === 'EXPIRED' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-blue-100 text-blue-800'
                                 }`}>
                                 {loi.status}
                               </span>
@@ -503,7 +503,7 @@ export default function ApplicationDetailPage() {
                               <a
                                 href={`/api/candidate/loi/${loi.id}/pdf`}
                                 target="_blank"
-                                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                                className="px-4 py-2 bg-muted text-foreground hover:bg-accent rounded-md text-sm font-medium transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -535,13 +535,13 @@ export default function ApplicationDetailPage() {
 
                         {/* Offer Letter Section */}
                         {offer && ['SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED'].includes(offer.status) && (
-                          <div className="mt-4 p-4 bg-white border border-purple-100 rounded-lg shadow-sm">
+                          <div className="mt-4 p-4 bg-card border border-purple-500/20 rounded-lg shadow-sm">
                             <div className="flex justify-between items-center mb-3">
-                              <h4 className="font-semibold text-purple-900">Official Offer Letter</h4>
+                              <h4 className="font-semibold text-purple-600 dark:text-purple-400">Official Offer Letter</h4>
                               <span className={`px-3 py-1 text-xs font-semibold rounded-full ${offer.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                                  offer.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                    offer.status === 'EXPIRED' ? 'bg-orange-100 text-orange-800' :
-                                      'bg-purple-100 text-purple-800'
+                                offer.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                  offer.status === 'EXPIRED' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-purple-100 text-purple-800'
                                 }`}>
                                 {offer.status}
                               </span>
@@ -551,7 +551,7 @@ export default function ApplicationDetailPage() {
                               <a
                                 href={`/api/candidate/offer/${offer.id}/pdf`}
                                 target="_blank"
-                                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                                className="px-4 py-2 bg-muted text-foreground hover:bg-accent rounded-md text-sm font-medium transition-colors flex items-center gap-2"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -584,12 +584,12 @@ export default function ApplicationDetailPage() {
                         {/* Step Metadata */}
                         <div className="mt-4 space-y-2">
                           {step.durationMins && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               <span className="font-medium">Duration:</span> {step.durationMins} minutes
                             </p>
                           )}
                           {step.interviewMode && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               <span className="font-medium">Mode:</span> {step.interviewMode}
                             </p>
                           )}
@@ -607,19 +607,19 @@ export default function ApplicationDetailPage() {
                             </div>
                           )}
                           {step.candidateInstructions && (
-                            <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">📋 Instructions for You:</h4>
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{step.candidateInstructions}</p>
+                            <div className="mt-3 p-3 bg-card rounded border border-border">
+                              <h4 className="text-sm font-medium text-foreground mb-2">📋 Instructions for You:</h4>
+                              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{step.candidateInstructions}</p>
                             </div>
                           )}
                           {step.attachments && step.attachments.length > 0 && (
-                            <div className="mt-3 p-3 bg-white rounded border border-gray-200">
-                              <h4 className="text-sm font-medium text-gray-900 mb-2">📎 Attachments:</h4>
+                            <div className="mt-3 p-3 bg-card rounded border border-border">
+                              <h4 className="text-sm font-medium text-foreground mb-2">📎 Attachments:</h4>
                               <div className="space-y-1">
                                 {step.attachments.map((att) => (
                                   <div key={att.id} className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-700">{att.fileName}</span>
-                                    <span className="text-gray-500">{(att.fileSize / 1024).toFixed(2)} KB</span>
+                                    <span className="text-foreground">{att.fileName}</span>
+                                    <span className="text-muted-foreground">{(att.fileSize / 1024).toFixed(2)} KB</span>
                                   </div>
                                 ))}
                               </div>
@@ -628,14 +628,14 @@ export default function ApplicationDetailPage() {
                         </div>
 
                         {/* Dates */}
-                        <div className="mt-4 pt-3 border-t border-gray-200">
+                        <div className="mt-4 pt-3 border-t border-border">
                           {shouldShowStartingDate && matchedSlot?.startsAt && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               Starting: {new Date(matchedSlot.startsAt).toLocaleString([], { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </p>
                           )}
                           {step.completedAt && (
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-muted-foreground">
                               Completed: {new Date(Number(step.completedAt) * 1000).toLocaleDateString()}
                             </p>
                           )}
@@ -643,15 +643,15 @@ export default function ApplicationDetailPage() {
 
                         {/* Interview Results */}
                         {step.interviews.length > 0 && step.interviews[0].submittedAt && (
-                          <div className="mt-4 p-3 bg-white rounded border border-gray-200">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Interview Results</h4>
+                          <div className="mt-4 p-3 bg-card rounded border border-border">
+                            <h4 className="text-sm font-medium text-foreground mb-2">Interview Results</h4>
                             {step.interviews[0].rating && (
-                              <p className="text-sm text-gray-700">
+                              <p className="text-sm text-foreground">
                                 Rating: {step.interviews[0].rating}/5 ⭐
                               </p>
                             )}
                             {step.interviews[0].recommendation && (
-                              <p className="text-sm text-gray-700 mt-1">
+                              <p className="text-sm text-foreground mt-1">
                                 Recommendation: <span className="font-medium">{step.interviews[0].recommendation.replace(/_/g, " ")}</span>
                               </p>
                             )}
@@ -681,11 +681,11 @@ export default function ApplicationDetailPage() {
 
         {/* Slot Booking Section */}
         {pipeline.status === "IN_PROGRESS" && !bookedSlot && availableSlots.length > 0 && (
-          <div className="mt-6 bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="mt-6 bg-card rounded-lg shadow p-6 border border-border">
+            <h2 className="text-lg font-semibold text-foreground mb-4">
               📅 Book Interview Slot
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Available time slots for: <span className="font-medium">{pipeline.steps.find(s => s.stepOrder === pipeline.currentStep)?.stepName}</span>
             </p>
 
@@ -696,13 +696,13 @@ export default function ApplicationDetailPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {availableSlots.map((slot) => (
-                  <div key={slot.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                  <div key={slot.id} className="border border-border rounded-lg p-4 hover:border-primary transition-colors">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-foreground">
                           {new Date(slot.startsAt).toLocaleDateString()}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                           {new Date(slot.startsAt).toLocaleTimeString()} - {new Date(slot.endsAt).toLocaleTimeString()}
                         </p>
                       </div>
