@@ -115,7 +115,7 @@ export default function JobDetailsPage() {
 
       const data = await response.json()
       const jobData = data.jobs?.find((j: any) => j.id === params.id)
-      
+
       if (!jobData) {
         router.push("/")
         return
@@ -141,7 +141,7 @@ export default function JobDetailsPage() {
         createdBy: "",
         creatorEmail: ""
       })
-      
+
     } catch (error) {
       console.error("Error fetching public job details:", error)
       setError((error as Error).message)
@@ -155,7 +155,7 @@ export default function JobDetailsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-center min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
@@ -169,7 +169,7 @@ export default function JobDetailsPage() {
     return (
       <div className="min-h-screen bg-gradient-to-b from-background to-muted">
         <Navbar />
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-destructive mb-2">
               Error Loading Job
@@ -196,7 +196,7 @@ export default function JobDetailsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <JobDetails
           job={{
             ...job,

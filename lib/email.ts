@@ -488,7 +488,7 @@ export async function sendAdminNewApplicationEmail(
 
           <p>Please review the application in the admin dashboard.</p>
           
-          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/applications" class="button">View Application</a>
+          <a href="${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/admin/jobs" class="button">View Jobs</a>
           
           <p style="margin-top: 30px; font-size: 12px; color: #666;">
             This is an automated notification from the Recruitment Management System.

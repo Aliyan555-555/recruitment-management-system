@@ -72,7 +72,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: `${user.firstname} ${user.lastname}`,
             username: user.username,
             role: user.role,
-            avatar: user.avatar || undefined,
+            avatar: (user as any).avatar || undefined,
           }
         } catch (error) {
           console.error("Authentication error:", error)

@@ -115,49 +115,49 @@ export function JobDetails({
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="relative bg-white rounded-2xl p-8 shadow-sm border border-slate-100 overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
-          <Briefcase className="w-64 h-64" />
+      <div className="relative bg-card rounded-2xl p-8 shadow-sm border border-border overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-5 dark:opacity-[0.02]">
+          <Briefcase className="w-64 h-64 text-foreground" />
         </div>
 
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 transition-colors">
                   {job.employmentType}
                 </Badge>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
                   {job.title}
                 </h1>
-                <div className="flex items-center gap-2 text-lg text-slate-600 font-medium">
+                <div className="flex items-center gap-2 text-lg text-muted-foreground font-medium">
                   <Building2 className="h-5 w-5" />
                   {job.company}
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {job.locations && job.locations.length > 0 ? (
                   job.locations.map((loc, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full">
-                      <MapPin className="h-4 w-4 text-slate-400" />
+                    <div key={idx} className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-full">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
                       {loc.city}, {loc.country}
                     </div>
                   ))
                 ) : job.city && job.country ? (
-                  <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full">
-                    <MapPin className="h-4 w-4 text-slate-400" />
+                  <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-full">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                     {job.city}, {job.country}
                   </div>
                 ) : null}
 
-                <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full">
-                  <Clock className="h-4 w-4 text-slate-400" />
+                <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-full">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
                   Posted {formatDate(job.postFrom)}
                 </div>
 
                 {job.minimumSalary && (
-                  <div className="flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1.5 rounded-full font-medium">
+                  <div className="flex items-center gap-1.5 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 px-3 py-1.5 rounded-full font-medium">
                     <DollarSign className="h-4 w-4" />
                     {job.minimumSalary}
                   </div>
@@ -182,15 +182,15 @@ export function JobDetails({
         <div className="lg:col-span-2 space-y-8">
           {/* Status Notifications */}
           {hasApplied && application && (
-            <Card className="border-green-200 bg-green-50/50 shadow-none">
+            <Card className="border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-900/20 shadow-none">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-green-100 rounded-full">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
                     <CheckCircle2 className="h-6 w-6 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-green-900">Application Submitted</h3>
-                    <p className="text-sm text-green-700 mt-1">
+                    <h3 className="font-semibold text-green-900 dark:text-green-300">Application Submitted</h3>
+                    <p className="text-sm text-green-700 dark:text-green-400 mt-1">
                       Applied on {formatDate(new Date(Number(application.appliedAt)))} • Status: <span className="font-medium">{application.status}</span>
                     </p>
                   </div>
@@ -200,19 +200,19 @@ export function JobDetails({
           )}
 
           {errorMessage && (
-            <Card className="border-red-200 bg-red-50/50 shadow-none animate-in slide-in-from-top-2">
+            <Card className="border-red-200 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/20 shadow-none animate-in slide-in-from-top-2">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
-                  <div className="p-2 bg-red-100 rounded-full flex-shrink-0">
-                    <AlertCircle className="h-6 w-6 text-red-600" />
+                  <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full flex-shrink-0">
+                    <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-red-900">Application Error</h3>
-                    <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+                    <h3 className="font-semibold text-red-900 dark:text-red-300">Application Error</h3>
+                    <p className="text-sm text-red-700 dark:text-red-400 mt-1">{errorMessage}</p>
                   </div>
                   <button
                     onClick={() => setErrorMessage(null)}
-                    className="text-red-500 hover:text-red-700 transition-colors"
+                    className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -223,19 +223,19 @@ export function JobDetails({
 
           {/* Job Description */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-blue-600" />
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
               About the Role
             </h2>
-            <Card className="border-slate-200 shadow-sm">
+            <Card className="border-border shadow-sm">
               <CardContent className="pt-6">
                 {job.description ? (
                   <div
-                    className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600"
+                    className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary"
                     dangerouslySetInnerHTML={{ __html: job.description }}
                   />
                 ) : (
-                  <p className="text-slate-500 italic">No description provided</p>
+                  <p className="text-muted-foreground italic">No description provided</p>
                 )}
               </CardContent>
             </Card>
@@ -243,21 +243,21 @@ export function JobDetails({
 
           {/* Requirements & Qualifications */}
           <section className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-blue-600" />
+            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-primary" />
               Requirements
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {job.minimumEducation && (
-                <Card className="bg-slate-50 border-slate-100 shadow-none">
+                <Card className="bg-muted/50 border-border shadow-none">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-white rounded-lg border border-slate-100">
-                        <BookOpen className="h-5 w-5 text-slate-600" />
+                      <div className="p-2 bg-card rounded-lg border border-border">
+                        <BookOpen className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-500">Education</p>
-                        <p className="font-semibold text-slate-900 mt-0.5">{job.minimumEducation}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Education</p>
+                        <p className="font-semibold text-foreground mt-0.5">{job.minimumEducation}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -265,15 +265,15 @@ export function JobDetails({
               )}
 
               {job.minimumExperience && (
-                <Card className="bg-slate-50 border-slate-100 shadow-none">
+                <Card className="bg-muted/50 border-border shadow-none">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-white rounded-lg border border-slate-100">
-                        <Briefcase className="h-5 w-5 text-slate-600" />
+                      <div className="p-2 bg-card rounded-lg border border-border">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-500">Experience</p>
-                        <p className="font-semibold text-slate-900 mt-0.5">{job.minimumExperience}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Experience</p>
+                        <p className="font-semibold text-foreground mt-0.5">{job.minimumExperience}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -282,15 +282,15 @@ export function JobDetails({
             </div>
 
             {job.certification && (
-              <Card className="border-slate-200 shadow-sm">
+              <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Award className="h-4 w-4 text-blue-600" />
+                    <Award className="h-4 w-4 text-primary" />
                     Required Certifications
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-slate-700 whitespace-pre-wrap">{job.certification}</p>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{job.certification}</p>
                 </CardContent>
               </Card>
             )}
@@ -299,13 +299,13 @@ export function JobDetails({
           {/* Benefits */}
           {job.benefits && (
             <section className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <Award className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
                 Benefits & Perks
               </h2>
-              <Card className="border-slate-200 shadow-sm bg-gradient-to-br from-white to-blue-50/30">
+              <Card className="border-border shadow-sm bg-gradient-to-br from-card to-blue-50/10 dark:to-blue-900/10">
                 <CardContent className="pt-6">
-                  <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{job.benefits}</p>
+                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">{job.benefits}</p>
                 </CardContent>
               </Card>
             </section>
@@ -317,8 +317,8 @@ export function JobDetails({
           {/* Apply Card - Sticky on Desktop */}
           <div className="sticky top-24 space-y-6">
             {!hasApplied && new Date(job.postTo) >= new Date() ? (
-              <Card className="border-blue-100 bg-white shadow-lg shadow-blue-900/5 overflow-hidden">
-                <div className="h-2 bg-blue-600 w-full" />
+              <Card className="border-blue-100 dark:border-blue-900 bg-card shadow-lg shadow-blue-900/5 overflow-hidden">
+                <div className="h-2 bg-primary w-full" />
                 <CardHeader>
                   <CardTitle>Ready to Apply?</CardTitle>
                   <CardDescription>
@@ -340,20 +340,20 @@ export function JobDetails({
                       "Apply Now"
                     )}
                   </Button>
-                  <p className="text-xs text-center text-slate-500">
+                  <p className="text-xs text-center text-muted-foreground">
                     By applying, you agree to share your profile information with {job.company}.
                   </p>
                 </CardContent>
               </Card>
             ) : hasApplied ? (
-              <Card className="bg-slate-50 border-slate-200">
+              <Card className="bg-muted/50 border-border">
                 <CardContent className="pt-6 text-center space-y-3">
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-900">Already Applied</h3>
-                    <p className="text-sm text-slate-500">
+                    <h3 className="font-semibold text-foreground">Already Applied</h3>
+                    <p className="text-sm text-muted-foreground">
                       You have already submitted an application for this position.
                     </p>
                   </div>
@@ -363,10 +363,10 @@ export function JobDetails({
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-slate-50 border-slate-200">
+              <Card className="bg-muted/50 border-border">
                 <CardContent className="pt-6 text-center">
-                  <p className="font-medium text-slate-900">Applications Closed</p>
-                  <p className="text-sm text-slate-500 mt-1">
+                  <p className="font-medium text-foreground">Applications Closed</p>
+                  <p className="text-sm text-muted-foreground mt-1">
                     This position is no longer accepting new applications.
                   </p>
                 </CardContent>
@@ -374,34 +374,34 @@ export function JobDetails({
             )}
 
             {/* Job Overview */}
-            <Card className="border-slate-200 shadow-sm">
+            <Card className="border-border shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Job Overview</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 last:pb-0">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0 last:pb-0">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
                     <Calendar className="h-4 w-4" /> Posted
                   </span>
-                  <span className="text-sm font-medium text-slate-900">{formatDate(job.postFrom)}</span>
+                  <span className="text-sm font-medium text-foreground">{formatDate(job.postFrom)}</span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 last:pb-0">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0 last:pb-0">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
                     <Clock className="h-4 w-4" /> Shift
                   </span>
-                  <span className="text-sm font-medium text-slate-900">{job.employmentShift || "Standard"}</span>
+                  <span className="text-sm font-medium text-foreground">{job.employmentShift || "Standard"}</span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 last:pb-0">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0 last:pb-0">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
                     <Users className="h-4 w-4" /> Vacancies
                   </span>
-                  <span className="text-sm font-medium text-slate-900">{job.totalPositions || "Not specified"}</span>
+                  <span className="text-sm font-medium text-foreground">{job.totalPositions || "Not specified"}</span>
                 </div>
-                <div className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0 last:pb-0">
-                  <span className="text-sm text-slate-500 flex items-center gap-2">
+                <div className="flex items-center justify-between py-2 border-b border-border last:border-0 last:pb-0">
+                  <span className="text-sm text-muted-foreground flex items-center gap-2">
                     <Globe className="h-4 w-4" /> Location
                   </span>
-                  <span className="text-sm font-medium text-slate-900 text-right">
+                  <span className="text-sm font-medium text-foreground text-right">
                     {job.locations?.[0]?.city || job.city || "Remote"}
                   </span>
                 </div>
@@ -409,7 +409,7 @@ export function JobDetails({
             </Card>
 
             {/* Skills */}
-            <Card className="border-slate-200 shadow-sm">
+            <Card className="border-border shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base">Required Skills</CardTitle>
               </CardHeader>
@@ -420,13 +420,13 @@ export function JobDetails({
                       <Badge
                         key={idx}
                         variant="secondary"
-                        className="bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors px-3 py-1"
+                        className="bg-muted text-foreground hover:bg-muted/80 transition-colors px-3 py-1"
                       >
                         {skill}
                       </Badge>
                     ))
                   ) : (
-                    <p className="text-sm text-slate-500">No specific skills listed</p>
+                    <p className="text-sm text-muted-foreground">No specific skills listed</p>
                   )}
                 </div>
               </CardContent>

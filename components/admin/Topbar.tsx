@@ -1,7 +1,7 @@
 "use client"
 
 import { useSession, signOut } from "next-auth/react"
-import { Bell, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -35,12 +35,7 @@ export function Topbar() {
         <div className="flex items-center gap-2 md:gap-4">
           <ModeToggle />
 
-          <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary transition-colors">
-            <Bell className="h-5 w-5" />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive ring-2 ring-background"></span>
-          </Button>
 
-          <div className="h-8 w-[1px] bg-border mx-2 hidden sm:block"></div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -63,13 +58,7 @@ export function Topbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Profile settings
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                System logs
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 className="text-destructive cursor-pointer"
                 onClick={() => signOut({ callbackUrl: "/login" })}

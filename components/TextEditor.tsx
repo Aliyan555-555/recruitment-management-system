@@ -34,7 +34,7 @@ type Props = {
 
 export default function TextEditor({
   value = "",
-  onChange = () => {},
+  onChange = () => { },
   maxlength,
   className = "",
   readOnly = false,
@@ -81,11 +81,57 @@ export default function TextEditor({
   }, [value, editor])
 
   return (
-    <div className={`p-1 bg-white ${className}`}>
+    <div className={`p-1 bg-background border border-input rounded-md ${className}`}>
+      <style jsx global>{`
+        .mantine-RichTextEditor-root {
+          background-color: transparent !important;
+          border: none !important;
+        }
+        .mantine-RichTextEditor-toolbar {
+          background-color: hsl(var(--muted) / 0.5) !important;
+          border-bottom: 1px solid hsl(var(--input)) !important;
+        }
+        .mantine-RichTextEditor-controlsGroup {
+          background-color: transparent !important;
+        }
+        .mantine-RichTextEditor-content {
+          background-color: transparent !important;
+        }
+        .mantine-RichTextEditor-content .ProseMirror {
+          color: hsl(var(--foreground)) !important;
+          background-color: transparent !important;
+          padding: 1rem !important;
+          min-height: ${minHeight} !important;
+        }
+        .mantine-RichTextEditor-control {
+          background-color: transparent !important;
+          border: 1px solid transparent !important;
+          color: hsl(var(--foreground)) !important;
+        }
+        .mantine-RichTextEditor-control:hover {
+          background-color: hsl(var(--muted)) !important;
+        }
+        .mantine-RichTextEditor-control[data-active] {
+          background-color: hsl(var(--primary) / 0.2) !important;
+          color: hsl(var(--primary)) !important;
+        }
+        
+        /* Fix list styles in dark mode */
+        .ProseMirror ul, .ProseMirror ol {
+          padding-left: 1.5rem;
+        }
+        .ProseMirror ul {
+          list-style-type: disc;
+        }
+        .ProseMirror ol {
+          list-style-type: decimal;
+        }
+      `}</style>
+
       {name && (
         <input type="hidden" name={name} value={editor?.getHTML() || ""} />
       )}
-      <RichTextEditor editor={editor}>
+      <RichTextEditor editor={editor} className="border-0">
         {!readOnly && (
           <RichTextEditor.Toolbar sticky stickyOffset={60}>
             {isFormatting && (
@@ -146,13 +192,12 @@ export default function TextEditor({
         )}
 
         <RichTextEditor.Content
-          className="bg-gray-50 !rounded-lg !p-1 prose prose-sm max-w-none"
-          style={{ minHeight }}
+          className="bg-transparent text-foreground !rounded-lg prose prose-sm dark:prose-invert max-w-none"
         />
       </RichTextEditor>
 
       {maxlength && (
-        <div className="text-sm text-right text-gray-500 mt-1">
+        <div className="text-sm text-right text-muted-foreground mt-1 px-2">
           {editor?.getHTML().length ?? 0}/{maxlength}
         </div>
       )}

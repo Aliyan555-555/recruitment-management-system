@@ -406,18 +406,22 @@ export default function AppliedCandidatesPage() {
                                                     >
                                                         View Profile
                                                     </Link>
-                                                    <button
-                                                        onClick={() => handleShortlist([candidate.id])}
-                                                        className="px-3 py-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 rounded-lg transition-all"
-                                                    >
-                                                        Shortlist
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleReject([candidate.id])}
-                                                        className="px-3 py-1.5 text-sm font-medium text-destructive hover:text-destructive/80 hover:bg-destructive/10 rounded-lg transition-all"
-                                                    >
-                                                        Reject
-                                                    </button>
+                                                    {isSelectable(candidate) && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleShortlist([candidate.id])}
+                                                                className="px-3 py-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10 rounded-lg transition-all"
+                                                            >
+                                                                Shortlist
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleReject([candidate.id])}
+                                                                className="px-3 py-1.5 text-sm font-medium text-destructive hover:text-destructive/80 hover:bg-destructive/10 rounded-lg transition-all"
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

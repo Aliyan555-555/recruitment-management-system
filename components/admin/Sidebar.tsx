@@ -27,11 +27,6 @@ const navItems = [
     icon: Briefcase
   },
   {
-    href: "/admin/applications",
-    label: "Applications",
-    icon: FileText
-  },
-  {
     href: "/admin/candidates",
     label: "Candidates",
     icon: Users

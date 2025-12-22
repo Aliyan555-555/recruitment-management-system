@@ -165,13 +165,13 @@ export function JobApplicationSuccess({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background dark:from-green-900/10 px-4 py-12">
       <div className="max-w-4xl mx-auto">
         {/* Success Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-            <div className="p-4 bg-green-100 rounded-full">
-              <CheckCircle2 className="h-12 w-12 text-green-600" />
+            <div className="p-4 bg-green-100 dark:bg-green-900/30 rounded-full">
+              <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">

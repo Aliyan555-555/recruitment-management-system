@@ -663,13 +663,13 @@ export default function CreateJobPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* General Error Display */}
           {errors._general && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-              <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <div className="bg-destructive/10 border-destructive/20 rounded-lg p-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-red-800 mb-1">Error</h3>
-                <p className="text-sm text-red-700">{errors._general}</p>
+                <h3 className="text-sm font-semibold text-destructive mb-1">Error</h3>
+                <p className="text-sm text-destructive">{errors._general}</p>
               </div>
               <button
                 type="button"
@@ -678,7 +678,7 @@ export default function CreateJobPage() {
                   delete newErrors._general
                   return newErrors
                 })}
-                className="text-red-600 hover:text-red-800"
+                className="text-destructive hover:text-destructive"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -690,8 +690,8 @@ export default function CreateJobPage() {
           {/* Job Overview */}
           <div className="bg-card rounded-xl shadow-lg border border-border p-6 md:p-8 transition-all duration-200 hover:shadow-xl">
             <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
@@ -701,7 +701,7 @@ export default function CreateJobPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="col-span-2">
                 <label className="block text-sm font-semibold text-foreground mb-2">
-                  Job Title <span className="text-red-500">*</span>
+                  Job Title <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -720,7 +720,7 @@ export default function CreateJobPage() {
                   placeholder="e.g., Senior Frontend Engineer"
                 />
                 {errors.title && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -730,7 +730,7 @@ export default function CreateJobPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Job Summary
                 </label>
                 <textarea
@@ -750,11 +750,11 @@ export default function CreateJobPage() {
                   placeholder="Brief overview (max 300 characters)"
                 />
                 <div className="flex justify-between items-center mt-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {formData.shortDescription.length}/300 characters
                   </p>
                   {errors.shortDescription && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
+                    <p className="text-sm text-destructive flex items-center gap-1">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
@@ -765,8 +765,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Hiring Organization <span className="text-red-500">*</span>
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  Hiring Organization <span className="text-destructive">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -779,7 +779,7 @@ export default function CreateJobPage() {
                     title="Company name is set from organization configuration"
                   />
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
                   </div>
@@ -787,8 +787,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Job Type <span className="text-red-500">*</span>
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  Job Type <span className="text-destructive">*</span>
                 </label>
                 <select
                   required
@@ -800,7 +800,7 @@ export default function CreateJobPage() {
                   <option value="BULK">Bulk Hiring</option>
                 </select>
                 {formData.jobType === "BULK" && (
-                  <p className="mt-2 text-sm text-blue-600 flex items-center gap-1">
+                  <p className="mt-2 text-sm text-primary flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
@@ -810,8 +810,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Employment Type <span className="text-red-500">*</span>
+                <label className="block text-sm font-semibold text-foreground mb-2">
+                  Employment Type <span className="text-destructive">*</span>
                 </label>
                 <select
                   required
@@ -826,7 +826,7 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Work Shift
                 </label>
                 <select
@@ -842,8 +842,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Posting Start Date <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Posting Start Date <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="date"
@@ -867,7 +867,7 @@ export default function CreateJobPage() {
                     }`}
                 />
                 {errors.postFrom && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -877,8 +877,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Posting End Date <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Posting End Date <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="date"
@@ -898,7 +898,7 @@ export default function CreateJobPage() {
                     }`}
                 />
                 {errors.postTo && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -908,7 +908,7 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Required Experience
                 </label>
                 <input
@@ -927,7 +927,7 @@ export default function CreateJobPage() {
                   placeholder="e.g., 3–5 years of SaaS experience"
                 />
                 {errors.minimumExperience && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -937,8 +937,8 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number of Positions <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Number of Positions <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="number"
@@ -959,7 +959,7 @@ export default function CreateJobPage() {
                   placeholder="e.g., 3"
                 />
                 {errors.totalPositions && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -969,13 +969,13 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Department
                 </label>
                 <select
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md"
                 >
                   <option value="">Select Department</option>
                   <option value="Engineering">Engineering</option>
@@ -998,7 +998,7 @@ export default function CreateJobPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Salary Range
                 </label>
                 <input
@@ -1017,7 +1017,7 @@ export default function CreateJobPage() {
                   placeholder="e.g., $90,000 - $130,000"
                 />
                 {errors.minimumSalary && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -1027,26 +1027,26 @@ export default function CreateJobPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Certification
                 </label>
                 <input
                   type="text"
                   value={formData.certification}
                   onChange={(e) => setFormData({ ...formData, certification: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md"
                   placeholder="e.g., AWS Solutions Architect"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Minimum Education
                 </label>
                 <select
                   value={formData.minEducation}
                   onChange={(e) => setFormData({ ...formData, minEducation: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md"
                 >
                   <option value="">Select minimum education</option>
                   <option value="High School Diploma">High School Diploma</option>
@@ -1058,8 +1058,8 @@ export default function CreateJobPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description <span className="text-red-500">*</span>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Description <span className="text-destructive">*</span>
                 </label>
                 <div data-error={errors.description ? "true" : "false"} className={errors.description ? "border-2 border-red-500 rounded-lg p-2" : ""}>
                   <TextEditor
@@ -1074,7 +1074,7 @@ export default function CreateJobPage() {
                   />
                 </div>
                 {errors.description && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                     </svg>
@@ -1084,7 +1084,7 @@ export default function CreateJobPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Skills
                 </label>
                 <div className="flex gap-2 mb-2">
@@ -1102,7 +1102,7 @@ export default function CreateJobPage() {
                         }
                       }
                     }}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                    className="flex-1 px-3 py-2 border border-input rounded-md"
                     placeholder="e.g., JavaScript, React, Node.js"
                   />
                   <button
@@ -1133,7 +1133,7 @@ export default function CreateJobPage() {
                             const updated = formData.skills.filter((_, i) => i !== skillIndex)
                             setFormData({ ...formData, skills: updated })
                           }}
-                          className="ml-1 text-blue-600 hover:text-blue-800 font-bold"
+                          className="ml-1 text-primary hover:text-primary font-bold"
                         >
                           ×
                         </button>
@@ -1144,7 +1144,7 @@ export default function CreateJobPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Benefits
                 </label>
                 <textarea
@@ -1157,13 +1157,13 @@ export default function CreateJobPage() {
               </div>
 
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Status
                 </label>
                 <select
                   value={formData.status ? "active" : "inactive"}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value === "active" })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md"
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -1175,11 +1175,11 @@ export default function CreateJobPage() {
           {/* Locations */}
           <div className="bg-card rounded-lg shadow p-6 border border-border">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              Job Locations <span className="text-red-500">*</span>
+              Job Locations <span className="text-destructive">*</span>
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-foreground mb-1">City <span className="text-destructive">*</span></label>
                 <select
                   value={newLocation.city}
                   onChange={(e) => {
@@ -1198,7 +1198,7 @@ export default function CreateJobPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Country</label>
                 <select
                   value={newLocation.country}
                   onChange={(e) => {
@@ -1213,7 +1213,7 @@ export default function CreateJobPage() {
               <div className="flex items-end">
                 <button
                   type="button"
-                  className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                  className="w-full px-3 py-2 bg-muted text-foreground rounded-md hover:bg-muted/80"
                   onClick={() => {
                     const error = validateLocation(newLocation)
                     if (error) {
@@ -1248,7 +1248,7 @@ export default function CreateJobPage() {
               </div>
             </div>
             {locationError && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+              <p className="mt-2 text-sm text-destructive flex items-center gap-1">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
@@ -1256,7 +1256,7 @@ export default function CreateJobPage() {
               </p>
             )}
             {errors.locations && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+              <p className="mt-2 text-sm text-destructive flex items-center gap-1">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                 </svg>
@@ -1264,13 +1264,13 @@ export default function CreateJobPage() {
               </p>
             )}
             {locations.length > 0 && (
-              <ul className="mt-3 list-disc list-inside text-sm text-gray-700">
+              <ul className="mt-3 list-disc list-inside text-sm text-foreground">
                 {locations.map((loc, idx) => (
                   <li key={`${loc.city}-${idx}`} className="flex justify-between items-center">
                     <span>{loc.city}{loc.country ? `, ${loc.country}` : ""}</span>
                     <button
                       type="button"
-                      className="text-red-600 hover:text-red-800"
+                      className="text-destructive hover:text-destructive"
                       onClick={() => {
                         setLocations(locations.filter((_, i) => i !== idx))
                         // Revalidate after removal
@@ -1314,7 +1314,7 @@ export default function CreateJobPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveStep(index)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-destructive hover:text-destructive"
                     >
                       Remove
                     </button>
@@ -1323,10 +1323,10 @@ export default function CreateJobPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Step Type <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Step Type <span className="text-destructive">*</span>
                       {step.stepType === "OFFER" && (
-                        <span className="ml-2 text-xs text-blue-600">(Must be last step)</span>
+                        <span className="ml-2 text-xs text-primary">(Must be last step)</span>
                       )}
                     </label>
                     <select
@@ -1398,7 +1398,7 @@ export default function CreateJobPage() {
                       })}
                     </select>
                     {errors.workflowSteps?.[index]?.stepType && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
@@ -1406,7 +1406,7 @@ export default function CreateJobPage() {
                       </p>
                     )}
                     {step.stepType === "OFFER" && index === workflowSteps.length - 1 && (
-                      <p className="mt-1 text-sm text-green-600 flex items-center gap-1">
+                      <p className="mt-1 text-sm text-emerald-500 flex items-center gap-1">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
@@ -1417,7 +1417,7 @@ export default function CreateJobPage() {
 
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (mins)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Duration (mins)</label>
                     <input
                       type="number"
                       min={0}
@@ -1467,7 +1467,7 @@ export default function CreateJobPage() {
                       placeholder="e.g., 60"
                     />
                     {errors.workflowSteps?.[index]?.durationMins && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
@@ -1477,11 +1477,11 @@ export default function CreateJobPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Interview Mode</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Interview Mode</label>
                     <select
                       value={step.interviewMode || ""}
                       onChange={(e) => handleStepChange(index, "interviewMode", e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full px-3 py-2 border border-input rounded-md"
                     >
                       <option value="">Select mode</option>
                       <option value="Onsite">Onsite</option>
@@ -1491,8 +1491,8 @@ export default function CreateJobPage() {
 
                   {step.interviewMode === "Remote" && (
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Meeting Link <span className="text-red-500">*</span>
+                      <label className="block text-sm font-medium text-foreground mb-1">
+                        Meeting Link <span className="text-destructive">*</span>
                       </label>
                       <input
                         type="url"
@@ -1543,7 +1543,7 @@ export default function CreateJobPage() {
                         required={step.interviewMode === "Remote"}
                       />
                       {errors.workflowSteps?.[index]?.meetingLink && (
-                        <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
@@ -1554,8 +1554,8 @@ export default function CreateJobPage() {
                   )}
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Assigned Interviewer(s) <span className="text-red-500">*</span>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Assigned Interviewer(s) <span className="text-destructive">*</span>
                     </label>
                     <select
                       multiple
@@ -1602,7 +1602,7 @@ export default function CreateJobPage() {
                       ))}
                     </select>
                     {errors.workflowSteps?.[index]?.interviewerIds && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
@@ -1621,14 +1621,14 @@ export default function CreateJobPage() {
           <div className="flex justify-end gap-3">
             <Link
               href="/admin/jobs"
-              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="px-6 py-2 border border-input text-foreground rounded-md hover:bg-accent"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
             >
               {loading ? "Creating..." : "Create Job"}
             </button>
