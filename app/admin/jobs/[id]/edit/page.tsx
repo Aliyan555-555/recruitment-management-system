@@ -849,7 +849,7 @@ export default function EditJobPage() {
 
               {/* Short Description */}
               <div className="col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Short Description
                 </label>
                 <textarea
@@ -869,7 +869,7 @@ export default function EditJobPage() {
                   placeholder="A brief summary of the job (max 300 characters)..."
                 />
                 <div className="flex justify-between items-center mt-1">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {formData.shortDescription.length}/300 characters
                   </p>
                   {errors.shortDescription && (
@@ -885,7 +885,7 @@ export default function EditJobPage() {
 
               {/* Company - Read-only */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Company <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -908,7 +908,7 @@ export default function EditJobPage() {
 
               {/* Employment Type */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-foreground mb-2">
                   Employment Type <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -942,7 +942,7 @@ export default function EditJobPage() {
 
               {/* Post From */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Post From <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -976,7 +976,7 @@ export default function EditJobPage() {
 
               {/* Post To */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Post To <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1007,7 +1007,7 @@ export default function EditJobPage() {
 
               {/* Minimum Experience */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Minimum Experience
                 </label>
                 <input
@@ -1037,7 +1037,7 @@ export default function EditJobPage() {
 
               {/* Number of Positions */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Number of Positions <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1070,7 +1070,7 @@ export default function EditJobPage() {
 
               {/* Salary Range */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Salary Range
                 </label>
                 <input
@@ -1100,7 +1100,7 @@ export default function EditJobPage() {
 
               {/* Description */}
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Description <span className="text-red-500">*</span>
                 </label>
                 <div data-error={errors.description ? "true" : "false"} className={errors.description ? "border-2 border-red-500 rounded-lg p-2" : ""}>
@@ -1127,7 +1127,7 @@ export default function EditJobPage() {
 
               {/* Skills */}
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Skills
                 </label>
                 <div className="flex gap-2 mb-2">
@@ -1188,7 +1188,7 @@ export default function EditJobPage() {
 
               {/* Status */}
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-foreground mb-1">
                   Status
                 </label>
                 <select
@@ -1210,7 +1210,7 @@ export default function EditJobPage() {
             </h3>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-foreground mb-1">City <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={newLocation.city}
@@ -1224,7 +1224,7 @@ export default function EditJobPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Country</label>
                 <input
                   type="text"
                   value={newLocation.country}
@@ -1289,7 +1289,7 @@ export default function EditJobPage() {
               </p>
             )}
             {locations.length > 0 && (
-              <ul className="mt-3 list-disc list-inside text-sm text-gray-700">
+              <ul className="mt-3 list-disc list-inside text-sm text-foreground">
                 {locations.map((loc, idx) => (
                   <li key={`${loc.city}-${idx}`} className="flex justify-between items-center">
                     <span>{loc.city}{loc.country ? `, ${loc.country}` : ""}</span>
@@ -1347,7 +1347,7 @@ export default function EditJobPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-foreground mb-1">
                       Step Name <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1368,7 +1368,7 @@ export default function EditJobPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Step Type</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Step Type</label>
                     <select
                       value={step.stepType || ""}
                       onChange={(e) => handleStepChange(index, "stepType", e.target.value)}
@@ -1409,7 +1409,7 @@ export default function EditJobPage() {
 
                   {step.isSkippable && (
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Skip Reason</label>
+                      <label className="block text-sm font-medium text-foreground mb-1">Skip Reason</label>
                       <textarea
                         value={step.skipReason || ""}
                         onChange={(e) => handleStepChange(index, "skipReason", e.target.value)}
@@ -1421,7 +1421,7 @@ export default function EditJobPage() {
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (mins)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Duration (mins)</label>
                     <input
                       type="number"
                       min={0}
@@ -1434,7 +1434,7 @@ export default function EditJobPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Interview Mode</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Interview Mode</label>
                     <select
                       value={step.interviewMode || ""}
                       onChange={(e) => handleStepChange(index, "interviewMode", e.target.value)}
@@ -1448,7 +1448,7 @@ export default function EditJobPage() {
 
                   {step.interviewMode === "Remote" && (
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-foreground mb-1">
                         Meeting Link <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1467,7 +1467,7 @@ export default function EditJobPage() {
                   )}
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Interviewer(s)</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Assigned Interviewer(s)</label>
                     <select
                       multiple
                       value={step.interviewerIds || []}
@@ -1484,7 +1484,7 @@ export default function EditJobPage() {
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Candidate Instructions</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Candidate Instructions</label>
                     <textarea
                       value={step.candidateInstructions || ""}
                       onChange={(e) => handleStepChange(index, "candidateInstructions", e.target.value)}
@@ -1494,7 +1494,7 @@ export default function EditJobPage() {
                   </div>
 
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Interviewer Instructions</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">Interviewer Instructions</label>
                     <textarea
                       value={step.interviewerInstructions || ""}
                       onChange={(e) => handleStepChange(index, "interviewerInstructions", e.target.value)}

@@ -117,7 +117,7 @@ export default function JobApplicationSuccessPage() {
               id: "dashboard",
               label: "View My Applications",
               action: "custom",
-              href: "/candidate/applications",
+              href: "/applications",
               variant: "default",
               icon: "track"
             })
