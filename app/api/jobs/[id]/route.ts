@@ -87,7 +87,7 @@ export async function GET(
       application: userApplication ? {
         id: userApplication.id.toString(),
         status: userApplication.status,
-        appliedAt: userApplication.appliedAt.toString()
+        appliedAt: new Date(Number(userApplication.appliedAt) * 1000).toISOString()
       } : null
     })
   } catch (error: any) {

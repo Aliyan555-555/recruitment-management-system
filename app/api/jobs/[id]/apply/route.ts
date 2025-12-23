@@ -140,7 +140,7 @@ export async function POST(
           application: {
             id: application.id.toString(),
             status: application.status,
-            appliedAt: application.appliedAt.toString()
+            appliedAt: new Date(Number(application.appliedAt) * 1000).toISOString()
           }
         })
       } catch (error: any) {
@@ -293,7 +293,7 @@ export async function POST(
       application: {
         id: application.id.toString(),
         status: application.status,
-        appliedAt: application.appliedAt.toString()
+        appliedAt: new Date(Number(application.appliedAt) * 1000).toISOString()
       }
     })
   } catch (error: any) {

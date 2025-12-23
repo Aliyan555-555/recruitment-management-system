@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
 
         return {
           id: p.id.toString(),
+          candidateId: p.candidate.id.toString(),
           candidateName: `${p.candidate.firstname} ${p.candidate.lastname}`,
           candidateEmail: p.candidate.email,
           jobTitle: p.job.title,
@@ -163,7 +164,7 @@ export async function GET(req: NextRequest) {
           totalSteps: metrics.totalSteps,
           completedSteps: metrics.completedSteps,
           progressPercent: metrics.progressPercent,
-          startedAt: p.startedAt.toString()
+          startedAt: new Date(Number(p.startedAt) * 1000).toISOString()
         }
       }),
       recentJobs: recentJobs.map(job => ({

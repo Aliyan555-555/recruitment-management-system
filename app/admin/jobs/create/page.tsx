@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
+import { toast } from "sonner"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
@@ -552,11 +553,40 @@ export default function CreateJobPage() {
       })
       setTouched(allTouched)
 
+      // Count errors and show detailed toast
+      const errorCount = Object.keys(errors).length
+      const errorFields: string[] = []
+
+      // Collect all error field names
+      if (errors.title) errorFields.push("Job Title")
+      if (errors.shortDescription) errorFields.push("Job Summary")
+      if (errors.description) errorFields.push("Job Description")
+      if (errors.company) errorFields.push("Company")
+      if (errors.postFrom) errorFields.push("Post From Date")
+      if (errors.postTo) errorFields.push("Post To Date")
+      if (errors.employmentType) errorFields.push("Employment Type")
+      if (errors.totalPositions) errorFields.push("Total Positions")
+      if (errors.minimumExperience) errorFields.push("Minimum Experience")
+      if (errors.minimumSalary) errorFields.push("Minimum Salary")
+      if (errors.locations) errorFields.push("Locations")
+      if (errors.workflowSteps) errorFields.push("Workflow Steps")
+
+      // Show error toast with specific fields
+      toast.error("Please fix the following errors:", {
+        description: errorFields.length > 0
+          ? `• ${errorFields.join("\n• ")}`
+          : "Please review all required fields and correct any errors.",
+        duration: 6000,
+      })
+
       // Scroll to first error after a short delay to ensure DOM is updated
       setTimeout(() => {
         const firstErrorField = document.querySelector('[data-error="true"]')
         if (firstErrorField) {
           firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          // Flash the field to draw attention
+          firstErrorField.classList.add('animate-pulse')
+          setTimeout(() => firstErrorField.classList.remove('animate-pulse'), 2000)
         } else {
           // If no field with data-error, scroll to general error or first visible error
           const generalError = document.querySelector('[role="status"]')
@@ -570,6 +600,11 @@ export default function CreateJobPage() {
     }
 
     setLoading(true)
+
+    // Show loading toast
+    const loadingToast = toast.loading("Creating job posting...", {
+      description: "Please wait while we process your request."
+    })
 
     try {
       const skillsArray = formData.skills.filter(s => s.trim()) // Already an array, just filter empty values
@@ -612,29 +647,57 @@ export default function CreateJobPage() {
 
       const data = await response.json()
 
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+
       if (response.ok) {
-        router.push("/admin/jobs")
+        toast.success("Job created successfully!", {
+          description: `"${formData.title}" has been posted and is now live.`,
+          duration: 3000,
+        })
+
+        // Redirect after a brief delay to show the success message
+        setTimeout(() => {
+          router.push("/admin/jobs")
+        }, 1000)
       } else {
         // Handle API validation errors
         if (data.error) {
           setErrors(prev => ({ ...prev, ...(typeof data.error === 'string' ? { _general: data.error } : data.error) }))
 
-          // Show error alert with details
-          let errorMessage = "Failed to create job:\n"
+          // Show error toast with details
+          let errorMessage = ""
           if (typeof data.error === 'string') {
-            errorMessage += data.error
+            errorMessage = data.error
           } else if (data.errors && Array.isArray(data.errors)) {
-            errorMessage += data.errors.join('\n')
+            errorMessage = data.errors.join('\n')
+          } else {
+            errorMessage = "Please check all fields and try again."
           }
-          alert(errorMessage)
+
+          toast.error("Failed to create job", {
+            description: errorMessage,
+            duration: 6000,
+          })
         } else {
-          alert("Failed to create job. Please check all fields and try again.")
+          toast.error("Failed to create job", {
+            description: "Please check all fields and try again.",
+            duration: 5000,
+          })
         }
       }
     } catch (error) {
       console.error("Error creating job:", error)
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+
       setErrors(prev => ({ ...prev, _general: "An unexpected error occurred. Please try again." }))
-      alert("Failed to create job. Please check your connection and try again.")
+
+      toast.error("Connection error", {
+        description: "Failed to create job. Please check your internet connection and try again.",
+        duration: 6000,
+      })
     } finally {
       setLoading(false)
     }
@@ -661,6 +724,45 @@ export default function CreateJobPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Validation Error Summary */}
+          {Object.keys(errors).filter(k => k !== '_general').length > 0 && (
+            <div className="sticky top-4 z-10 bg-destructive/10 border border-destructive/30 rounded-xl p-5 shadow-lg backdrop-blur-sm">
+              <div className="flex items-start gap-3">
+                <svg className="w-6 h-6 text-destructive mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-destructive mb-2">
+                    Please correct the following errors before submitting:
+                  </h3>
+                  <ul className="space-y-1.5 text-sm text-destructive">
+                    {errors.title && <li className="flex items-center gap-2">• <span className="font-medium">Job Title:</span> {errors.title}</li>}
+                    {errors.shortDescription && <li className="flex items-center gap-2">• <span className="font-medium">Job Summary:</span> {errors.shortDescription}</li>}
+                    {errors.description && <li className="flex items-center gap-2">• <span className="font-medium">Job Description:</span> {errors.description}</li>}
+                    {errors.company && <li className="flex items-center gap-2">• <span className="font-medium">Company:</span> {errors.company}</li>}
+                    {errors.postFrom && <li className="flex items-center gap-2">• <span className="font-medium">Post From Date:</span> {errors.postFrom}</li>}
+                    {errors.postTo && <li className="flex items-center gap-2">• <span className="font-medium">Post To Date:</span> {errors.postTo}</li>}
+                    {errors.totalPositions && <li className="flex items-center gap-2">• <span className="font-medium">Total Positions:</span> {errors.totalPositions}</li>}
+                    {errors.minimumExperience && <li className="flex items-center gap-2">• <span className="font-medium">Minimum Experience:</span> {errors.minimumExperience}</li>}
+                    {errors.minimumSalary && <li className="flex items-center gap-2">• <span className="font-medium">Minimum Salary:</span> {errors.minimumSalary}</li>}
+                    {errors.locations && <li className="flex items-center gap-2">• <span className="font-medium">Locations:</span> {errors.locations}</li>}
+                    {errors.workflowSteps && <li className="flex items-center gap-2">• <span className="font-medium">Workflow Steps:</span> Please review all workflow step fields</li>}
+                  </ul>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrors({})}
+                  className="text-destructive hover:text-destructive/80 transition-colors"
+                  title="Dismiss"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* General Error Display */}
           {errors._general && (
             <div className="bg-destructive/10 border-destructive/20 rounded-lg p-4 flex items-start gap-3">

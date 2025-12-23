@@ -9,7 +9,6 @@ import {
   TrendingUp,
   ArrowRight,
   Loader2,
-  MoreHorizontal,
   Calendar as CalendarIcon,
   CheckCircle2,
   AlertCircle
@@ -27,12 +26,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 // Mock data for charts (replace with real data in production)
 const chartData = [
@@ -54,6 +47,7 @@ interface DashboardStats {
 
 interface RecentPipeline {
   id: string
+  candidateId: string
   candidateName: string
   candidateEmail: string
   jobTitle: string
@@ -286,50 +280,93 @@ export default function AdminDashboard() {
         <Card className="border-border bg-card shadow-sm dark:shadow-md dark:shadow-black/20">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="text-foreground">Recent Candidates</CardTitle>
-              <CardDescription className="text-muted-foreground">Latest registered candidates</CardDescription>
+              <CardTitle className="text-foreground">Recent Candidates Applied</CardTitle>
+              <CardDescription className="text-muted-foreground">Latest candidate applications with progress tracking</CardDescription>
             </div>
-            <Link href="/admin/candidates" className="text-sm text-primary hover:text-primary/80 font-medium hover:underline">
+            <Link href="/admin/candidates" className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium hover:underline transition-colors">
               View All
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {recentPipelines.slice(0, 5).map((pipeline) => (
-                <div key={pipeline.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-colors group">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border border-border">
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {pipeline.candidateName.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{pipeline.candidateName}</p>
-                      <p className="text-xs text-muted-foreground">{pipeline.jobTitle}</p>
+                <Link
+                  key={pipeline.id}
+                  href={`/admin/candidates/${pipeline.id}`}
+                  className="block"
+                >
+                  <div className="p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/50 transition-all duration-200 group">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <Avatar className="h-11 w-11 border-2 border-border group-hover:border-primary/50 transition-colors">
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+                            {pipeline.candidateName.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-semibold text-foreground truncate">{pipeline.candidateName}</p>
+                            <Badge variant="outline" className={`${getStatusColor(pipeline.status)} border text-[10px] px-2 py-0 shrink-0`}>
+                              {pipeline.status.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-1 truncate">{pipeline.jobTitle}</p>
+                          <p className="text-xs text-muted-foreground/70 truncate">{pipeline.jobCompany}</p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <ArrowRight className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-muted-foreground font-medium">Progress</span>
+                          <span className="text-foreground font-semibold">{Math.round(pipeline.progressPercent)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min(100, Math.max(0, pipeline.progressPercent))}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 text-muted-foreground shrink-0">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span className="font-medium">{pipeline.completedSteps}/{pipeline.totalSteps}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>
+                            {(() => {
+                              try {
+                                const date = new Date(pipeline.startedAt);
+                                return isNaN(date.getTime())
+                                  ? 'N/A'
+                                  : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                              } catch {
+                                return 'N/A';
+                              }
+                            })()}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Badge variant="outline" className={`${getStatusColor(pipeline.status)} border bg-opacity-50`}>
-                      {pipeline.status}
-                    </Badge>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View details</DropdownMenuItem>
-                        <DropdownMenuItem>Contact</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
+                </Link>
               ))}
               {recentPipelines.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                  <Users className="mx-auto h-10 w-10 text-muted-foreground/50 mb-2" />
-                  No recent candidates
+                <div className="text-center py-12 px-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-4">
+                    <Users className="h-8 w-8 text-muted-foreground/50" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground mb-1">No recent candidates</h3>
+                  <p className="text-xs text-muted-foreground">Candidates will appear here once they apply for jobs</p>
                 </div>
               )}
             </div>

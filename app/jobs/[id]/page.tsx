@@ -204,10 +204,7 @@ export default function JobDetailsPage() {
             postTo: new Date(job.postTo),
           }}
           hasApplied={hasApplied}
-          application={application ? {
-            ...application,
-            appliedAt: BigInt(application.appliedAt),
-          } : null}
+          application={application}
           isPublic={status === "unauthenticated"}
         />
       </main>

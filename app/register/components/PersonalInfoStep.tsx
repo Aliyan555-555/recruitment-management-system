@@ -20,10 +20,21 @@ type PersonalInfoStepProps = {
   clearFieldError: (key: string) => void
   getFieldError: (key: string) => string | undefined
   maxDob: string
+  disabledFields?: Array<keyof PersonalInfoState>
 }
 
-const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldError, maxDob }: PersonalInfoStepProps) => {
+const PersonalInfoStep = ({
+  personalInfo,
+  onChange,
+  clearFieldError,
+  getFieldError,
+  maxDob,
+  disabledFields = [],
+}: PersonalInfoStepProps) => {
+  const isDisabled = (key: keyof PersonalInfoState): boolean => disabledFields.includes(key)
+
   const handleInputChange = (key: keyof PersonalInfoState, value: string) => {
+    if (isDisabled(key)) return
     clearFieldError(`personal.${key}`)
     onChange({ [key]: value })
   }
@@ -36,8 +47,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.title}
             onValueChange={(value) => handleInputChange("title", value)}
+            disabled={isDisabled("title")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("title")}>
               <SelectValue placeholder="Select title" />
             </SelectTrigger>
             <SelectContent>
@@ -58,6 +70,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.firstname}
             placeholder="e.g., Ikram Ullah"
             onChange={(e) => handleInputChange("firstname", e.target.value)}
+            disabled={isDisabled("firstname")}
           />
           {getFieldError("personal.firstname") && (
             <p className="text-xs text-destructive">{getFieldError("personal.firstname")}</p>
@@ -69,6 +82,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.lastname}
             placeholder="e.g., Khan"
             onChange={(e) => handleInputChange("lastname", e.target.value)}
+            disabled={isDisabled("lastname")}
           />
           {getFieldError("personal.lastname") && (
             <p className="text-xs text-destructive">{getFieldError("personal.lastname")}</p>
@@ -83,6 +97,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.fatherName}
             placeholder="e.g., Shujat Ullah Khan"
             onChange={(e) => handleInputChange("fatherName", e.target.value)}
+            disabled={isDisabled("fatherName")}
           />
           {getFieldError("personal.fatherName") && (
             <p className="text-xs text-destructive">{getFieldError("personal.fatherName")}</p>
@@ -95,6 +110,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.email}
             placeholder="you@example.com"
             onChange={(e) => handleInputChange("email", e.target.value)}
+            disabled={isDisabled("email")}
           />
           {getFieldError("personal.email") && (
             <p className="text-xs text-destructive">{getFieldError("personal.email")}</p>
@@ -109,6 +125,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.username}
             placeholder="e.g., ikram.khan92"
             onChange={(e) => handleInputChange("username", e.target.value)}
+            disabled={isDisabled("username")}
           />
           {getFieldError("personal.username") && (
             <p className="text-xs text-destructive">{getFieldError("personal.username")}</p>
@@ -119,8 +136,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.religion}
             onValueChange={(value) => handleInputChange("religion", value)}
+            disabled={isDisabled("religion")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("religion")}>
               <SelectValue placeholder="Select religion" />
             </SelectTrigger>
             <SelectContent>
@@ -144,6 +162,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.contactNumber}
             placeholder="03XX-XXXXXXX"
             onChange={(e) => handleInputChange("contactNumber", formatPakPhone(e.target.value))}
+            disabled={isDisabled("contactNumber")}
           />
           {getFieldError("personal.contactNumber") && (
             <p className="text-xs text-destructive">{getFieldError("personal.contactNumber")}</p>
@@ -155,6 +174,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.alternateNumber}
             placeholder="03XX-XXXXXXX"
             onChange={(e) => handleInputChange("alternateNumber", formatPakPhone(e.target.value))}
+            disabled={isDisabled("alternateNumber")}
           />
         </div>
         <div className="space-y-2">
@@ -162,8 +182,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.nationality}
             onValueChange={(value) => handleInputChange("nationality", value)}
+            disabled={isDisabled("nationality")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("nationality")}>
               <SelectValue placeholder="Select nationality" />
             </SelectTrigger>
             <SelectContent>
@@ -191,6 +212,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             value={personalInfo.dateOfBirth}
             max={maxDob}
             onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
+            disabled={isDisabled("dateOfBirth")}
           />
           {getFieldError("personal.dateOfBirth") && (
             <p className="text-xs text-destructive">{getFieldError("personal.dateOfBirth")}</p>
@@ -202,6 +224,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             placeholder="#####-#######-#"
             value={personalInfo.cnic}
             onChange={(e) => handleInputChange("cnic", formatCnic(e.target.value))}
+            disabled={isDisabled("cnic")}
           />
           {getFieldError("personal.cnic") && (
             <p className="text-xs text-destructive">{getFieldError("personal.cnic")}</p>
@@ -212,8 +235,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.preferredCity}
             onValueChange={(value) => handleInputChange("preferredCity", value)}
+            disabled={isDisabled("preferredCity")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("preferredCity")}>
               <SelectValue placeholder="Select city" />
             </SelectTrigger>
             <SelectContent>
@@ -236,8 +260,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.gender}
             onValueChange={(value) => handleInputChange("gender", value)}
+            disabled={isDisabled("gender")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("gender")}>
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
@@ -257,8 +282,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           <Select
             value={personalInfo.maritalStatus}
             onValueChange={(value) => handleInputChange("maritalStatus", value)}
+            disabled={isDisabled("maritalStatus")}
           >
-            <SelectTrigger>
+            <SelectTrigger disabled={isDisabled("maritalStatus")}>
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
@@ -279,6 +305,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
             placeholder="70000"
             value={personalInfo.postalCode}
             onChange={(e) => handleInputChange("postalCode", formatPostalCode(e.target.value))}
+            disabled={isDisabled("postalCode")}
           />
           {getFieldError("personal.postalCode") && (
             <p className="text-xs text-destructive">{getFieldError("personal.postalCode")}</p>
@@ -292,6 +319,7 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
           value={personalInfo.homeAddress}
           placeholder="House #, Street, Area, City"
           onChange={(e) => handleInputChange("homeAddress", e.target.value)}
+          disabled={isDisabled("homeAddress")}
         />
         {getFieldError("personal.homeAddress") && (
           <p className="text-xs text-destructive">{getFieldError("personal.homeAddress")}</p>
@@ -303,8 +331,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
         <Select
           value={personalInfo.city}
           onValueChange={(value) => handleInputChange("city", value)}
+          disabled={isDisabled("city")}
         >
-          <SelectTrigger>
+          <SelectTrigger disabled={isDisabled("city")}>
             <SelectValue placeholder="Select city" />
           </SelectTrigger>
           <SelectContent>
@@ -325,8 +354,9 @@ const PersonalInfoStep = ({ personalInfo, onChange, clearFieldError, getFieldErr
         <Select
           value={personalInfo.department}
           onValueChange={(value) => handleInputChange("department", value)}
+          disabled={isDisabled("department")}
         >
-          <SelectTrigger>
+          <SelectTrigger disabled={isDisabled("department")}>
             <SelectValue placeholder="Select department" />
           </SelectTrigger>
           <SelectContent>

@@ -1,84 +1,91 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
-import { Navbar } from "@/components/Navbar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, Save, ArrowLeft, CheckCircle2, Plus, Edit2, Trash2, X } from "lucide-react"
+import { toast } from "sonner"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Loader2, Plus, Trash2, X, Edit2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  TITLES,
+  RELIGION_OPTIONS,
+  NATIONALITY_OPTIONS,
+  PAKISTANI_CITIES,
+  GENDER_OPTIONS,
+  MARITAL_STATUS_OPTIONS,
+  DEPARTMENT_OPTIONS,
+  PASSING_YEAR_OPTIONS,
+} from "@/lib/countries"
+import { formatCnic, formatPakPhone, formatPostalCode } from "@/app/register/utils"
 
 export default function EditProfilePage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const [loading, setLoading] = useState(false)
+  // const { toast } = useToast() // Removed hook
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string }>>([])
 
-  // Basic Info
+  // Personal Info State
+  const [title, setTitle] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
-  const [email, setEmail] = useState("")
+  const [fatherName, setFatherName] = useState("")
+  const [email, setEmail] = useState("") // Read-only
+  const [username, setUsername] = useState("") // Read-only
+  const [religion, setReligion] = useState("")
   const [phone1, setPhone1] = useState("")
   const [phone2, setPhone2] = useState("")
+  const [nationality, setNationality] = useState("")
+  const [dateOfBirth, setDateOfBirth] = useState("")
+  const [cnic, setCnic] = useState("")
+  const [gender, setGender] = useState("")
+  const [maritalStatus, setMaritalStatus] = useState("")
+  const [preferredCity, setPreferredCity] = useState("")
+  const [homeAddress, setHomeAddress] = useState("")
+  const [city, setCity] = useState("")
+  const [postalCode, setPostalCode] = useState("")
   const [institution, setInstitution] = useState("")
   const [department, setDepartment] = useState("")
-  const [address, setAddress] = useState("")
-  const [city, setCity] = useState("")
-  const [country, setCountry] = useState("")
 
-  // Profile Details
-  const [title, setTitle] = useState("")
-  const [professionalGrade, setProfessionalGrade] = useState("")
-  const [linkedinUrl, setLinkedinUrl] = useState("")
-  const [portfolioUrl, setPortfolioUrl] = useState("")
-  const [githubUrl, setGithubUrl] = useState("")
-  const [websiteUrl, setWebsiteUrl] = useState("")
-  const [bio, setBio] = useState("")
-  const [availability, setAvailability] = useState("")
-  const [expectedSalary, setExpectedSalary] = useState("")
-  const [noticePeriod, setNoticePeriod] = useState("")
-  const [languages, setLanguages] = useState("")
-  const [certifications, setCertifications] = useState("")
-  const [achievements, setAchievements] = useState("")
-  const [references, setReferences] = useState("")
+  // Education State
+  const [educations, setEducations] = useState<Array<{
+    id: string
+    educationLevelId: string
+    educationLevelName?: string
+    degreeTitle: string
+    institute: string
+    majorSubject: string
+    grade: string
+    passingYear: string
+  }>>([])
+  const [newEducation, setNewEducation] = useState({
+    educationLevelId: "",
+    degreeTitle: "",
+    institute: "",
+    majorSubject: "",
+    grade: "",
+    passingYear: ""
+  })
+  const [showAddEducation, setShowAddEducation] = useState(false)
+  const [editingEducationId, setEditingEducationId] = useState<string | null>(null)
 
-  // Job Preference
-  const [firstPriority, setFirstPriority] = useState("")
-  const [secondPriority, setSecondPriority] = useState("")
-  const [thirdPriority, setThirdPriority] = useState("")
-  const [summary, setSummary] = useState("")
-
-  // Skills
-  const [skills, setSkills] = useState<Array<{ id: string; skillName: string; level: number }>>([])
-  const [editingSkillId, setEditingSkillId] = useState<string | null>(null)
-  const [newSkill, setNewSkill] = useState({ skillName: "", level: 5 })
-  const [editingSkill, setEditingSkill] = useState({ skillName: "", level: 5 })
-  const [showAddSkill, setShowAddSkill] = useState(false)
-
-  // Experiences
+  // Experience State
   const [experiences, setExperiences] = useState<Array<{
     id: string
     jobTitle: string
-    company?: string
-    location?: string
-    startDate?: string
-    endDate?: string
+    company: string
+    location: string
+    startDate: string
+    endDate: string
     isCurrent: boolean
   }>>([])
-  const [editingExperienceId, setEditingExperienceId] = useState<string | null>(null)
   const [newExperience, setNewExperience] = useState({
     jobTitle: "",
     company: "",
@@ -87,314 +94,158 @@ export default function EditProfilePage() {
     endDate: "",
     isCurrent: false
   })
-  const [editingExperience, setEditingExperience] = useState({
-    jobTitle: "",
-    company: "",
-    location: "",
-    startDate: "",
-    endDate: "",
-    isCurrent: false
-  })
   const [showAddExperience, setShowAddExperience] = useState(false)
+  const [editingExperienceId, setEditingExperienceId] = useState<string | null>(null)
+
+  // Skills State
+  const [skills, setSkills] = useState<Array<{
+    id: string
+    skillName: string
+    level: number
+  }>>([])
+  const [newSkill, setNewSkill] = useState({ skillName: "", level: 5 })
+  const [showAddSkill, setShowAddSkill] = useState(false)
+  const [editingSkillId, setEditingSkillId] = useState<string | null>(null)
+
+  // Job Preferences State
+  const [firstPriority, setFirstPriority] = useState("")
+  const [secondPriority, setSecondPriority] = useState("")
+  const [thirdPriority, setThirdPriority] = useState("")
+  const [summary, setSummary] = useState("")
+
+  type DegreeOption = { value: string; label: string }
+
+  // Priority Options (Matching Signup)
+  const priorityOptions = [
+    "IT",
+    "Admin",
+    "HR",
+    "Finance",
+    "Operations",
+    "Not Applicable",
+  ]
+
+  const degreeOptions = useMemo<DegreeOption[]>(() => {
+    if (!educationLevels.length) return []
+    return educationLevels.map((level) => ({
+      value: level.id.toString(),
+      label: level.name ?? level.id.toString(),
+    }))
+  }, [educationLevels])
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login")
-      return
+    if (!educationLevels.length) return
+    if (newEducation.educationLevelId) return
+    const firstId = educationLevels[0]?.id?.toString()
+    if (firstId) {
+      setNewEducation((prev) => ({ ...prev, educationLevelId: firstId }))
     }
+  }, [educationLevels, newEducation.educationLevelId])
 
-    if (status === "authenticated" && session?.user?.role !== "CANDIDATE") {
-      router.push("/")
-      return
-    }
+  const maxDob = useMemo(() => {
+    const today = new Date()
+    const eighteenYearsAgo = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+    return eighteenYearsAgo.toISOString().split("T")[0]
+  }, [])
 
-    if (status === "authenticated") {
-      fetchProfile()
-    }
-  }, [status, session, router])
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
 
-  const fetchProfile = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch("/api/profile")
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch profile")
-      }
+        // Fetch Education Levels
+        const levelsResponse = await fetch("/api/profile/education-levels")
+        if (levelsResponse.ok) {
+          const data = await levelsResponse.json()
+          setEducationLevels(data.levels || [])
+        }
 
-      const data = await response.json()
-      const user = data.user
+        // Fetch Profile
+        const profileResponse = await fetch("/api/profile")
+        if (!profileResponse.ok) {
+          throw new Error("Failed to fetch profile")
+        }
+        const data = await profileResponse.json()
+        const user = data.user
 
-      // Basic Info
-      setFirstName(user.firstname || "")
-      setLastName(user.lastname || "")
-      setEmail(user.email || "")
-      setPhone1(user.phone1 || "")
-      setPhone2(user.phone2 || "")
-      setInstitution(user.institution || "")
-      setDepartment(user.department || "")
-      setAddress(user.address || "")
-      setCity(user.city || "")
-      setCountry(user.country || "")
+        // Populate Personal Info
+        setTitle(user.profileDetails?.title || "")
+        setFirstName(user.firstname || "")
+        setLastName(user.lastname || "")
+        setFatherName(user.profileDetails?.fatherName || "")
+        setEmail(user.email || "")
+        setUsername(user.username || "")
+        setReligion(user.profileDetails?.religion || "")
+        setPhone1(user.phone1 || "")
+        setPhone2(user.phone2 || "")
+        setNationality(user.profileDetails?.nationality || "")
+        setDateOfBirth(user.profileDetails?.dateOfBirth || "")
+        setCnic(user.profileDetails?.cnic || "")
+        setGender(user.profileDetails?.gender || "")
+        setMaritalStatus(user.profileDetails?.maritalStatus || "")
+        setPreferredCity(user.profileDetails?.preferredCity || "")
+        setHomeAddress(user.address || "")
+        setCity(user.city || "")
+        setPostalCode(user.profileDetails?.postalCode || "")
+        setInstitution(user.institution || "")
+        setDepartment(user.department || "")
 
-      // Profile Details
-      if (user.profileDetails) {
-        setTitle(user.profileDetails.title || "")
-        setProfessionalGrade(user.profileDetails.professionalGrade || "")
-        setLinkedinUrl(user.profileDetails.linkedinUrl || "")
-        setPortfolioUrl(user.profileDetails.portfolioUrl || "")
-        setGithubUrl(user.profileDetails.githubUrl || "")
-        setWebsiteUrl(user.profileDetails.websiteUrl || "")
-        setBio(user.profileDetails.bio || "")
-        setAvailability(user.profileDetails.availability || "")
-        setExpectedSalary(user.profileDetails.expectedSalary || "")
-        setNoticePeriod(user.profileDetails.noticePeriod || "")
-        setLanguages(user.profileDetails.languages || "")
-        setCertifications(user.profileDetails.certifications || "")
-        setAchievements(user.profileDetails.achievements || "")
-        setReferences(user.profileDetails.references || "")
-      }
+        // Populate Education
+        if (user.educations) {
+          setEducations(user.educations.map((edu: any) => ({
+            id: edu.id,
+            educationLevelId: edu.educationLevelId?.toString?.() ?? String(edu.educationLevelId ?? ""),
+            educationLevelName: edu.educationLevel?.name,
+            degreeTitle: edu.degreeTitle,
+            institute: edu.institute || "",
+            majorSubject: edu.majorSubject || "",
+            grade: edu.grade || "",
+            passingYear: edu.passingYear || ""
+          })))
+        }
 
-      // Job Preference
-      if (user.jobPreference) {
-        setFirstPriority(user.jobPreference.firstPriority || "")
-        setSecondPriority(user.jobPreference.secondPriority || "")
-        setThirdPriority(user.jobPreference.thirdPriority || "")
-        setSummary(user.jobPreference.summary || "")
-      }
+        // Populate Experience
+        if (user.experiences) {
+          setExperiences(user.experiences.map((exp: any) => ({
+            id: exp.id,
+            jobTitle: exp.jobTitle,
+            company: exp.company || "",
+            location: exp.location || "",
+            startDate: exp.startDate || "",
+            endDate: exp.endDate || "",
+            isCurrent: exp.isCurrent
+          })))
+        }
 
-      // Skills
-      if (user.skills) {
-        setSkills(user.skills.map((skill: any) => ({
-          id: skill.id.toString(),
-          skillName: skill.skillName,
-          level: skill.level
-        })))
-      }
+        // Populate Skills
+        if (user.skills) {
+          setSkills(user.skills.map((skill: any) => ({
+            id: skill.id,
+            skillName: skill.skillName,
+            level: skill.level
+          })))
+        }
 
-      // Experiences
-      if (user.experiences) {
-        setExperiences(user.experiences.map((exp: any) => ({
-          id: exp.id.toString(),
-          jobTitle: exp.jobTitle,
-          company: exp.company || "",
-          location: exp.location || "",
-          startDate: exp.startDate || "",
-          endDate: exp.endDate || "",
-          isCurrent: exp.isCurrent || false
-        })))
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to load profile")
-    } finally {
-      setLoading(false)
-    }
-  }
+        // Populate Preferences
+        if (user.jobPreference) {
+          setFirstPriority(user.jobPreference.firstPriority || "")
+          setSecondPriority(user.jobPreference.secondPriority || "")
+          setThirdPriority(user.jobPreference.thirdPriority || "")
+          setSummary(user.jobPreference.summary || "")
+        }
 
-  // Skills handlers
-  const handleAddSkill = async () => {
-    if (!newSkill.skillName.trim()) {
-      setError("Skill name is required")
-      return
-    }
-
-    try {
-      const response = await fetch("/api/profile/skills", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          skillName: newSkill.skillName.trim(),
-          level: newSkill.level
+      } catch (err: any) {
+        setError(err.message || "An error occurred")
+        toast.error("Error", {
+          description: "Failed to load profile data",
         })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to add skill")
+      } finally {
+        setLoading(false)
       }
-
-      const skill = await response.json()
-      setSkills([...skills, skill])
-      setNewSkill({ skillName: "", level: 5 })
-      setShowAddSkill(false)
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to add skill")
-    }
-  }
-
-  const handleEditSkill = (skill: { id: string; skillName: string; level: number }) => {
-    setEditingSkillId(skill.id)
-    setEditingSkill({ skillName: skill.skillName, level: skill.level })
-  }
-
-  const handleUpdateSkill = async () => {
-    if (!editingSkillId || !editingSkill.skillName.trim()) {
-      setError("Skill name is required")
-      return
     }
 
-    try {
-      const response = await fetch(`/api/profile/skills/${editingSkillId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          skillName: editingSkill.skillName.trim(),
-          level: editingSkill.level
-        })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to update skill")
-      }
-
-      const updatedSkill = await response.json()
-      setSkills(skills.map(s => s.id === editingSkillId ? updatedSkill : s))
-      setEditingSkillId(null)
-      setEditingSkill({ skillName: "", level: 5 })
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to update skill")
-    }
-  }
-
-  const handleDeleteSkill = async (skillId: string) => {
-    if (!confirm("Are you sure you want to delete this skill?")) return
-
-    try {
-      const response = await fetch(`/api/profile/skills/${skillId}`, {
-        method: "DELETE"
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to delete skill")
-      }
-
-      setSkills(skills.filter(s => s.id !== skillId))
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to delete skill")
-    }
-  }
-
-  // Experience handlers
-  const handleAddExperience = async () => {
-    if (!newExperience.jobTitle.trim()) {
-      setError("Job title is required")
-      return
-    }
-
-    try {
-      const response = await fetch("/api/profile/experience", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobTitle: newExperience.jobTitle.trim(),
-          company: newExperience.company.trim() || undefined,
-          location: newExperience.location.trim() || undefined,
-          startDate: newExperience.startDate.trim() || undefined,
-          endDate: newExperience.isCurrent ? undefined : (newExperience.endDate.trim() || undefined),
-          isCurrent: newExperience.isCurrent
-        })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to add experience")
-      }
-
-      const experience = await response.json()
-      setExperiences([...experiences, experience])
-      setNewExperience({
-        jobTitle: "",
-        company: "",
-        location: "",
-        startDate: "",
-        endDate: "",
-        isCurrent: false
-      })
-      setShowAddExperience(false)
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to add experience")
-    }
-  }
-
-  const handleEditExperience = (exp: typeof experiences[0]) => {
-    setEditingExperienceId(exp.id)
-    setEditingExperience({
-      jobTitle: exp.jobTitle,
-      company: exp.company || "",
-      location: exp.location || "",
-      startDate: exp.startDate || "",
-      endDate: exp.endDate || "",
-      isCurrent: exp.isCurrent
-    })
-  }
-
-  const handleUpdateExperience = async () => {
-    if (!editingExperienceId || !editingExperience.jobTitle.trim()) {
-      setError("Job title is required")
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/profile/experience/${editingExperienceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          jobTitle: editingExperience.jobTitle.trim(),
-          company: editingExperience.company.trim() || undefined,
-          location: editingExperience.location.trim() || undefined,
-          startDate: editingExperience.startDate.trim() || undefined,
-          endDate: editingExperience.isCurrent ? undefined : (editingExperience.endDate.trim() || undefined),
-          isCurrent: editingExperience.isCurrent
-        })
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to update experience")
-      }
-
-      const updatedExp = await response.json()
-      setExperiences(experiences.map(e => e.id === editingExperienceId ? updatedExp : e))
-      setEditingExperienceId(null)
-      setEditingExperience({
-        jobTitle: "",
-        company: "",
-        location: "",
-        startDate: "",
-        endDate: "",
-        isCurrent: false
-      })
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to update experience")
-    }
-  }
-
-  const handleDeleteExperience = async (expId: string) => {
-    if (!confirm("Are you sure you want to delete this experience?")) return
-
-    try {
-      const response = await fetch(`/api/profile/experience/${expId}`, {
-        method: "DELETE"
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || "Failed to delete experience")
-      }
-
-      setExperiences(experiences.filter(e => e.id !== expId))
-      setError(null)
-    } catch (err: any) {
-      setError(err.message || "Failed to delete experience")
-    }
-  }
+    fetchData()
+  }, []) // Removed dependency on toast
 
   const handleSave = async () => {
     try {
@@ -402,42 +253,41 @@ export default function EditProfilePage() {
       setError(null)
       setSuccess(false)
 
+      const payload = {
+        firstName,
+        lastName,
+        phone1,
+        phone2,
+        institution,
+        department,
+        address: homeAddress,
+        city,
+        country: nationality === "Pakistani" ? "PK" : nationality.length === 2 ? nationality : undefined,
+
+        profileDetails: {
+          title,
+          fatherName,
+          religion,
+          nationality,
+          dateOfBirth,
+          cnic,
+          gender,
+          maritalStatus,
+          preferredCity,
+          postalCode,
+        },
+        jobPreference: {
+          firstPriority,
+          secondPriority,
+          thirdPriority,
+          summary
+        }
+      }
+
       const response = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          phone1,
-          phone2,
-          institution,
-          department,
-          address,
-          city,
-          country,
-          profileDetails: {
-            title,
-            professionalGrade,
-            linkedinUrl,
-            portfolioUrl,
-            githubUrl,
-            websiteUrl,
-            bio,
-            availability,
-            expectedSalary,
-            noticePeriod,
-            languages,
-            certifications,
-            achievements,
-            references
-          },
-          jobPreference: {
-            firstPriority,
-            secondPriority,
-            thirdPriority,
-            summary
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
@@ -446,781 +296,572 @@ export default function EditProfilePage() {
       }
 
       setSuccess(true)
-      setTimeout(() => {
-        router.push("/candidate/profile")
-      }, 1500)
+      toast.success("Success", {
+        description: "Profile updated successfully",
+      })
+      window.scrollTo(0, 0)
     } catch (err: any) {
       setError(err.message || "Failed to save profile")
+      toast.error("Error", {
+        description: err.message || "Failed to save profile",
+      })
     } finally {
       setSaving(false)
     }
   }
 
-  if (status === "loading" || loading) {
+  // --- Education Handlers ---
+  const handleAddEducation = async () => {
+    if (!educationLevels.length) {
+      toast.error("Education levels not loaded", { description: "Please retry after levels load." })
+      return
+    }
+    if (!newEducation.degreeTitle || !newEducation.educationLevelId) {
+      toast.error("Validation Error", { description: "Degree title and level are required" })
+      return
+    }
+    try {
+      const res = await fetch("/api/profile/education", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEducation)
+      })
+      if (!res.ok) throw new Error("Failed to add education")
+      const edu = await res.json()
+      setEducations([edu, ...educations])
+      setNewEducation({ educationLevelId: "", degreeTitle: "", institute: "", majorSubject: "", grade: "", passingYear: "" })
+      setShowAddEducation(false)
+    } catch (err) {
+      toast.error("Error", { description: "Failed to add education" })
+    }
+  }
+
+  const handleDeleteEducation = async (id: string) => {
+    if (!confirm("Are you sure?")) return
+    try {
+      const res = await fetch(`/api/profile/education/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      setEducations(educations.filter(e => e.id !== id))
+    } catch (err) {
+      toast.error("Error", { description: "Failed to delete education" })
+    }
+  }
+
+  // --- Experience Handlers ---
+  const handleAddExperience = async () => {
+    if (!newExperience.jobTitle || !newExperience.company) {
+      toast.error("Validation Error", { description: "Job title and company are required" })
+      return
+    }
+    try {
+      const res = await fetch("/api/profile/experience", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newExperience)
+      })
+      if (!res.ok) throw new Error("Failed to add experience")
+      const exp = await res.json()
+      setExperiences([exp, ...experiences])
+      setNewExperience({ jobTitle: "", company: "", location: "", startDate: "", endDate: "", isCurrent: false })
+      setShowAddExperience(false)
+    } catch (err) {
+      toast.error("Error", { description: "Failed to add experience" })
+    }
+  }
+
+  const handleDeleteExperience = async (id: string) => {
+    if (!confirm("Are you sure?")) return
+    try {
+      const res = await fetch(`/api/profile/experience/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      setExperiences(experiences.filter(e => e.id !== id))
+    } catch (err) {
+      toast.error("Error", { description: "Failed to delete experience" })
+    }
+  }
+
+  // --- Skills Handlers ---
+  const handleAddSkill = async () => {
+    if (!newSkill.skillName) {
+      toast.error("Validation Error", { description: "Skill name is required" })
+      return
+    }
+    try {
+      const res = await fetch("/api/profile/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newSkill)
+      })
+      if (!res.ok) throw new Error("Failed to add skill")
+      const skill = await res.json()
+      setSkills([skill, ...skills])
+      setNewSkill({ skillName: "", level: 5 })
+      setShowAddSkill(false)
+    } catch (err) {
+      toast.error("Error", { description: "Failed to add skill" })
+    }
+  }
+
+  const handleDeleteSkill = async (id: string) => {
+    try {
+      const res = await fetch(`/api/profile/skills/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      setSkills(skills.filter(s => s.id !== id))
+    } catch (err) {
+      toast.error("Error", { description: "Failed to delete skill" })
+    }
+  }
+
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      <Navbar />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-4 mb-6">
-          <Link href="/candidate/profile">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Profile
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Edit Profile</h1>
-            <p className="text-muted-foreground mt-1">Update your professional information</p>
-          </div>
-        </div>
+    <div className="container mx-auto py-8 px-4 max-w-4xl">
+      <div className="flex items-center gap-4 mb-8">
+        <Link href="/candidate/profile">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold">Edit Profile</h1>
+      </div>
 
-        {error && (
-          <Card className="mb-6 border-destructive">
-            <CardContent className="pt-6">
-              <p className="text-destructive">{error}</p>
-            </CardContent>
-          </Card>
-        )}
+      <div className="space-y-8">
+        {/* Personal Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>Update your personal details.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Title</Label>
+                <Select value={title} onValueChange={setTitle}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TITLES.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              </div>
+            </div>
 
-        {success && (
-          <Card className="mb-6 border-green-500 bg-green-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-green-700">
-                <CheckCircle2 className="h-5 w-5" />
-                <p>Profile saved successfully!</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Father Name</Label>
+                <Input value={fatherName} onChange={(e) => setFatherName(e.target.value)} />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={email} disabled className="bg-muted" />
+              </div>
+            </div>
 
-        <div className="space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>Your personal and contact details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="title">Professional Title</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g., Senior Software Engineer"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone1">Primary Phone</Label>
-                  <Input
-                    id="phone1"
-                    type="tel"
-                    value={phone1}
-                    onChange={(e) => setPhone1(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone2">Alternate Phone</Label>
-                  <Input
-                    id="phone2"
-                    type="tel"
-                    value={phone2}
-                    onChange={(e) => setPhone2(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="institution">Institution</Label>
-                  <Input
-                    id="institution"
-                    value={institution}
-                    onChange={(e) => setInstitution(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    placeholder="e.g., PK, US"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="professionalGrade">Professional Grade</Label>
-                  <Select value={professionalGrade} onValueChange={setProfessionalGrade}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select grade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Entry Level">Entry Level</SelectItem>
-                      <SelectItem value="Junior">Junior</SelectItem>
-                      <SelectItem value="Mid Level">Mid Level</SelectItem>
-                      <SelectItem value="Senior">Senior</SelectItem>
-                      <SelectItem value="Lead">Lead</SelectItem>
-                      <SelectItem value="Principal">Principal</SelectItem>
-                      <SelectItem value="Architect">Architect</SelectItem>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Director">Director</SelectItem>
-                      <SelectItem value="Executive">Executive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <Input value={username} disabled className="bg-muted" />
               </div>
-              <div>
-                <Label htmlFor="bio">Professional Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Write a brief professional summary..."
-                  rows={4}
-                />
+              <div className="space-y-2">
+                <Label>Religion</Label>
+                <Select value={religion} onValueChange={setReligion}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RELIGION_OPTIONS.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Professional Links */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Professional Links</CardTitle>
-              <CardDescription>Your online presence and portfolios</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="linkedinUrl">LinkedIn URL</Label>
-                  <Input
-                    id="linkedinUrl"
-                    type="url"
-                    value={linkedinUrl}
-                    onChange={(e) => setLinkedinUrl(e.target.value)}
-                    placeholder="https://linkedin.com/in/yourprofile"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="githubUrl">GitHub URL</Label>
-                  <Input
-                    id="githubUrl"
-                    type="url"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    placeholder="https://github.com/yourusername"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="portfolioUrl">Portfolio URL</Label>
-                  <Input
-                    id="portfolioUrl"
-                    type="url"
-                    value={portfolioUrl}
-                    onChange={(e) => setPortfolioUrl(e.target.value)}
-                    placeholder="https://yourportfolio.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="websiteUrl">Personal Website</Label>
-                  <Input
-                    id="websiteUrl"
-                    type="url"
-                    value={websiteUrl}
-                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                    placeholder="https://yourwebsite.com"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Contact Number</Label>
+                <Input value={phone1} onChange={(e) => setPhone1(formatPakPhone(e.target.value))} placeholder="03XX-XXXXXXX" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="space-y-2">
+                <Label>Alternative Number</Label>
+                <Input value={phone2} onChange={(e) => setPhone2(formatPakPhone(e.target.value))} placeholder="03XX-XXXXXXX" />
+              </div>
+              <div className="space-y-2">
+                <Label>Nationality</Label>
+                <Select value={nationality} onValueChange={setNationality}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NATIONALITY_OPTIONS.map((n) => (
+                      <SelectItem key={n} value={n}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          {/* Skills */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Skills</CardTitle>
-                  <CardDescription>Manage your technical and professional skills</CardDescription>
-                </div>
-                {!showAddSkill && !editingSkillId && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAddSkill(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Skill
-                  </Button>
-                )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Date of Birth</Label>
+                <Input type="date" max={maxDob} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add Skill Form */}
-              {showAddSkill && !editingSkillId && (
-                <div className="p-4 border rounded-lg space-y-4 bg-muted/50">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Add New Skill</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddSkill(false)
-                        setNewSkill({ skillName: "", level: 5 })
-                      }}
+              <div className="space-y-2">
+                <Label>CNIC</Label>
+                <Input value={cnic} onChange={(e) => setCnic(formatCnic(e.target.value))} placeholder="#####-#######-#" />
+              </div>
+              <div className="space-y-2">
+                <Label>Preferred City</Label>
+                <Select value={preferredCity} onValueChange={setPreferredCity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAKISTANI_CITIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Gender</Label>
+                <Select value={gender} onValueChange={setGender}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GENDER_OPTIONS.map((g) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Marital Status</Label>
+                <Select value={maritalStatus} onValueChange={setMaritalStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MARITAL_STATUS_OPTIONS.map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Postal Code</Label>
+                <Input value={postalCode} onChange={(e) => setPostalCode(formatPostalCode(e.target.value))} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Home Address</Label>
+              <Textarea value={homeAddress} onChange={(e) => setHomeAddress(e.target.value)} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>City</Label>
+                <Select value={city} onValueChange={setCity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAKISTANI_CITIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEPARTMENT_OPTIONS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Education */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Education</CardTitle>
+              <CardDescription>Manage your educational background.</CardDescription>
+            </div>
+            {!showAddEducation && (
+              <Button size="sm" onClick={() => setShowAddEducation(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add Education
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showAddEducation && (
+              <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Degree Level</Label>
+                    <Select
+                      value={newEducation.educationLevelId}
+                      onValueChange={(val) => setNewEducation((prev) => ({ ...prev, educationLevelId: val }))}
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {degreeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="newSkillName">Skill Name *</Label>
-                      <Input
-                        id="newSkillName"
-                        value={newSkill.skillName}
-                        onChange={(e) => setNewSkill({ ...newSkill, skillName: e.target.value })}
-                        placeholder="e.g., JavaScript, Python"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="newSkillLevel">Level (1-10) *</Label>
-                      <Input
-                        id="newSkillLevel"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={newSkill.level}
-                        onChange={(e) => setNewSkill({ ...newSkill, level: parseInt(e.target.value) || 5 })}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddSkill} size="sm">
-                      Add Skill
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddSkill(false)
-                        setNewSkill({ skillName: "", level: 5 })
-                      }}
-                    >
-                      Cancel
-                    </Button>
+                  <div className="space-y-2">
+                    <Label>Degree Title</Label>
+                    <Input value={newEducation.degreeTitle} onChange={e => setNewEducation(prev => ({ ...prev, degreeTitle: e.target.value }))} />
                   </div>
                 </div>
-              )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Institute</Label>
+                    <Input value={newEducation.institute} onChange={e => setNewEducation(prev => ({ ...prev, institute: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Major Subject</Label>
+                    <Input value={newEducation.majorSubject} onChange={e => setNewEducation(prev => ({ ...prev, majorSubject: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Grade / CGPA</Label>
+                    <Input value={newEducation.grade} onChange={e => setNewEducation(prev => ({ ...prev, grade: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Passing Year</Label>
+                    <Select value={newEducation.passingYear} onValueChange={val => setNewEducation(prev => ({ ...prev, passingYear: val }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PASSING_YEAR_OPTIONS.map(y => (
+                          <SelectItem key={y} value={y}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleAddEducation}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddEducation(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
 
-              {/* Skills List */}
-              <div className="space-y-3">
-                {skills.length === 0 && !showAddSkill && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No skills added yet. Click &quot;Add Skill&quot; to get started.
+            {educations.map(edu => (
+              <div key={edu.id} className="p-4 border rounded-lg flex justify-between items-start">
+                <div>
+                  <h4 className="font-semibold">{edu.degreeTitle}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {(edu.educationLevelName ||
+                      degreeOptions.find((opt) => opt.value === edu.educationLevelId)?.label ||
+                      "Degree level")}{edu.institute ? ` at ${edu.institute}` : ""}
                   </p>
-                )}
-                {skills.map((skill) => (
-                  <div key={skill.id} className="p-4 border rounded-lg">
-                    {editingSkillId === skill.id ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Edit Skill</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingSkillId(null)
-                              setEditingSkill({ skillName: "", level: 5 })
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="editSkillName">Skill Name *</Label>
-                            <Input
-                              id="editSkillName"
-                              value={editingSkill.skillName}
-                              onChange={(e) => setEditingSkill({ ...editingSkill, skillName: e.target.value })}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="editSkillLevel">Level (1-10) *</Label>
-                            <Input
-                              id="editSkillLevel"
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={editingSkill.level}
-                              onChange={(e) => setEditingSkill({ ...editingSkill, level: parseInt(e.target.value) || 5 })}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleUpdateSkill} size="sm">
-                            Update Skill
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingSkillId(null)
-                              setEditingSkill({ skillName: "", level: 5 })
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{skill.skillName}</p>
-                          <p className="text-sm text-muted-foreground">Level: {skill.level}/10</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditSkill(skill)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteSkill(skill.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  <p className="text-sm text-muted-foreground">{edu.majorSubject} • {edu.passingYear}</p>
+                </div>
+                <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteEducation(edu.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            ))}
+          </CardContent>
+        </Card>
 
-          {/* Experience */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+        {/* Experience & Skills */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Work Experience</CardTitle>
+              <CardDescription>Add your professional experience.</CardDescription>
+            </div>
+            {!showAddExperience && (
+              <Button size="sm" onClick={() => setShowAddExperience(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add Experience
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showAddExperience && (
+              <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Job Title</Label>
+                    <Input value={newExperience.jobTitle} onChange={e => setNewExperience(prev => ({ ...prev, jobTitle: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Company</Label>
+                    <Input value={newExperience.company} onChange={e => setNewExperience(prev => ({ ...prev, company: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Location</Label>
+                  <Input value={newExperience.location} onChange={e => setNewExperience(prev => ({ ...prev, location: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Input type="date" value={newExperience.startDate} onChange={e => setNewExperience(prev => ({ ...prev, startDate: e.target.value }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <Input type="date" disabled={newExperience.isCurrent} value={newExperience.endDate} onChange={e => setNewExperience(prev => ({ ...prev, endDate: e.target.value }))} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="current" checked={newExperience.isCurrent} onChange={e => setNewExperience(prev => ({ ...prev, isCurrent: e.target.checked }))} />
+                  <Label htmlFor="current">I currently work here</Label>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleAddExperience}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddExperience(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {experiences.map(exp => (
+              <div key={exp.id} className="p-4 border rounded-lg flex justify-between items-start">
                 <div>
-                  <CardTitle>Work Experience</CardTitle>
-                  <CardDescription>Add your professional work experience</CardDescription>
+                  <h4 className="font-semibold">{exp.jobTitle}</h4>
+                  <p className="text-sm text-muted-foreground">{exp.company} • {exp.location}</p>
+                  <p className="text-xs text-muted-foreground">{exp.startDate} - {exp.isCurrent ? "Present" : exp.endDate}</p>
                 </div>
-                {!showAddExperience && !editingExperienceId && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowAddExperience(true)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Experience
-                  </Button>
-                )}
+                <Button size="sm" variant="ghost" className="text-destructive h-8 w-8 p-0" onClick={() => handleDeleteExperience(exp.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add Experience Form */}
-              {showAddExperience && !editingExperienceId && (
-                <div className="p-4 border rounded-lg space-y-4 bg-muted/50">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Add New Experience</h4>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddExperience(false)
-                        setNewExperience({
-                          jobTitle: "",
-                          company: "",
-                          location: "",
-                          startDate: "",
-                          endDate: "",
-                          isCurrent: false
-                        })
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Skills */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Skills</CardTitle>
+              <CardDescription>Add your technical skills.</CardDescription>
+            </div>
+            {!showAddSkill && (
+              <Button size="sm" onClick={() => setShowAddSkill(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add Skill
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {showAddSkill && (
+              <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Skill Name</Label>
+                    <Input value={newSkill.skillName} onChange={e => setNewSkill(prev => ({ ...prev, skillName: e.target.value }))} />
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="newJobTitle">Job Title *</Label>
-                      <Input
-                        id="newJobTitle"
-                        value={newExperience.jobTitle}
-                        onChange={(e) => setNewExperience({ ...newExperience, jobTitle: e.target.value })}
-                        placeholder="e.g., Software Engineer"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="newCompany">Company</Label>
-                        <Input
-                          id="newCompany"
-                          value={newExperience.company}
-                          onChange={(e) => setNewExperience({ ...newExperience, company: e.target.value })}
-                          placeholder="Company name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="newLocation">Location</Label>
-                        <Input
-                          id="newLocation"
-                          value={newExperience.location}
-                          onChange={(e) => setNewExperience({ ...newExperience, location: e.target.value })}
-                          placeholder="City, Country"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="newStartDate">Start Date</Label>
-                        <Input
-                          id="newStartDate"
-                          type="month"
-                          value={newExperience.startDate}
-                          onChange={(e) => setNewExperience({ ...newExperience, startDate: e.target.value })}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="newEndDate">End Date</Label>
-                        <Input
-                          id="newEndDate"
-                          type="month"
-                          value={newExperience.endDate}
-                          onChange={(e) => setNewExperience({ ...newExperience, endDate: e.target.value })}
-                          disabled={newExperience.isCurrent}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="newIsCurrent"
-                        checked={newExperience.isCurrent}
-                        onChange={(e) => {
-                          setNewExperience({ ...newExperience, isCurrent: e.target.checked, endDate: "" })
-                        }}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="newIsCurrent" className="cursor-pointer">
-                        I currently work here
-                      </Label>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddExperience} size="sm">
-                      Add Experience
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowAddExperience(false)
-                        setNewExperience({
-                          jobTitle: "",
-                          company: "",
-                          location: "",
-                          startDate: "",
-                          endDate: "",
-                          isCurrent: false
-                        })
-                      }}
-                    >
-                      Cancel
-                    </Button>
+                  <div className="space-y-2">
+                    <Label>Level (1-10)</Label>
+                    <Select value={newSkill.level.toString()} onValueChange={val => setNewSkill(prev => ({ ...prev, level: parseInt(val) }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(l => <SelectItem key={l} value={l.toString()}>{l}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              )}
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleAddSkill}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowAddSkill(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {skills.map(skill => (
+                <div key={skill.id} className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm">
+                  <span>{skill.skillName} ({skill.level})</span>
+                  <button onClick={() => handleDeleteSkill(skill.id)} className="text-muted-foreground hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-              {/* Experiences List */}
-              <div className="space-y-3">
-                {experiences.length === 0 && !showAddExperience && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
-                    No experience added yet. Click &quot;Add Experience&quot; to get started.
-                  </p>
-                )}
-                {experiences.map((exp) => (
-                  <div key={exp.id} className="p-4 border rounded-lg">
-                    {editingExperienceId === exp.id ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">Edit Experience</h4>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingExperienceId(null)
-                              setEditingExperience({
-                                jobTitle: "",
-                                company: "",
-                                location: "",
-                                startDate: "",
-                                endDate: "",
-                                isCurrent: false
-                              })
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="editJobTitle">Job Title *</Label>
-                            <Input
-                              id="editJobTitle"
-                              value={editingExperience.jobTitle}
-                              onChange={(e) => setEditingExperience({ ...editingExperience, jobTitle: e.target.value })}
-                            />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="editCompany">Company</Label>
-                              <Input
-                                id="editCompany"
-                                value={editingExperience.company}
-                                onChange={(e) => setEditingExperience({ ...editingExperience, company: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="editLocation">Location</Label>
-                              <Input
-                                id="editLocation"
-                                value={editingExperience.location}
-                                onChange={(e) => setEditingExperience({ ...editingExperience, location: e.target.value })}
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="editStartDate">Start Date</Label>
-                              <Input
-                                id="editStartDate"
-                                type="month"
-                                value={editingExperience.startDate}
-                                onChange={(e) => setEditingExperience({ ...editingExperience, startDate: e.target.value })}
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="editEndDate">End Date</Label>
-                              <Input
-                                id="editEndDate"
-                                type="month"
-                                value={editingExperience.endDate}
-                                onChange={(e) => setEditingExperience({ ...editingExperience, endDate: e.target.value })}
-                                disabled={editingExperience.isCurrent}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              id="editIsCurrent"
-                              checked={editingExperience.isCurrent}
-                              onChange={(e) => {
-                                setEditingExperience({ ...editingExperience, isCurrent: e.target.checked, endDate: "" })
-                              }}
-                              className="h-4 w-4 rounded border-gray-300"
-                            />
-                            <Label htmlFor="editIsCurrent" className="cursor-pointer">
-                              I currently work here
-                            </Label>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleUpdateExperience} size="sm">
-                            Update Experience
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setEditingExperienceId(null)
-                              setEditingExperience({
-                                jobTitle: "",
-                                company: "",
-                                location: "",
-                                startDate: "",
-                                endDate: "",
-                                isCurrent: false
-                              })
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium">{exp.jobTitle}</p>
-                          {exp.company && (
-                            <p className="text-sm text-muted-foreground">{exp.company}</p>
-                          )}
-                          {exp.location && (
-                            <p className="text-sm text-muted-foreground">{exp.location}</p>
-                          )}
-                          {(exp.startDate || exp.endDate) && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {exp.startDate || "N/A"} - {exp.isCurrent ? "Present" : (exp.endDate || "N/A")}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditExperience(exp)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteExperience(exp.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+        {/* Job Preferences */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Job Preferences</CardTitle>
+            <CardDescription>Set your job priorities.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {["First", "Second", "Third"].map((ord, idx) => {
+                const val = idx === 0 ? firstPriority : idx === 1 ? secondPriority : thirdPriority
+                const setVal = idx === 0 ? setFirstPriority : idx === 1 ? setSecondPriority : setThirdPriority
+                return (
+                  <div key={idx} className="space-y-2">
+                    <Label>{ord} Priority</Label>
+                    <Select value={val} onValueChange={setVal}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {priorityOptions.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                )
+              })}
+            </div>
+            <div className="space-y-2">
+              <Label>Summary</Label>
+              <Textarea value={summary} onChange={e => setSummary(e.target.value)} placeholder="Share details about your ideal role." />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Job Preferences */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Job Preferences</CardTitle>
-              <CardDescription>What you&quot;re looking for in your next role</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="firstPriority">First Priority</Label>
-                <Input
-                  id="firstPriority"
-                  value={firstPriority}
-                  onChange={(e) => setFirstPriority(e.target.value)}
-                  placeholder="e.g., Career growth, Work-life balance"
-                />
-              </div>
-              <div>
-                <Label htmlFor="secondPriority">Second Priority</Label>
-                <Input
-                  id="secondPriority"
-                  value={secondPriority}
-                  onChange={(e) => setSecondPriority(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="thirdPriority">Third Priority</Label>
-                <Input
-                  id="thirdPriority"
-                  value={thirdPriority}
-                  onChange={(e) => setThirdPriority(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="summary">Summary</Label>
-                <Textarea
-                  id="summary"
-                  value={summary}
-                  onChange={(e) => setSummary(e.target.value)}
-                  placeholder="Describe your job preferences and career goals"
-                  rows={4}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-4">
-            <Link href="/candidate/profile">
-              <Button variant="outline">Cancel</Button>
-            </Link>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Profile
-                </>
-              )}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={() => router.push("/candidate/profile")}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
         </div>
       </div>
     </div>
   )
 }
-

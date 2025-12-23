@@ -53,14 +53,41 @@ async function main() {
         lastname: 'User',
         role: UserRole.ADMIN,
         userStatus: UserStatus.ACTIVE,
-        createdAt: BigInt(Date.now() / 1000),
-        updatedAt: BigInt(Date.now() / 1000)
+        createdAt: BigInt(Math.floor(Date.now() / 1000)),
+        updatedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })
     console.log(`Created admin user: ${admin.email}`)
   } else {
     console.log(`Using existing admin user: ${admin.email}`)
   }
+
+  // 1.5 Seed Education Levels
+  const educationLevels = [
+    "Matric / O-Level",
+    "Intermediate / A-Level",
+    "Diploma",
+    "Bachelor's",
+    "Master's",
+    "MPhil / MS",
+    "PhD",
+    "Professional Certification"
+  ]
+
+  console.log('Seeding education levels...')
+  for (const levelName of educationLevels) {
+    const existing = await prisma.userEducationLevel.findFirst({
+      where: { name: levelName }
+    })
+    if (!existing) {
+      await prisma.userEducationLevel.create({
+        data: { name: levelName }
+      })
+    }
+  }
+  console.log(`✓ Education levels seeded (${educationLevels.length} levels)`)
+
+
 
   // 2. Create 10 Candidates with Profile Data
   for (let i = 0; i < 10; i++) {
@@ -84,8 +111,8 @@ async function main() {
           phone1: `+1555010${i}`,
           city: "New York",
           country: "US",
-          createdAt: BigInt(Date.now() / 1000),
-          updatedAt: BigInt(Date.now() / 1000),
+          createdAt: BigInt(Math.floor(Date.now() / 1000)),
+          updatedAt: BigInt(Math.floor(Date.now() / 1000)),
           
           // Profile Details
           profileDetails: {
@@ -97,16 +124,16 @@ async function main() {
               professionalGrade: "Mid-Level",
               linkedinUrl: "https://linkedin.com/in/demo",
               githubUrl: "https://github.com/demo",
-              createdAt: BigInt(Date.now() / 1000),
-              updatedAt: BigInt(Date.now() / 1000)
+              createdAt: BigInt(Math.floor(Date.now() / 1000)),
+              updatedAt: BigInt(Math.floor(Date.now() / 1000))
             }
           },
 
           // Skills
           skills: {
             create: [
-              { skillName: skills[i % skills.length], level: 4, createdAt: BigInt(Date.now() / 1000), updatedAt: BigInt(Date.now() / 1000) },
-              { skillName: skills[(i + 1) % skills.length], level: 3, createdAt: BigInt(Date.now() / 1000), updatedAt: BigInt(Date.now() / 1000) }
+              { skillName: skills[i % skills.length], level: 4, createdAt: BigInt(Math.floor(Date.now() / 1000)), updatedAt: BigInt(Math.floor(Date.now() / 1000)) },
+              { skillName: skills[(i + 1) % skills.length], level: 3, createdAt: BigInt(Math.floor(Date.now() / 1000)), updatedAt: BigInt(Math.floor(Date.now() / 1000)) }
             ]
           },
 
@@ -120,8 +147,8 @@ async function main() {
                     startDate: "2020-01-01",
                     endDate: "2022-01-01",
                     isCurrent: false,
-                    createdAt: BigInt(Date.now() / 1000),
-                    updatedAt: BigInt(Date.now() / 1000)
+                    createdAt: BigInt(Math.floor(Date.now() / 1000)),
+                    updatedAt: BigInt(Math.floor(Date.now() / 1000))
                 }
              ]
           },
@@ -138,8 +165,8 @@ async function main() {
                  degreeTitle: "Computer Science",
                  institute: "University of Tech",
                  passingYear: "2019",
-                 createdAt: BigInt(Date.now() / 1000),
-                 updatedAt: BigInt(Date.now() / 1000)
+                 createdAt: BigInt(Math.floor(Date.now() / 1000)),
+                 updatedAt: BigInt(Math.floor(Date.now() / 1000))
              }
           }
         }
@@ -173,8 +200,8 @@ async function main() {
                  minimumExperience: "3-5 Years",
                  minimumSalary: "80,000",
                  createdBy: admin.id,
-                 createdAt: BigInt(Date.now() / 1000),
-                 updatedAt: BigInt(Date.now() / 1000),
+                 createdAt: BigInt(Math.floor(Date.now() / 1000)),
+                 updatedAt: BigInt(Math.floor(Date.now() / 1000)),
                  
                  // Skills
                  skills: {
@@ -189,8 +216,8 @@ async function main() {
                      create: {
                          city: "New York",
                          country: "United States",
-                         createdAt: BigInt(Date.now() / 1000),
-                         updatedAt: BigInt(Date.now() / 1000)
+                         createdAt: BigInt(Math.floor(Date.now() / 1000)),
+                         updatedAt: BigInt(Math.floor(Date.now() / 1000))
                      }
                  }
              }

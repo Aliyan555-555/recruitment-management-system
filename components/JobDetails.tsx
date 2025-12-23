@@ -57,7 +57,7 @@ interface Job {
 interface Application {
   id: string
   status: string
-  appliedAt: bigint
+  appliedAt: string
 }
 
 export function JobDetails({
@@ -191,7 +191,7 @@ export function JobDetails({
                   <div>
                     <h3 className="font-semibold text-green-900 dark:text-green-300">Application Submitted</h3>
                     <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                      Applied on {formatDate(new Date(Number(application.appliedAt)))} • Status: <span className="font-medium">{application.status}</span>
+                      Applied on {formatDate(new Date(application.appliedAt))} • Status: <span className="font-medium">{application.status}</span>
                     </p>
                   </div>
                 </div>

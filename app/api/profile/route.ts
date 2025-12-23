@@ -66,9 +66,16 @@ export async function GET(req: NextRequest) {
           id: edu.id.toString(),
           degreeTitle: edu.degreeTitle,
           educationLevelId: edu.educationLevelId.toString(),
-          educationLevel: edu.educationLevel,
+          educationLevel: edu.educationLevel ? {
+            id: edu.educationLevel.id.toString(),
+            name: edu.educationLevel.name
+          } : null,
           institute: edu.institute,
           instituteId: edu.instituteId?.toString(),
+          instituteRef: edu.instituteRef ? {
+            id: edu.instituteRef.id.toString(),
+            name: edu.instituteRef.name
+          } : null,
           majorSubject: edu.majorSubject,
           grade: edu.grade,
           passingYear: edu.passingYear,
