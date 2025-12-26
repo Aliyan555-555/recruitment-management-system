@@ -94,9 +94,6 @@ export default function CreateJobPage() {
   })
   const [skillInput, setSkillInput] = useState("")
 
-  const [interviewers, setInterviewers] = useState<Array<{ id: string; name: string }>>([])
-  const roleOptions = ["ADMIN", "INTERVIEWER", "CANDIDATE"]
-
   // Load company name from config
   useEffect(() => {
     const loadCompanyInfo = async () => {
@@ -122,20 +119,7 @@ export default function CreateJobPage() {
     "Multan", "Peshawar", "Quetta", "Sialkot", "Hyderabad", "Gujranwala"
   ]
 
-  // Load interviewers list once
-  useState(() => {
-    ; (async () => {
-      try {
-        const res = await fetch("/api/admin/interviewers")
-        if (res.ok) {
-          const data = await res.json()
-          const opts = (data.interviewers || []).map((i: any) => ({ id: i.id, name: `${i.firstname} ${i.lastname}`.trim() }))
-          setInterviewers(opts)
-        }
-      } catch { }
-    })()
-    return undefined
-  })
+  // Interviewer selection removed - interviewers will be assigned later in the process
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
     {
@@ -336,9 +320,10 @@ export default function CreateJobPage() {
       }
     }
 
-    if (!step.interviewerIds || step.interviewerIds.length === 0) {
-      stepErrors.interviewerIds = "At least one interviewer is required"
-    }
+    // Interviewer assignment is now optional - can be assigned later
+    // if (!step.interviewerIds || step.interviewerIds.length === 0) {
+    //   stepErrors.interviewerIds = "At least one interviewer is required"
+    // }
 
     return stepErrors
   }
@@ -886,29 +871,6 @@ export default function CreateJobPage() {
                     </svg>
                   </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-2">
-                  Job Type <span className="text-destructive">*</span>
-                </label>
-                <select
-                  required
-                  value={formData.jobType}
-                  onChange={(e) => setFormData({ ...formData, jobType: e.target.value as "NORMAL" | "BULK" })}
-                  className="w-full px-4 py-2.5 border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background"
-                >
-                  <option value="NORMAL">Normal Hiring</option>
-                  <option value="BULK">Bulk Hiring</option>
-                </select>
-                {formData.jobType === "BULK" && (
-                  <p className="mt-2 text-sm text-primary flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                    </svg>
-                    Bulk hiring requires admin shortlisting after the end date
-                  </p>
-                )}
               </div>
 
               <div>
@@ -1467,25 +1429,31 @@ export default function CreateJobPage() {
                         }
                       }}
                       onBlur={() => {
-                        const stepErrors = validateWorkflowStep(step, index)
-                        if (stepErrors.stepType || errors.workflowSteps?.[index]?.stepType) {
-                          setErrors(prev => ({
-                            ...prev,
-                            workflowSteps: {
-                              ...prev.workflowSteps,
-                              [index]: {
-                                ...prev.workflowSteps?.[index],
-                                stepType: stepErrors.stepType
+                        // Only validate if stepType is empty
+                        if (!step.stepType || step.stepType.trim() === "") {
+                          const stepErrors = validateWorkflowStep(step, index)
+                          if (stepErrors.stepType) {
+                            setErrors(prev => ({
+                              ...prev,
+                              workflowSteps: {
+                                ...prev.workflowSteps,
+                                [index]: {
+                                  ...prev.workflowSteps?.[index],
+                                  stepType: stepErrors.stepType
+                                }
                               }
-                            }
-                          }))
+                            }))
+                          }
                         }
                       }}
                       data-error={errors.workflowSteps?.[index]?.stepType ? "true" : "false"}
-                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background ${errors.workflowSteps?.[index]?.stepType ? "border-destructive bg-destructive/10" : "border-input"
-                        }`}
+                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background text-foreground `}
+                    // style={{
+                    //   color: 'var(--foreground)',
+                    //   backgroundColor: 'var(--background)'
+                    // }}
                     >
-                      <option value="">Select step type</option>
+                      <option disabled value="" style={{ color: 'var(--muted-foreground)', backgroundColor: 'var(--background)' }}>Select step type</option>
                       {stepTypeOptions.map(opt => {
                         const isSelectedInOtherStep = workflowSteps.some((s, i) => i !== index && s.stepType === opt.value)
                         return (
@@ -1493,6 +1461,10 @@ export default function CreateJobPage() {
                             key={opt.value}
                             value={opt.value}
                             disabled={(opt.value === "OFFER" && index < workflowSteps.length - 1) || isSelectedInOtherStep}
+                            style={{
+                              color: 'var(--foreground)',
+                              backgroundColor: 'var(--background)'
+                            }}
                           >
                             {opt.label} {isSelectedInOtherStep ? "(Already added)" : ""}
                           </option>
@@ -1585,7 +1557,7 @@ export default function CreateJobPage() {
                       onChange={(e) => handleStepChange(index, "interviewMode", e.target.value)}
                       className="w-full px-3 py-2 border border-input rounded-md"
                     >
-                      <option value="">Select mode</option>
+                      <option disabled selected value="">Select mode</option>
                       <option value="Onsite">Onsite</option>
                       <option value="Remote">Remote</option>
                     </select>
@@ -1655,64 +1627,6 @@ export default function CreateJobPage() {
                     </div>
                   )}
 
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Assigned Interviewer(s) <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      multiple
-                      value={step.interviewerIds || []}
-                      onChange={(e) => {
-                        const options = Array.from(e.target.selectedOptions).map(o => o.value)
-                        handleStepChange(index, "interviewerIds", options)
-
-                        // Clear error if at least one interviewer is selected
-                        if (options.length > 0 && errors.workflowSteps?.[index]?.interviewerIds) {
-                          setErrors(prev => {
-                            const newErrors = { ...prev }
-                            if (newErrors.workflowSteps?.[index]) {
-                              delete newErrors.workflowSteps[index].interviewerIds
-                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                delete newErrors.workflowSteps[index]
-                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                  delete newErrors.workflowSteps
-                                }
-                              }
-                            }
-                            return newErrors
-                          })
-                        }
-                      }}
-                      onBlur={() => {
-                        if ((!step.interviewerIds || step.interviewerIds.length === 0)) {
-                          setErrors(prev => ({
-                            ...prev,
-                            workflowSteps: {
-                              ...prev.workflowSteps,
-                              [index]: {
-                                ...prev.workflowSteps?.[index],
-                                interviewerIds: "At least one interviewer is required"
-                              }
-                            }
-                          }))
-                        }
-                      }}
-                      className={`w-full px-3 py-2 border rounded-md h-28 bg-background ${errors.workflowSteps?.[index]?.interviewerIds ? "border-destructive bg-destructive/10" : "border-input"}`}
-                    >
-                      {interviewers.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.name}</option>
-                      ))}
-                    </select>
-                    {errors.workflowSteps?.[index]?.interviewerIds && (
-                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.workflowSteps[index].interviewerIds}
-                      </p>
-                    )}
-                  </div>
-
 
                 </div>
               </div>
@@ -1758,8 +1672,8 @@ export default function CreateJobPage() {
                   type="submit"
                   disabled={loading}
                   className={`inline-flex items-center gap-2 px-8 py-2.5 rounded-lg font-medium transition-all duration-200 shadow-md hover:shadow-lg ${loading
-                      ? 'bg-primary/50 text-primary-foreground cursor-not-allowed'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105'
+                    ? 'bg-primary/50 text-primary-foreground cursor-not-allowed'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105'
                     }`}
                 >
                   {loading ? (

@@ -2,30 +2,21 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  Calendar, 
-  FileText, 
-  User,
-  Clock
+import {
+  LayoutDashboard,
+  User
 } from "lucide-react"
 
 const navItems = [
-  { 
-    href: "/interviewer/dashboard", 
-    label: "Dashboard", 
-    icon: LayoutDashboard 
+  {
+    href: "/interviewer/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard
   },
-  { 
-    href: "/interviewer/assignments", 
-    label: "Assignments", 
-    icon: Briefcase 
-  },
-  { 
-    href: "/interviewer/calendar", 
-    label: "Calendar", 
-    icon: Calendar 
+  {
+    href: "/profile",
+    label: "Profile",
+    icon: User
   },
 ]
 
@@ -50,13 +41,12 @@ export function InterviewerSidebar() {
             const Icon = item.icon
             return (
               <li key={item.href}>
-                <Link 
-                  href={item.href} 
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    active 
-                      ? "bg-purple-50 text-purple-700 border border-purple-200" 
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
+                <Link
+                  href={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${active
+                    ? "bg-purple-50 text-purple-700 border border-purple-200"
+                    : "text-gray-700 hover:bg-gray-50"
+                    }`}
                 >
                   <Icon className={`w-5 h-5 ${active ? "text-purple-700" : "text-gray-500"}`} />
                   <span className="truncate">{item.label}</span>
