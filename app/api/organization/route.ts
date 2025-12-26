@@ -19,12 +19,21 @@ export async function GET() {
 
     if (!settings) {
       return NextResponse.json({
-        name: "TalentHub", // Default name
+        name: null,
         logo: null
       })
     }
 
-    return NextResponse.json(settings)
+    return NextResponse.json({
+      name: settings.name,
+      logo: settings.logo,
+      description: settings.description,
+      email: settings.contactEmail,
+      phone: settings.contactPhone,
+      address: settings.address,
+      website: settings.website,
+      socialLinks: settings.socialLinks
+    })
   } catch (error) {
     console.error("Error fetching organization settings:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

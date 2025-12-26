@@ -26,20 +26,32 @@ import { useEffect, useState } from "react"
 export function Navbar() {
     const { data: session, status } = useSession()
     const [userInitials, setUserInitials] = useState("")
-    const [orgName, setOrgName] = useState("TalentHub")
+    const [orgName, setOrgName] = useState<string | null>(null)
     const [orgLogo, setOrgLogo] = useState<string | null>(null)
+    const [orgLoading, setOrgLoading] = useState(true)
 
     useEffect(() => {
         // Fetch organization settings
+        setOrgLoading(true)
+        setOrgName(null)
+        setOrgLogo(null)
         fetch("/api/organization")
             .then(res => res.json())
             .then(data => {
-                if (data) {
-                    if (data.name) setOrgName(data.name)
-                    if (data.logo) setOrgLogo(data.logo)
+                if (data && !data.error) {
+                    // Only set if we have a valid name (not null, not empty, not "TalentHub")
+                    if (data.name && data.name.trim() && data.name !== "TalentHub") {
+                        setOrgName(data.name)
+                    }
+                    if (data.logo) {
+                        setOrgLogo(data.logo)
+                    }
                 }
             })
-            .catch(err => console.error("Error fetching org info:", err))
+            .catch(err => {
+                console.error("Error fetching org info:", err)
+            })
+            .finally(() => setOrgLoading(false))
 
         if (session?.user?.name) {
             const names = session.user.name.split(" ")
@@ -74,13 +86,24 @@ export function Navbar() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16 items-center">
                     <div className="flex items-center">
-                        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity group">
-                            {orgLogo ? (
-                                <img src={orgLogo} alt="Logo" className="h-12 w-12 object-contain" />
+                        <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity group min-w-[120px]">
+                            {orgLoading ? (
+                                <>
+                                    <div className="h-6 w-6 bg-muted animate-pulse rounded" />
+                                    <div className="h-5 w-24 bg-muted animate-pulse rounded" />
+                                </>
+                            ) : orgName ? (
+                                <>
+                                    {orgLogo ? (
+                                        <img src={orgLogo} alt="Logo" className="h-12 w-12 object-contain" />
+                                    ) : (
+                                        <Briefcase className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                                    )}
+                                    <span className="text-xl font-bold text-foreground">{orgName}</span>
+                                </>
                             ) : (
                                 <Briefcase className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
                             )}
-                            <span className="text-xl font-bold text-foreground">{orgName}</span>
                         </Link>
                     </div>
 

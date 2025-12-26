@@ -47,17 +47,20 @@ export function JobsLandingHero({ onSearch, totalJobs, compact }: JobsLandingHer
     const [search, setSearch] = useState("")
     const [department, setDepartment] = useState("all")
     const [location, setLocation] = useState("all")
-    const [orgName, setOrgName] = useState("leading companies")
+    const [orgName, setOrgName] = useState<string | null>(null)
+    const [orgLoading, setOrgLoading] = useState(true)
 
     useEffect(() => {
+        setOrgLoading(true)
         fetch("/api/organization")
             .then(res => res.json())
             .then(data => {
-                if (data && data.name) {
+                if (data && !data.error && data.name) {
                     setOrgName(data.name)
                 }
             })
             .catch(err => console.error(err))
+            .finally(() => setOrgLoading(false))
     }, [])
 
     const handleSearch = () => {
@@ -70,16 +73,29 @@ export function JobsLandingHero({ onSearch, totalJobs, compact }: JobsLandingHer
                 {/* Header */}
                 {!compact && (
                     <div className="text-center mb-12">
-                        <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-                            Find Your Dream Job at {orgName !== "leading companies" ? orgName : "TalentHub"}
-                        </h1>
-                        <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
-                            Discover exciting career opportunities with {orgName}
-                        </p>
-                        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                            <Briefcase className="h-4 w-4" />
-                            <span className="font-medium">{totalJobs} active job openings</span>
-                        </div>
+                        {orgLoading ? (
+                            <>
+                                <div className="h-12 lg:h-16 w-96 max-w-full bg-muted animate-pulse rounded mx-auto mb-4" />
+                                <div className="h-6 lg:h-7 w-80 max-w-full bg-muted animate-pulse rounded mx-auto mb-2" />
+                                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                    <Briefcase className="h-4 w-4" />
+                                    <span className="font-medium">{totalJobs} active job openings</span>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+                                    Find Your Dream Job{orgName ? ` at ${orgName}` : ""}
+                                </h1>
+                                <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
+                                    Discover exciting career opportunities{orgName ? ` with ${orgName}` : ""}
+                                </p>
+                                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                    <Briefcase className="h-4 w-4" />
+                                    <span className="font-medium">{totalJobs} active job openings</span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 

@@ -66,6 +66,7 @@ export default function HomePage() {
     phone: string
     address: string
   } | null>(null)
+  const [orgDataLoading, setOrgDataLoading] = useState(true)
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
@@ -98,36 +99,24 @@ export default function HomePage() {
 
   const fetchOrganizationData = async () => {
     try {
+      setOrgDataLoading(true)
       const response = await fetch('/api/organization')
       if (response.ok) {
         const data = await response.json()
-        setOrgData({
-          name: data.name || 'Recruitment Management System',
-          description: data.description || 'Connecting talented professionals with world-class organizations.',
-          email: data.email || 'info@recruitment.com',
-          phone: data.phone || '+1 (555) 123-4567',
-          address: data.address || ''
-        })
-      } else {
-        // Set default values if API fails
-        setOrgData({
-          name: 'Recruitment Management System',
-          description: 'Connecting talented professionals with world-class organizations.',
-          email: 'info@recruitment.com',
-          phone: '+1 (555) 123-4567',
-          address: ''
-        })
+        if (data && !data.error) {
+          setOrgData({
+            name: data.name || '',
+            description: data.description || '',
+            email: data.contactEmail || data.email || '',
+            phone: data.contactPhone || data.phone || '',
+            address: data.address || ''
+          })
+        }
       }
     } catch (error) {
       console.error('Error fetching organization data:', error)
-      // Set default values on error
-      setOrgData({
-        name: 'Recruitment Management System',
-        description: 'Connecting talented professionals with world-class organizations.',
-        email: 'info@recruitment.com',
-        phone: '+1 (555) 123-4567',
-        address: ''
-      })
+    } finally {
+      setOrgDataLoading(false)
     }
   }
 
@@ -177,6 +166,18 @@ export default function HomePage() {
 
   // Show public landing page if not authenticated
   if (!session) {
+    // Show loader until organization data is loaded
+    if (orgDataLoading) {
+      return (
+        <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
+          {/* <Navbar /> */}
+          <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
         <Navbar />
@@ -354,9 +355,13 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="border-t border-border bg-muted/30">
           <div className="mx-auto max-w-7xl px-6 py-6 lg:px-8">
-            <p className="text-sm text-center text-muted-foreground">
-              © {new Date().getFullYear()} {orgData?.name || 'Recruitment Management System'}. All rights reserved.
-            </p>
+            {orgDataLoading ? (
+              <div className="h-5 w-64 bg-muted animate-pulse rounded mx-auto" />
+            ) : (
+              <p className="text-sm text-center text-muted-foreground">
+                © {new Date().getFullYear()} {orgData?.name || ''}. All rights reserved.
+              </p>
+            )}
           </div>
         </footer>
       </div>
