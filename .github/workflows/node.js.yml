@@ -1,4 +1,4 @@
-name: Next.js CI
+name: ATS CI CD
 
 on:
   push:
@@ -57,4 +57,4 @@ jobs:
 
       - name: Restart Production Server
         run: |
-          pm2 restart 2
+          pm2 restart 0
