@@ -10,18 +10,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  useEffect(() => {
+  // useEffect(() => {
     // Redirect to admin login if not authenticated
-    if (status === "unauthenticated") {
-      const currentPath = window.location.pathname
-      router.push(`/admin/login?callbackUrl=${encodeURIComponent(currentPath)}`)
-    }
+    // if (status === "unauthenticated") {
+    //   const currentPath = window.location.pathname
+    //   router.push(`/admin/login?callbackUrl=${encodeURIComponent(currentPath)}`)
+    // }
 
     // Check if user has admin role
-    if (status === "authenticated" && session?.user?.role !== "ADMIN") {
-      router.push("/unauthorized")
-    }
-  }, [status, session, router])
+    // if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+    //   router.push("/unauthorized")
+    // }
+  // }, [status, session, router])
 
   // Show loading state while checking authentication
   if (status === "loading") {

@@ -58,29 +58,30 @@ export default function AdminLoginPage() {
             }
 
             // Get callbackUrl from query params or default to dashboard
-            let callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
+            // let callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
             
             // Decode URL-encoded callbackUrl (e.g., %2Fadmin%2Fdashboard -> /admin/dashboard)
-            try {
-                callbackUrl = decodeURIComponent(callbackUrl)
-            } catch (e) {
-                // If decoding fails, use default
-                callbackUrl = "/admin/dashboard"
-            }
+            // try {
+            //     callbackUrl = decodeURIComponent(callbackUrl)
+            // } catch (e) {
+            //     // If decoding fails, use default
+            //     callbackUrl = "/admin/dashboard"
+            // }
             
             // Security: Ensure callbackUrl is a relative path (prevent open redirect)
-            if (callbackUrl && !callbackUrl.startsWith("/")) {
-                callbackUrl = "/admin/dashboard"
-            }
+            // if (callbackUrl && !callbackUrl.startsWith("/")) {
+            //     callbackUrl = "/admin/dashboard"
+            // }
             
-            // Ensure it's an admin route
-            if (!callbackUrl.startsWith("/admin/")) {
-                callbackUrl = "/admin/dashboard"
-            }
+            // // Ensure it's an admin route
+            // if (!callbackUrl.startsWith("/admin/")) {
+            //     callbackUrl = "/admin/dashboard"
+            // }
             
             // Force a full page reload to ensure cookies are available to middleware
             // Using window.location.replace to avoid adding to history
-            window.location.replace(callbackUrl)
+            // window.location.replace(callbackUrl)
+            router.push("/admin/dashboard")
         } catch (error) {
             setError("An error occurred. Please try again.")
             setIsLoading(false)
