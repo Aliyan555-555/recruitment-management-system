@@ -270,16 +270,24 @@ export async function middleware(request: NextRequest) {
       
       // Debug: Check available cookies
       const cookieNames: string[] = []
+      let sessionCookieValue: string | undefined = undefined
       try {
         const cookies = request.cookies.getAll()
-        cookies.forEach(c => cookieNames.push(c.name))
+        for (const c of cookies) {
+          cookieNames.push(c.name)
+          // Get the actual session token cookie value for debugging
+          if (c.name === 'next-auth.session-token' || c.name.includes('session-token')) {
+            sessionCookieValue = String(c.value)
+          }
+        }
         
         debugLog(`Available cookies for ${pathname}`, {
           cookieCount: cookies.length,
           cookieNames: cookieNames,
           hasNextAuthCookie: cookieNames.some(name => 
             name.includes('next-auth') || name.includes('authjs')
-          )
+          ),
+          sessionCookieExists: !!sessionCookieValue
         })
       } catch (cookieError) {
         debugLog(`Error reading cookies for ${pathname}`, {
@@ -287,10 +295,41 @@ export async function middleware(request: NextRequest) {
         })
       }
       
+      // Try to get token - NextAuth v5 should auto-detect cookie name
+      // But we'll try both common variations if needed
       token = await getToken({ 
         req: request,
         secret: process.env.NEXTAUTH_SECRET
       })
+      
+      // If token is null but cookie exists, try with explicit cookie name
+      if (!token && sessionCookieValue) {
+        const isSecure = request.nextUrl.protocol === 'https:'
+        const cookieName = isSecure 
+          ? '__Secure-next-auth.session-token' 
+          : 'next-auth.session-token'
+        
+        debugLog(`Token is null, trying with explicit cookie name: ${cookieName} for ${pathname}`)
+        token = await getToken({ 
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+          cookieName: cookieName
+        })
+      }
+      
+      // If still null, try the alternative cookie name
+      if (!token && sessionCookieValue) {
+        const altCookieName = request.nextUrl.protocol === 'https:'
+          ? 'next-auth.session-token'
+          : '__Secure-next-auth.session-token'
+        
+        debugLog(`Token still null, trying alternative cookie name: ${altCookieName} for ${pathname}`)
+        token = await getToken({ 
+          req: request,
+          secret: process.env.NEXTAUTH_SECRET,
+          cookieName: altCookieName
+        })
+      }
       
       debugLog(`Token status for ${pathname}`, {
         hasToken: !!token,
