@@ -34,11 +34,11 @@ const PUBLIC_ROUTES = [
 
 // Protected route configurations
 const PROTECTED_ROUTES: RouteConfig[] = [
-  // Admin Dashboard - TEMPORARILY DISABLED AUTH
+  // Admin Dashboard
   {
     pattern: /^\/admin\/dashboard/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER, UserRole.CANDIDATE],
-    requireAuth: false,
+    allowedRoles: [UserRole.ADMIN],
+    requireAuth: true,
     redirectTo: '/admin/login'
   },
   // Admin Jobs Management
@@ -211,10 +211,35 @@ function hasRequiredRole(userRole: string | undefined, allowedRoles: UserRole[])
 }
 
 /**
+ * Debug logging helper
+ */
+function debugLog(message: string, data?: any) {
+  const enableDebug = process.env.MIDDLEWARE_DEBUG === 'true' || process.env.NODE_ENV === 'development'
+  if (enableDebug) {
+    const timestamp = new Date().toISOString()
+    if (data) {
+      console.log(`[Middleware ${timestamp}] ${message}`, data)
+    } else {
+      console.log(`[Middleware ${timestamp}] ${message}`)
+    }
+  }
+}
+
+/**
  * Main middleware function
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const startTime = Date.now()
+  
+  debugLog(`Processing request: ${pathname}`, {
+    method: request.method,
+    url: request.url,
+    headers: {
+      'user-agent': request.headers.get('user-agent')?.substring(0, 50),
+      'referer': request.headers.get('referer'),
+    }
+  })
   
   // Skip middleware for static assets and Next.js internals
   if (
@@ -222,79 +247,82 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth') ||
     pathname.includes('.')
   ) {
+    debugLog(`Skipping middleware for: ${pathname} (static/internal)`)
     return NextResponse.next()
   }
 
   // Allow public routes
   if (isPublicRoute(pathname)) {
+    debugLog(`Allowing public route: ${pathname}`)
     return NextResponse.next()
   }
 
-  // Get authentication token with error handling
+  // Get authentication token
   let token = null
   try {
     token = await getToken({ 
       req: request,
-      secret: process.env.NEXTAUTH_SECRET
+      secret: process.env.NEXTAUTH_SECRET 
+    })
+    
+    debugLog(`Token status for ${pathname}`, {
+      hasToken: !!token,
+      tokenRole: token?.role || 'none',
+      tokenId: token?.id || 'none',
+      tokenEmail: token?.email || 'none',
     })
   } catch (error) {
-    // Log error in development, fail silently in production to avoid exposing errors
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Middleware token error:', error)
-    }
+    debugLog(`Error getting token for ${pathname}`, {
+      error: error instanceof Error ? error.message : String(error)
+    })
     // Continue without token - will be treated as unauthenticated
   }
 
   // Find matching route configuration
   const routeConfig = findMatchingRoute(pathname)
+  
+  debugLog(`Route config for ${pathname}`, {
+    hasConfig: !!routeConfig,
+    requireAuth: routeConfig?.requireAuth,
+    allowedRoles: routeConfig?.allowedRoles || [],
+    redirectTo: routeConfig?.redirectTo || 'none',
+  })
 
   // If no specific route config and not public, require authentication
   if (!routeConfig) {
     if (!token) {
+      debugLog(`No route config and no token - redirecting to login: ${pathname}`)
       const signInUrl = new URL('/login', request.url)
       signInUrl.searchParams.set('callbackUrl', pathname)
       return NextResponse.redirect(signInUrl)
     }
+    debugLog(`No route config but has token - allowing access: ${pathname}`)
     return NextResponse.next()
   }
 
-  // If route doesn't require auth, allow access (but still check role if token exists)
-  if (!routeConfig.requireAuth) {
-    // If user is authenticated and has a token, check if they should be redirected
-    // (e.g., admin already logged in trying to access login page)
-    if (token && routeConfig.allowedRoles.length > 0) {
-      const userRole = token.role as string
-      // If user has valid role for this route, allow access
-      if (hasRequiredRole(userRole, routeConfig.allowedRoles)) {
-        return NextResponse.next()
-      }
-    }
-    // Allow access to login pages even without token
-    return NextResponse.next()
-  }
-
-  // Check authentication requirement for protected routes
+  // Check authentication requirement
   if (routeConfig.requireAuth && !token) {
+    debugLog(`Auth required but no token - redirecting: ${pathname}`, {
+      redirectTo: routeConfig.redirectTo || '/login'
+    })
     const redirectPath = routeConfig.redirectTo || '/login'
     const signInUrl = new URL(redirectPath, request.url)
     signInUrl.searchParams.set('callbackUrl', pathname)
     return NextResponse.redirect(signInUrl)
   }
 
-  // Check role-based access for authenticated users
+  // Check role-based access
   if (token && routeConfig.allowedRoles.length > 0) {
-    const userRole = token.role as string | undefined
+    const userRole = token.role as string
     
-    // If token exists but has no role, treat as invalid token and redirect to login
-    if (!userRole) {
-      const redirectPath = routeConfig.redirectTo || '/login'
-      const signInUrl = new URL(redirectPath, request.url)
-      signInUrl.searchParams.set('callbackUrl', pathname)
-      return NextResponse.redirect(signInUrl)
-    }
+    debugLog(`Checking role access for ${pathname}`, {
+      userRole,
+      allowedRoles: routeConfig.allowedRoles,
+      hasRequiredRole: hasRequiredRole(userRole, routeConfig.allowedRoles)
+    })
     
     if (!hasRequiredRole(userRole, routeConfig.allowedRoles)) {
-      // Redirect based on user's role to their appropriate dashboard
+      // Redirect based on user's role
       let redirectUrl = '/unauthorized'
       
       if (userRole === UserRole.ADMIN) {
@@ -304,6 +332,12 @@ export async function middleware(request: NextRequest) {
       } else if (userRole === UserRole.CANDIDATE) {
         redirectUrl = '/candidate/profile'
       }
+      
+      debugLog(`Role mismatch - redirecting: ${pathname}`, {
+        userRole,
+        requiredRoles: routeConfig.allowedRoles,
+        redirectTo: redirectUrl
+      })
       
       return NextResponse.redirect(new URL(redirectUrl, request.url))
     }
@@ -318,11 +352,19 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   response.headers.set('X-XSS-Protection', '1; mode=block')
   
-  // Add user info to headers for debugging (only in development)
-  if (process.env.NODE_ENV === 'development' && token) {
+  // Add user info to headers for debugging
+  if (token) {
     response.headers.set('X-User-Role', token.role as string || 'unknown')
     response.headers.set('X-User-Id', token.id as string || 'unknown')
+    response.headers.set('X-User-Email', token.email as string || 'unknown')
   }
+  
+  const duration = Date.now() - startTime
+  debugLog(`Request processed successfully: ${pathname}`, {
+    duration: `${duration}ms`,
+    authenticated: !!token,
+    role: token?.role || 'none'
+  })
 
   return response
 }
