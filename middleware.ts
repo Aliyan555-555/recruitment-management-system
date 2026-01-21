@@ -257,23 +257,57 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get authentication token
+  // Get authentication token with production cookie name support
   let token = null
   try {
-    token = await getToken({ 
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET 
-    })
-    
-    debugLog(`Token status for ${pathname}`, {
-      hasToken: !!token,
-      tokenRole: token?.role || 'none',
-      tokenId: token?.id || 'none',
-      tokenEmail: token?.email || 'none',
-    })
+    // Check if NEXTAUTH_SECRET is available
+    if (!process.env.NEXTAUTH_SECRET) {
+      debugLog(`NEXTAUTH_SECRET is not set for ${pathname}`)
+    } else {
+      // Try to get token - getToken handles cookie name automatically in NextAuth v5
+      // In production (HTTPS), NextAuth uses __Secure-next-auth.session-token
+      // In development (HTTP), it uses next-auth.session-token
+      
+      // Debug: Check available cookies
+      const cookieNames: string[] = []
+      try {
+        const cookies = request.cookies.getAll()
+        cookies.forEach(c => cookieNames.push(c.name))
+        
+        debugLog(`Available cookies for ${pathname}`, {
+          cookieCount: cookies.length,
+          cookieNames: cookieNames,
+          hasNextAuthCookie: cookieNames.some(name => 
+            name.includes('next-auth') || name.includes('authjs')
+          )
+        })
+      } catch (cookieError) {
+        debugLog(`Error reading cookies for ${pathname}`, {
+          error: cookieError instanceof Error ? cookieError.message : String(cookieError)
+        })
+      }
+      
+      token = await getToken({ 
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET
+      })
+      
+      debugLog(`Token status for ${pathname}`, {
+        hasToken: !!token,
+        tokenRole: token?.role || 'none',
+        tokenId: token?.id || 'none',
+        tokenEmail: token?.email || 'none',
+        protocol: request.nextUrl.protocol,
+        host: request.nextUrl.host,
+      })
+    }
   } catch (error) {
     debugLog(`Error getting token for ${pathname}`, {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      hasSecret: !!process.env.NEXTAUTH_SECRET,
+      protocol: request.nextUrl.protocol,
+      host: request.nextUrl.host,
     })
     // Continue without token - will be treated as unauthenticated
   }
