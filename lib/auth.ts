@@ -120,5 +120,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true, // Required for Vercel and other serverless platforms
   basePath: "/api/auth", // Explicitly set the base path
+  cookies: {
+    sessionToken: {
+      name: 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+      },
+    },
+  },
 })
 
