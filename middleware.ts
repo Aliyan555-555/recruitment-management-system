@@ -230,11 +230,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Get authentication token
-  const token = await getToken({ 
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET 
-  })
+  // Get authentication token with error handling
+  let token = null
+  try {
+    token = await getToken({ 
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET
+    })
+  } catch (error) {
+    // Log error in development, fail silently in production to avoid exposing errors
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Middleware token error:', error)
+    }
+    // Continue without token - will be treated as unauthenticated
+  }
 
   // Find matching route configuration
   const routeConfig = findMatchingRoute(pathname)
@@ -249,7 +258,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Check authentication requirement
+  // If route doesn't require auth, allow access (but still check role if token exists)
+  if (!routeConfig.requireAuth) {
+    // If user is authenticated and has a token, check if they should be redirected
+    // (e.g., admin already logged in trying to access login page)
+    if (token && routeConfig.allowedRoles.length > 0) {
+      const userRole = token.role as string
+      // If user has valid role for this route, allow access
+      if (hasRequiredRole(userRole, routeConfig.allowedRoles)) {
+        return NextResponse.next()
+      }
+    }
+    // Allow access to login pages even without token
+    return NextResponse.next()
+  }
+
+  // Check authentication requirement for protected routes
   if (routeConfig.requireAuth && !token) {
     const redirectPath = routeConfig.redirectTo || '/login'
     const signInUrl = new URL(redirectPath, request.url)
@@ -257,12 +281,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl)
   }
 
-  // Check role-based access
+  // Check role-based access for authenticated users
   if (token && routeConfig.allowedRoles.length > 0) {
-    const userRole = token.role as string
+    const userRole = token.role as string | undefined
+    
+    // If token exists but has no role, treat as invalid token and redirect to login
+    if (!userRole) {
+      const redirectPath = routeConfig.redirectTo || '/login'
+      const signInUrl = new URL(redirectPath, request.url)
+      signInUrl.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(signInUrl)
+    }
     
     if (!hasRequiredRole(userRole, routeConfig.allowedRoles)) {
-      // Redirect based on user's role
+      // Redirect based on user's role to their appropriate dashboard
       let redirectUrl = '/unauthorized'
       
       if (userRole === UserRole.ADMIN) {
