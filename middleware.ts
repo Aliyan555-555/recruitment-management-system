@@ -34,11 +34,11 @@ const PUBLIC_ROUTES = [
 
 // Protected route configurations
 const PROTECTED_ROUTES: RouteConfig[] = [
-  // Admin Dashboard
+  // Admin Dashboard - TEMPORARILY DISABLED AUTH
   {
     pattern: /^\/admin\/dashboard/,
-    allowedRoles: [UserRole.ADMIN],
-    requireAuth: true,
+    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER, UserRole.CANDIDATE],
+    requireAuth: false,
     redirectTo: '/admin/login'
   },
   // Admin Jobs Management
