@@ -2,8 +2,8 @@ module.exports = {
     apps: [
         {
             name: "ATS",
-            script: "node_modules/next/dist/bin/next",
-            args: "start -p 3001",
+            script: "npm",
+            args: "start",
             cwd: "/home/aliyan/ATS/_work/recruitment-management-system/recruitment-management-system",
             instances: "max",
             exec_mode: "cluster",

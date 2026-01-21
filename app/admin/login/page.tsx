@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { signIn, signOut } from "next-auth/react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Shield, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react"
 
 export default function AdminLoginPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
     const [formData, setFormData] = useState({
@@ -38,7 +39,8 @@ export default function AdminLoginPage() {
                 return
             }
 
-            await new Promise(resolve => setTimeout(resolve, 200))
+            // Wait longer to ensure session cookie is set
+            await new Promise(resolve => setTimeout(resolve, 500))
 
             const response = await fetch("/api/auth/session")
             const session = await response.json()
@@ -46,13 +48,27 @@ export default function AdminLoginPage() {
 
             if (userRole !== "ADMIN") {
                 setError("Access denied. Admin credentials required.")
-                await fetch("/api/auth/signout", { method: "POST" })
+                await signOut({ redirect: false })
                 setIsLoading(false)
                 return
             }
 
-            router.push("/admin/dashboard")
-            router.refresh()
+            // Get callbackUrl from query params or default to dashboard
+            let callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
+            
+            // Security: Ensure callbackUrl is a relative path (prevent open redirect)
+            if (callbackUrl && !callbackUrl.startsWith("/")) {
+                callbackUrl = "/admin/dashboard"
+            }
+            
+            // Ensure it's an admin route
+            if (!callbackUrl.startsWith("/admin/")) {
+                callbackUrl = "/admin/dashboard"
+            }
+            
+            // Use window.location.href for a full page reload to ensure cookies are set
+            // This prevents middleware from intercepting before session is available
+            window.location.href = callbackUrl
         } catch (error) {
             setError("An error occurred. Please try again.")
             setIsLoading(false)

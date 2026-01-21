@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
+import { signIn, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -46,7 +46,7 @@ export default function InterviewerLoginPage() {
 
             if (userRole !== "INTERVIEWER") {
                 setError("Access denied. Interviewer credentials required.")
-                await fetch("/api/auth/signout", { method: "POST" })
+                await signOut({ redirect: false })
                 setIsLoading(false)
                 return
             }
