@@ -39,10 +39,14 @@ export default function AdminLoginPage() {
                 return
             }
 
-            // Wait longer to ensure session cookie is set
-            await new Promise(resolve => setTimeout(resolve, 500))
+            // Wait for session cookie to be set
+            await new Promise(resolve => setTimeout(resolve, 800))
 
-            const response = await fetch("/api/auth/session")
+            // Verify session
+            const response = await fetch("/api/auth/session", {
+                cache: "no-store",
+                credentials: "include"
+            })
             const session = await response.json()
             const userRole = session?.user?.role
 
@@ -56,6 +60,14 @@ export default function AdminLoginPage() {
             // Get callbackUrl from query params or default to dashboard
             let callbackUrl = searchParams.get("callbackUrl") || "/admin/dashboard"
             
+            // Decode URL-encoded callbackUrl (e.g., %2Fadmin%2Fdashboard -> /admin/dashboard)
+            try {
+                callbackUrl = decodeURIComponent(callbackUrl)
+            } catch (e) {
+                // If decoding fails, use default
+                callbackUrl = "/admin/dashboard"
+            }
+            
             // Security: Ensure callbackUrl is a relative path (prevent open redirect)
             if (callbackUrl && !callbackUrl.startsWith("/")) {
                 callbackUrl = "/admin/dashboard"
@@ -66,9 +78,9 @@ export default function AdminLoginPage() {
                 callbackUrl = "/admin/dashboard"
             }
             
-            // Use window.location.href for a full page reload to ensure cookies are set
-            // This prevents middleware from intercepting before session is available
-            window.location.href = callbackUrl
+            // Force a full page reload to ensure cookies are available to middleware
+            // Using window.location.replace to avoid adding to history
+            window.location.replace(callbackUrl)
         } catch (error) {
             setError("An error occurred. Please try again.")
             setIsLoading(false)
