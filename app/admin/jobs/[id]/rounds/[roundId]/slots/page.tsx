@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
+import { toast } from "sonner"
 
 interface Slot {
     id: string
@@ -73,7 +74,7 @@ export default function SlotManagementPage() {
             if (res.ok) {
                 setShowCreateModal(false)
                 fetchSlots()
-                alert("Slots created successfully!")
+                toast.success("Slots created successfully!")
             }
         } catch (error) {
             console.error("Error creating slots:", error)

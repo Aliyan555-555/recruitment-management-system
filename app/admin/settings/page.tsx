@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Save, Building2, Upload, Globe, Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Instagram } from "lucide-react"
+import { toast } from "sonner"
 
 interface OrganizationSettings {
   id: string
@@ -126,13 +127,13 @@ export default function AdminSettingsPage() {
       if (res.ok) {
         const data = await res.json()
         setOrgSettings(data.settings)
-        alert("Organization settings saved successfully!")
+        toast.success("Organization settings saved successfully!")
       } else {
-        alert("Failed to save settings")
+        toast.error("Failed to save settings")
       }
     } catch (error) {
       console.error("Error saving settings:", error)
-      alert("Error saving settings")
+      toast.error("Error saving settings")
     } finally {
       setSaving(false)
     }

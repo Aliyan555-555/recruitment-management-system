@@ -97,11 +97,11 @@ export default function AdminUsersPage() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       filtered = filtered.filter(u =>
-        u.username.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query) ||
-        `${u.firstname} ${u.lastname}`.toLowerCase().includes(query) ||
-        u.institution?.toLowerCase().includes(query) ||
-        u.department?.toLowerCase().includes(query)
+        (u.username?.toLowerCase() || "").includes(query) ||
+        (u.email?.toLowerCase() || "").includes(query) ||
+        `${u.firstname || ""} ${u.lastname || ""}`.toLowerCase().includes(query) ||
+        (u.institution?.toLowerCase() || "").includes(query) ||
+        (u.department?.toLowerCase() || "").includes(query)
       )
     }
 

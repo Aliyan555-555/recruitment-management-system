@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface Candidate {
   id: string
@@ -51,7 +52,7 @@ export default function ShortlistPage() {
 
   async function handleShortlist(action: "select" | "reject") {
     if (selectedCandidates.size === 0) {
-      alert("Please select at least one candidate")
+      toast.error("Please select at least one candidate")
       return
     }
 
@@ -69,14 +70,14 @@ export default function ShortlistPage() {
       if (res.ok) {
         setSelectedCandidates(new Set())
         fetchCandidates()
-        alert(`Candidates ${action === "select" ? "shortlisted" : "rejected"} successfully`)
+        toast.success(`Candidates ${action === "select" ? "shortlisted" : "rejected"} successfully`)
       } else {
         const data = await res.json()
-        alert(data.error || "Failed to update candidates")
+        toast.error(data.error || "Failed to update candidates")
       }
     } catch (error) {
       console.error("Error shortlisting:", error)
-      alert("Failed to update candidates")
+      toast.error("Failed to update candidates")
     } finally {
       setActionLoading(false)
     }

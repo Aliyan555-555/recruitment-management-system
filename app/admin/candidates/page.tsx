@@ -100,10 +100,10 @@ export default function AdminCandidatesPage() {
     if (searchText) {
       const search = searchText.toLowerCase()
       filtered = filtered.filter(p =>
-        p.candidateName.toLowerCase().includes(search) ||
-        p.candidateEmail.toLowerCase().includes(search) ||
-        p.jobTitle.toLowerCase().includes(search) ||
-        p.jobCompany.toLowerCase().includes(search)
+        (p.candidateName?.toLowerCase() || "").includes(search) ||
+        (p.candidateEmail?.toLowerCase() || "").includes(search) ||
+        (p.jobTitle?.toLowerCase() || "").includes(search) ||
+        (p.jobCompany?.toLowerCase() || "").includes(search)
       )
     }
 

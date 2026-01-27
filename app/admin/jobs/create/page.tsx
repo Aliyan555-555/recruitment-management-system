@@ -32,6 +32,7 @@ interface FormErrors {
       weightage?: string
       scoreThreshold?: string
       interviewerIds?: string
+      interviewMode?: string
     }
     _general?: string
   }
@@ -279,6 +280,14 @@ export default function CreateJobPage() {
     // Validate that Offer step is the last step
     if (step.stepType === "OFFER" && index < workflowSteps.length - 1) {
       stepErrors.stepType = "Offer step must be the last step in the workflow"
+    }
+
+
+    // Interview mode is required for interview steps
+    if (["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType)) {
+      if (!step.interviewMode || step.interviewMode.trim() === "") {
+        stepErrors.interviewMode = "Interview mode is required"
+      }
     }
 
     if (step.interviewMode === "Remote") {
@@ -1551,16 +1560,63 @@ export default function CreateJobPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Interview Mode</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Interview Mode
+                      {["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType) && (
+                        <span className="text-destructive ml-1">*</span>
+                      )}
+                    </label>
                     <select
                       value={step.interviewMode || ""}
-                      onChange={(e) => handleStepChange(index, "interviewMode", e.target.value)}
-                      className="w-full px-3 py-2 border border-input rounded-md"
+                      onChange={(e) => {
+                        handleStepChange(index, "interviewMode", e.target.value)
+
+                        // Clear error for interviewMode if selected
+                        if (errors.workflowSteps?.[index]?.interviewMode && e.target.value) {
+                          setErrors(prev => {
+                            const newErrors = { ...prev }
+                            if (newErrors.workflowSteps?.[index]) {
+                              delete newErrors.workflowSteps[index].interviewMode
+                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
+                                delete newErrors.workflowSteps[index]
+                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
+                                  delete newErrors.workflowSteps
+                                }
+                              }
+                            }
+                            return newErrors
+                          })
+                        }
+                      }}
+                      onBlur={() => {
+                        const stepErrors = validateWorkflowStep(step, index)
+                        if (stepErrors.interviewMode) {
+                          setErrors(prev => ({
+                            ...prev,
+                            workflowSteps: {
+                              ...prev.workflowSteps,
+                              [index]: {
+                                ...prev.workflowSteps?.[index],
+                                interviewMode: stepErrors.interviewMode
+                              }
+                            }
+                          }))
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.interviewMode ? "border-destructive bg-destructive/10" : "border-input"}`}
                     >
-                      <option disabled selected value="">Select mode</option>
+                      <option disabled value="">Select mode</option>
                       <option value="Onsite">Onsite</option>
                       <option value="Remote">Remote</option>
                     </select>
+                    {errors.workflowSteps?.[index]?.interviewMode && (
+                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {errors.workflowSteps[index].interviewMode}
+                      </p>
+                    )}
                   </div>
 
                   {step.interviewMode === "Remote" && (
