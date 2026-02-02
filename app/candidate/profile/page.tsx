@@ -78,6 +78,7 @@ interface ProfileData {
       websiteUrl?: string
       bio?: string
       availability?: string
+      nationality?: string
       expectedSalary?: string
       noticePeriod?: string
       languages?: string
@@ -355,9 +356,9 @@ export default function CandidateProfilePage() {
                 <p className="text-muted-foreground font-medium">{profileDetails.title}</p>
               )}
               <div className="flex justify-center md:justify-start gap-3 mt-1 text-sm text-muted-foreground">
-                {(user.city || user.country) && (
+                {(user.city || user.country || profileDetails?.nationality) && (
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {[user.city, user.country].filter(Boolean).join(", ")}
+                    <MapPin className="h-3 w-3" /> {[user.city, user.country || profileDetails?.nationality].filter(Boolean).join(", ")}
                   </span>
                 )}
                 {profileDetails?.professionalGrade && (
@@ -425,10 +426,10 @@ export default function CandidateProfilePage() {
                       <span className="text-sm">Studied at <span className="font-semibold text-foreground">{user.institution}</span></span>
                     </div>
                   )}
-                  {(user.city || user.country) && (
+                  {(user.city || user.country || profileDetails?.nationality) && (
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <MapPin className="h-5 w-5 text-muted-foreground/70" />
-                      <span className="text-sm">Lives in <span className="font-semibold text-foreground">{[user.city, user.country].filter(Boolean).join(", ")}</span></span>
+                      <span className="text-sm">Lives in <span className="font-semibold text-foreground">{[user.city, user.country || profileDetails?.nationality].filter(Boolean).join(", ")}</span></span>
                     </div>
                   )}
                   {profileDetails?.websiteUrl && (

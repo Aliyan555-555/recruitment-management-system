@@ -22,6 +22,7 @@ import {
   PASSING_YEAR_OPTIONS,
 } from "@/lib/countries"
 import { formatCnic, formatPakPhone, formatPostalCode } from "@/app/register/utils"
+import { NATIONALITY_TO_COUNTRY_CODE, COUNTRY_CODE_TO_NATIONALITY } from "@/lib/nationalityMap"
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -178,7 +179,8 @@ export default function EditProfilePage() {
         setReligion(user.profileDetails?.religion || "")
         setPhone1(user.phone1 || "")
         setPhone2(user.phone2 || "")
-        setNationality(user.profileDetails?.nationality || "")
+        const rawNationality = user.profileDetails?.nationality || ""
+        setNationality(COUNTRY_CODE_TO_NATIONALITY[rawNationality] || rawNationality)
         setDateOfBirth(user.profileDetails?.dateOfBirth || "")
         setCnic(user.profileDetails?.cnic || "")
         setGender(user.profileDetails?.gender || "")
@@ -262,7 +264,7 @@ export default function EditProfilePage() {
         department,
         address: homeAddress,
         city,
-        country: nationality === "Pakistani" ? "PK" : nationality.length === 2 ? nationality : undefined,
+        country: NATIONALITY_TO_COUNTRY_CODE[nationality] || (nationality.length === 2 ? nationality : undefined),
 
         profileDetails: {
           title,

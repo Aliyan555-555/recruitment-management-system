@@ -13,6 +13,7 @@ import {
 } from "@/app/register/constants"
 import { PersonalInfoState } from "@/app/register/types"
 import { formatCnic, formatPakPhone, formatPostalCode } from "@/app/register/utils"
+import { NATIONALITY_TO_COUNTRY_CODE } from "@/lib/nationalityMap"
 
 type PersonalInfoStepProps = {
   personalInfo: PersonalInfoState
@@ -189,9 +190,8 @@ const PersonalInfoStep = ({
             </SelectTrigger>
             <SelectContent>
               {nationalityOptions.map((nation) => {
-                const optionValue = nation === "Pakistani" ? "PK" : nation
                 return (
-                  <SelectItem key={optionValue} value={optionValue}>
+                  <SelectItem key={nation} value={nation}>
                     {nation}
                   </SelectItem>
                 )

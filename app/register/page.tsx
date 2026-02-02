@@ -50,6 +50,7 @@ import {
   jobPreferenceSchemaJoi,
   securitySchema,
 } from "./validation"
+import { NATIONALITY_TO_COUNTRY_CODE } from "@/lib/nationalityMap"
 
 const mapJoiErrors = (details: ValidationErrorItem[], prefix: string): FieldErrors => {
   return details.reduce<FieldErrors>((acc, { message, path }) => {
@@ -372,7 +373,7 @@ export default function RegisterPage() {
     setCurrentStep((prev) => Math.max(prev - 1, 0))
   }
 
-  const countryCode = personalInfo.nationality.length === 2 ? personalInfo.nationality.toUpperCase() : undefined
+  const countryCode = NATIONALITY_TO_COUNTRY_CODE[personalInfo.nationality] || (personalInfo.nationality.length === 2 ? personalInfo.nationality.toUpperCase() : undefined)
 
   const handleSubmit = async () => {
     if (!validateStep()) {
@@ -652,8 +653,8 @@ export default function RegisterPage() {
             </div>
             <p className="text-sm text-center text-muted-foreground">
               Already registered?{" "}
-              <Link 
-                href={jobId ? `/login?jobId=${jobId}` : "/login"} 
+              <Link
+                href={jobId ? `/login?jobId=${jobId}` : "/login"}
                 className="text-primary hover:underline font-medium"
               >
                 Sign in here

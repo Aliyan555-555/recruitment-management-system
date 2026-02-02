@@ -1,59 +1,83 @@
-import { NextResponse } from "next/server"
-import { hash } from "bcryptjs"
-import { Prisma } from "@prisma/client"
-import { prisma } from "@/lib/prisma"
-import { registerSchema } from "@/lib/validations"
-import { getCurrentTimestamp } from "@/lib/utils"
+import { NextResponse } from "next/server";
+import { hash } from "bcryptjs";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { registerSchema } from "@/lib/validations";
+import { getCurrentTimestamp } from "@/lib/utils";
 
-const resolveEducationLevelId = async (tx: Prisma.TransactionClient, value?: string | null) => {
-  if (!value) return null
-  const trimmed = value.trim()
-  if (!trimmed) return null
+const resolveEducationLevelId = async (
+  tx: Prisma.TransactionClient,
+  value?: string | null,
+) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
 
   // If value already looks like an ID, convert to BigInt
   if (/^\d+$/.test(trimmed)) {
     try {
-      return BigInt(trimmed)
+      return BigInt(trimmed);
     } catch {
-      return null
+      // If conversion fails, fall through to name lookup
     }
   }
 
-  // Otherwise, try to find a matching education level by name
-  const level = await tx.userEducationLevel.findFirst({
-    where: { name: trimmed },
+  // Otherwise, try to find a matching education level by name (case-insensitive)
+  let level = await tx.userEducationLevel.findFirst({
+    where: {
+      name: {
+        equals: trimmed,
+        mode: "insensitive",
+      },
+    },
     select: { id: true },
-  })
+  });
 
-  return level?.id ?? null
-}
+  // If level doesn't exist, create it to ensure the education entry can be saved
+  if (!level) {
+    try {
+      level = await tx.userEducationLevel.create({
+        data: { name: trimmed },
+        select: { id: true },
+      });
+    } catch (createError) {
+      console.error(
+        "Failed to create education level during resolution:",
+        createError,
+      );
+      return null;
+    }
+  }
+
+  return level.id;
+};
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const validatedData = registerSchema.parse(body)
+    const body = await req.json();
+    const validatedData = registerSchema.parse(body);
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
           { email: validatedData.email },
-          { username: validatedData.username }
-        ]
-      }
-    })
+          { username: validatedData.username },
+        ],
+      },
+    });
 
     if (existingUser) {
       return NextResponse.json(
         { error: "User with this email or username already exists" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
     // Hash password
-    const hashedPassword = await hash(validatedData.password, 12)
+    const hashedPassword = await hash(validatedData.password, 12);
 
-    const currentTime = getCurrentTimestamp()
+    const currentTime = getCurrentTimestamp();
 
     const user = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
@@ -74,10 +98,10 @@ export async function POST(req: Request) {
           createdAt: currentTime,
           updatedAt: currentTime,
         },
-      })
+      });
 
       if (validatedData.profile) {
-        const profile = validatedData.profile
+        const profile = validatedData.profile;
         try {
           await tx.userProfileDetail.create({
             data: {
@@ -96,29 +120,34 @@ export async function POST(req: Request) {
               createdAt: currentTime,
               updatedAt: currentTime,
             },
-          })
+          });
         } catch (profileError: any) {
           // Log the error but don't fail registration if profile table doesn't exist
-          console.error("Failed to create user profile detail:", profileError)
+          console.error("Failed to create user profile detail:", profileError);
           // If it's a table not found error, we'll continue without profile
           if (profileError.code === "P2021") {
-            console.warn("UserProfileDetail table not found. Skipping profile creation.")
+            console.warn(
+              "UserProfileDetail table not found. Skipping profile creation.",
+            );
           } else {
-            throw profileError
+            throw profileError;
           }
         }
       }
 
       if (validatedData.educationHistory?.length) {
         for (const entry of validatedData.educationHistory) {
-          const educationLevelId = await resolveEducationLevelId(tx, entry.educationLevelId)
+          const educationLevelId = await resolveEducationLevelId(
+            tx,
+            entry.educationLevelId,
+          );
 
           if (!educationLevelId) {
             console.warn(
               "Skipping education entry due to unresolved education level",
-              entry.educationLevelId
-            )
-            continue
+              entry.educationLevelId,
+            );
+            continue;
           }
 
           await tx.userEducation.create({
@@ -134,7 +163,7 @@ export async function POST(req: Request) {
               createdAt: currentTime,
               updatedAt: currentTime,
             },
-          })
+          });
         }
       }
 
@@ -152,7 +181,7 @@ export async function POST(req: Request) {
               createdAt: currentTime,
               updatedAt: currentTime,
             },
-          })
+          });
         }
       }
 
@@ -166,12 +195,12 @@ export async function POST(req: Request) {
               createdAt: currentTime,
               updatedAt: currentTime,
             },
-          })
+          });
         }
       }
 
       if (validatedData.jobPreference) {
-        const pref = validatedData.jobPreference
+        const pref = validatedData.jobPreference;
         await tx.userJobPreference.create({
           data: {
             userId: createdUser.id,
@@ -182,11 +211,11 @@ export async function POST(req: Request) {
             createdAt: currentTime,
             updatedAt: currentTime,
           },
-        })
+        });
       }
 
-      return createdUser
-    })
+      return createdUser;
+    });
 
     return NextResponse.json(
       {
@@ -198,56 +227,59 @@ export async function POST(req: Request) {
           name: `${user.firstname} ${user.lastname}`,
         },
       },
-      { status: 201 }
-    )
+      { status: 201 },
+    );
   } catch (error: any) {
-    console.error("Registration error:", error)
-    
+    console.error("Registration error:", error);
+
     // Handle validation errors
     if (error.name === "ZodError") {
       return NextResponse.json(
         { error: "Invalid input data", details: error.errors },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
     // Handle Prisma errors
     if (error.code === "P2002") {
       return NextResponse.json(
         { error: "User with this email or username already exists" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
     if (error.code === "P2021") {
       return NextResponse.json(
-        { 
+        {
           error: "Database table not found. Please run database migrations.",
-          details: error.meta?.modelName ? `Table for model ${error.meta.modelName} does not exist` : "Required database table is missing"
+          details: error.meta?.modelName
+            ? `Table for model ${error.meta.modelName} does not exist`
+            : "Required database table is missing",
         },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
     // Handle other Prisma errors
     if (error.code && error.code.startsWith("P")) {
       return NextResponse.json(
-        { 
+        {
           error: "Database error occurred",
-          details: error.message || "Please check database connection and schema"
+          details:
+            error.message || "Please check database connection and schema",
         },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
 
     // Generic error response
     return NextResponse.json(
-      { 
+      {
         error: "An error occurred during registration",
-        details: process.env.NODE_ENV === "development" ? error.message : undefined
+        details:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
-
