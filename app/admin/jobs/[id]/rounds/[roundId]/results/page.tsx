@@ -73,7 +73,14 @@ export default function ResultsPage() {
         !term ||
         c.name.toLowerCase().includes(term) ||
         c.email.toLowerCase().includes(term)
-      const matchesStatus = statusFilter === "all" || c.status === statusFilter
+
+      let matchesStatus = statusFilter === "all" || c.status === statusFilter
+      if (statusFilter === "PASSED") {
+        matchesStatus = c.recommendation === "HIRE" || (c.status === "COMPLETED" && c.recommendation !== "NO_HIRE")
+      } else if (statusFilter === "FAILED") {
+        matchesStatus = c.recommendation === "NO_HIRE" || c.status === "REJECTED"
+      }
+
       const matchesRec = recFilter === "all" || (c.recommendation || "").toUpperCase() === recFilter
       return matchesSearch && matchesStatus && matchesRec
     })
@@ -109,11 +116,15 @@ export default function ResultsPage() {
     const base = "px-2 py-1 text-xs font-semibold rounded-full"
     switch (status) {
       case "PASSED":
+      case "COMPLETED":
         return `${base} bg-emerald-500/10 text-emerald-600 dark:text-emerald-400`
       case "FAILED":
+      case "REJECTED":
         return `${base} bg-destructive/10 text-destructive`
       case "IN_PROGRESS":
         return `${base} bg-yellow-500/10 text-yellow-600 dark:text-yellow-400`
+      case "PENDING":
+        return `${base} bg-muted text-muted-foreground`
       default:
         return `${base} bg-muted text-muted-foreground`
     }
@@ -185,8 +196,10 @@ export default function ResultsPage() {
             <option value="all">All statuses</option>
             <option value="PASSED">Passed</option>
             <option value="FAILED">Failed</option>
-            <option value="IN_PROGRESS">In Progress</option>
             <option value="PENDING">Pending</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="REJECTED">Rejected</option>
           </select>
           <select
             value={recFilter}
