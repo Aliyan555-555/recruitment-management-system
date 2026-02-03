@@ -375,7 +375,20 @@ export default function AppliedCandidatesPage() {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-muted-foreground">{candidate.email}</td>
                                             <td className="px-6 py-4 text-sm text-muted-foreground">
-                                                {new Date(parseInt(candidate.appliedAt)).toLocaleDateString()}
+                                                {(() => {
+                                                    try {
+                                                        const timestamp = Number(candidate.appliedAt)
+                                                        // Check if timestamp is in seconds (10 digits) or milliseconds (13 digits)
+                                                        // If it's less than 100000000000, it's likely seconds, multiply by 1000
+                                                        // If it's 0 or NaN, show N/A
+                                                        if (!timestamp) return "N/A"
+                                                        const date = new Date(timestamp < 1000000000000 ? timestamp * 1000 : timestamp)
+                                                        if (isNaN(date.getTime())) return "Invalid Date"
+                                                        return date.toLocaleDateString()
+                                                    } catch (e) {
+                                                        return "Invalid Date"
+                                                    }
+                                                })()}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${candidate.status === "PENDING" ? "bg-yellow-500/10 text-yellow-600" :

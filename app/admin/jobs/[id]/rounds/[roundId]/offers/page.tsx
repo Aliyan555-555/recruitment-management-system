@@ -90,13 +90,13 @@ export default function OffersPage() {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Manage Offers</h2>
-                    <p className="text-gray-500">Generate and track offer letters for candidates who accepted the LOI</p>
+                    <h2 className="text-2xl font-bold text-foreground">Manage Offers</h2>
+                    <p className="text-muted-foreground">Generate and track offer letters for candidates who accepted the LOI</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Link
                         href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
-                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-card border border-input rounded-lg hover:bg-accent transition-colors"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -107,86 +107,91 @@ export default function OffersPage() {
             </div>
 
             {/* Candidates Table */}
-            <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="bg-card rounded-xl shadow overflow-hidden border border-border">
+                <table className="min-w-full divide-y divide-border">
+                    <thead className="bg-muted/50">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">LOI Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Offer Status</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Candidate</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">LOI Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Offer Status</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {candidates.map((candidate) => (
-                            <tr key={candidate.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center">
-                                        <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">
-                                            {candidate.name.charAt(0)}
-                                        </div>
-                                        <div className="ml-4">
-                                            <div className="text-sm font-medium text-gray-900">{candidate.name}</div>
-                                            <div className="text-sm text-gray-500">{candidate.email}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    {candidate.loiStatus ? (
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.loiStatus === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                                            candidate.loiStatus === 'SENT' ? 'bg-blue-100 text-blue-800' :
-                                                candidate.loiStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                                    candidate.loiStatus === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            {candidate.loiStatus}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400 text-xs">-</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4">
-                                    {candidate.offerStatus ? (
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.offerStatus === 'ACCEPTED' ? 'bg-green-100 text-green-800' :
-                                            candidate.offerStatus === 'SENT' ? 'bg-blue-100 text-blue-800' :
-                                                candidate.offerStatus === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                                    candidate.offerStatus === 'EXPIRED' ? 'bg-yellow-100 text-yellow-800' :
-                                                        'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            {candidate.offerStatus}
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400 text-xs">-</span>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4 text-right text-sm font-medium">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {candidate.loiStatus === 'ACCEPTED' ? (
-                                            <Link
-                                                href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/offer`}
-                                                className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all ${candidate.offerStatus
-                                                        ? 'bg-purple-600 hover:bg-purple-700'
-                                                        : 'bg-green-600 hover:bg-green-700'
-                                                    }`}
-                                            >
-                                                {candidate.offerStatus ? 'View Offer' : 'Generate Offer'}
-                                            </Link>
-                                        ) : (
-                                            <span className="text-xs text-gray-400 italic">LOI Not Accepted</span>
-                                        )}
-                                    </div>
+                    <tbody className="bg-card divide-y divide-border">
+                        {candidates.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-12 text-center">
+                                    <p className="text-muted-foreground text-lg font-medium">No candidates found</p>
+                                    <p className="text-muted-foreground/70 text-sm">Ensure candidates have been shortlisted for this round.</p>
                                 </td>
                             </tr>
-                        ))}
+                        ) : (
+                            candidates.map((candidate) => (
+                                <tr key={candidate.id} className="hover:bg-muted/50 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center">
+                                            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                                                {candidate.name.charAt(0)}
+                                            </div>
+                                            <div className="ml-4">
+                                                <div className="text-sm font-medium text-foreground">{candidate.name}</div>
+                                                <div className="text-sm text-muted-foreground">{candidate.email}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {candidate.loiStatus ? (
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.loiStatus === 'ACCEPTED' ? 'bg-green-500/20 text-green-600' :
+                                                candidate.loiStatus === 'SENT' ? 'bg-blue-500/20 text-blue-600' :
+                                                    candidate.loiStatus === 'REJECTED' ? 'bg-red-500/20 text-red-600' :
+                                                        candidate.loiStatus === 'EXPIRED' ? 'bg-yellow-500/20 text-yellow-600' :
+                                                            'bg-muted text-muted-foreground'
+                                                }`}>
+                                                {candidate.loiStatus}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted-foreground/50 text-xs">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        {candidate.offerStatus ? (
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${candidate.offerStatus === 'ACCEPTED' ? 'bg-green-500/20 text-green-600' :
+                                                candidate.offerStatus === 'SENT' ? 'bg-blue-500/20 text-blue-600' :
+                                                    candidate.offerStatus === 'REJECTED' ? 'bg-red-500/20 text-red-600' :
+                                                        candidate.offerStatus === 'EXPIRED' ? 'bg-yellow-500/20 text-yellow-600' :
+                                                            'bg-muted text-muted-foreground'
+                                                }`}>
+                                                {candidate.offerStatus}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted-foreground/50 text-xs">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {candidate.loiStatus === 'ACCEPTED' ? (
+                                                <Link
+                                                    href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${candidate.id}/offer`}
+                                                    className={`px-3 py-1.5 text-xs font-medium text-white rounded-lg transition-all ${candidate.offerStatus
+                                                        ? 'bg-purple-600 hover:bg-purple-700'
+                                                        : 'bg-green-600 hover:bg-green-700'
+                                                        }`}
+                                                >
+                                                    {candidate.offerStatus ? 'View Offer' : 'Generate Offer'}
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground/60 italic">LOI Not Accepted</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Action Buttons - e.g. Finish Round */}
-            {/* The user said "not need result page", so maybe we end here or have a "Complete Round" button that doesn't go to result page but maybe just marks things? 
-                 For now, I'll leave it without a "Next" button as per the request implied (skipping result page). 
-                 Or maybe to dashboard? I'll add a "Back to Rounds" button at top.
-             */}
+            {/* Legend or Helper UI can go here if needed */}
         </div>
     )
 }

@@ -1,65 +1,66 @@
-import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
-    const session = await auth()
-    
+    const session = await auth();
+
     // Allow authenticated users (admins, interviewers, staff) to view candidate profiles
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized. Please log in to view candidate profiles." },
-        { status: 401 }
-      )
+        { status: 401 },
+      );
     }
 
     // Validate candidate ID
     if (!params.id || isNaN(Number(params.id))) {
       return NextResponse.json(
         { error: "Invalid candidate ID" },
-        { status: 400 }
-      )
+        { status: 400 },
+      );
     }
 
-    const candidateId = BigInt(params.id)
+    const candidateId = BigInt(params.id);
 
     const user = await prisma.user.findUnique({
-      where: { 
+      where: {
         id: candidateId,
-        role: "CANDIDATE"
+        role: "CANDIDATE",
       },
       include: {
         educations: {
           include: {
             educationLevel: {
-              select: { id: true, name: true }
-            }
+              select: { id: true, name: true },
+            },
           },
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
         skills: {
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
         experiences: {
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
-        profileDetails: true
-      }
-    })
+        profileDetails: true,
+      },
+    });
 
     if (!user) {
       return NextResponse.json(
-        { 
+        {
           error: "Candidate profile not found",
-          message: "The candidate profile you're looking for doesn't exist or may have been removed.",
-          candidateId: params.id
+          message:
+            "The candidate profile you're looking for doesn't exist or may have been removed.",
+          candidateId: params.id,
         },
-        { status: 404 }
-      )
+        { status: 404 },
+      );
     }
 
     // Return public-safe profile data
@@ -73,47 +74,51 @@ export async function GET(
         city: user.city,
         country: user.country,
         institution: user.institution,
-        educations: user.educations.map(edu => ({
+        educations: user.educations.map((edu) => ({
           id: edu.id.toString(),
           degreeTitle: edu.degreeTitle,
-          educationLevel: edu.educationLevel,
+          educationLevel: {
+            ...edu.educationLevel,
+            id: edu.educationLevel.id.toString(),
+          },
           institute: edu.institute,
           majorSubject: edu.majorSubject,
           grade: edu.grade,
-          passingYear: edu.passingYear
+          passingYear: edu.passingYear,
         })),
-        skills: user.skills.map(skill => ({
+        skills: user.skills.map((skill) => ({
           id: skill.id.toString(),
           skillName: skill.skillName,
-          level: skill.level
+          level: skill.level,
         })),
-        experiences: user.experiences.map(exp => ({
+        experiences: user.experiences.map((exp) => ({
           id: exp.id.toString(),
           jobTitle: exp.jobTitle,
           company: exp.company,
           location: exp.location,
           startDate: exp.startDate,
           endDate: exp.endDate,
-          isCurrent: exp.isCurrent
+          isCurrent: exp.isCurrent,
         })),
-        profileDetails: user.profileDetails ? {
-          title: user.profileDetails.title,
-          professionalGrade: user.profileDetails.professionalGrade,
-          linkedinUrl: user.profileDetails.linkedinUrl,
-          portfolioUrl: user.profileDetails.portfolioUrl,
-          githubUrl: user.profileDetails.githubUrl,
-          websiteUrl: user.profileDetails.websiteUrl,
-          bio: user.profileDetails.bio,
-          availability: user.profileDetails.availability
-        } : null
-      }
-    })
+        profileDetails: user.profileDetails
+          ? {
+              title: user.profileDetails.title,
+              professionalGrade: user.profileDetails.professionalGrade,
+              linkedinUrl: user.profileDetails.linkedinUrl,
+              portfolioUrl: user.profileDetails.portfolioUrl,
+              githubUrl: user.profileDetails.githubUrl,
+              websiteUrl: user.profileDetails.websiteUrl,
+              bio: user.profileDetails.bio,
+              availability: user.profileDetails.availability,
+            }
+          : null,
+      },
+    });
   } catch (error: any) {
-    console.error("Public profile fetch error:", error)
+    console.error("Public profile fetch error:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch profile" },
-      { status: 500 }
-    )
+      { status: 500 },
+    );
   }
 }
-

@@ -183,15 +183,20 @@ export default function RegisterPage() {
     return eighteenYearsAgo.toISOString().split("T")[0]
   }, [])
 
-  const degreeOptions = useMemo(() => {
-    if (educationLevels.length) {
-      return educationLevels.map((level) => ({
-        value: level.id,
-        label: level.name ?? level.id,
-      }))
-    }
-    return defaultDegreeOptions.map((option) => ({ value: option, label: option }))
-  }, [educationLevels])
+  // const degreeOptions = useMemo(() => {
+  //   if (educationLevels.length) {
+  //     return educationLevels.map((level) => ({
+  //       value: level.id,
+  //       label: level.name ?? level.id,
+  //     }))
+  //   }
+  //   return defaultDegreeOptions.map((option) => ({ value: option, label: option }))
+  // }, [educationLevels])
+
+  const degreeOptions = educationLevels.map((level) => ({
+    value: level.id,
+    label: level.name ?? level.id,
+  }))
 
   const handlePersonalInfoChange = (updates: Partial<PersonalInfoState>) => {
     setPersonalInfo((prev) => ({ ...prev, ...updates }))

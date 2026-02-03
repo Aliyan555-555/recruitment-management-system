@@ -13,7 +13,7 @@ import { generateDefaultLOITemplate } from "@/lib/loi-template-generator"
 // Custom Line Height Extension
 const LineHeight = Extension.create({
   name: 'lineHeight',
-  
+
   addOptions() {
     return {
       types: ['paragraph', 'heading'],
@@ -53,7 +53,7 @@ const LineHeight = Extension.create({
 // Custom Font Size Extension
 const FontSize = Extension.create({
   name: 'fontSize',
-  
+
   addOptions() {
     return {
       types: ['paragraph', 'heading', 'textStyle'],
@@ -93,7 +93,7 @@ const FontSize = Extension.create({
 // Custom Font Style (Font Family) Extension
 const FontStyle = Extension.create({
   name: 'fontStyle',
-  
+
   addOptions() {
     return {
       types: ['paragraph', 'heading', 'textStyle'],
@@ -229,7 +229,7 @@ export default function LOIPage() {
     try {
       setSaving(true)
       const content = editor.getHTML()
-      
+
       const res = await fetch(`/api/admin/jobs/${jobId}/rounds/${roundId}/candidates/${candidateId}/loi`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,10 +258,10 @@ export default function LOIPage() {
       setGenerating(true)
       // First save the content
       await handleSave()
-      
+
       // Then generate PDF
       const res = await fetch(`/api/admin/jobs/${jobId}/rounds/${roundId}/candidates/${candidateId}/loi/generate-pdf`)
-      
+
       if (res.ok) {
         const blob = await res.blob()
         const url = window.URL.createObjectURL(blob)
@@ -273,7 +273,7 @@ export default function LOIPage() {
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        
+
         await fetchLOIData()
       } else {
         const error = await res.json()
@@ -313,7 +313,7 @@ export default function LOIPage() {
   const handleResetToDefault = () => {
     if (!editor || !loiData) return
     if (!confirm("Reset to default template? This will replace your current content.")) return
-    
+
     const defaultContent = generateDefaultLOITemplate(
       loiData.candidate?.name || "",
       loiData.job?.title || "",
@@ -356,14 +356,14 @@ export default function LOIPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
             <Link
               href={`/admin/jobs/${jobId}/rounds/${roundId}/shortlisted`}
-              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-foreground bg-card border border-input rounded-lg hover:bg-accent transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -374,8 +374,8 @@ export default function LOIPage() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Letter of Intent</h1>
-              <p className="text-gray-600">
+              <h1 className="text-3xl font-bold text-foreground mb-2">Letter of Intent</h1>
+              <p className="text-muted-foreground">
                 {loiData?.candidate?.name || "Loading..."} - {loiData?.job?.title || "Loading..."}
               </p>
             </div>
@@ -388,60 +388,54 @@ export default function LOIPage() {
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 p-4">
+        <div className="bg-card rounded-lg shadow-sm border border-border mb-4 p-4 text-foreground">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
               disabled={!editor.can().chain().focus().toggleBold().run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive('bold') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive('bold') ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               <strong>B</strong>
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
               disabled={!editor.can().chain().focus().toggleItalic().run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive('italic') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive('italic') ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               <em>I</em>
             </button>
             <button
               onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive('underline') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive('underline') ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               <u>U</u>
             </button>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <button
               onClick={() => editor.chain().focus().setTextAlign('left').run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive({ textAlign: 'left' }) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               ⬅
             </button>
             <button
               onClick={() => editor.chain().focus().setTextAlign('center').run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive({ textAlign: 'center' }) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               ⬌
             </button>
             <button
               onClick={() => editor.chain().focus().setTextAlign('right').run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive({ textAlign: 'right' }) ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               ➡
             </button>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <select
               onChange={(e) => {
                 const value = e.target.value
@@ -451,24 +445,24 @@ export default function LOIPage() {
                   editor.chain().focus().toggleHeading({ level: parseInt(value) as 1 | 2 | 3 }).run()
                 }
               }}
-              className="px-3 py-2 rounded text-sm border border-gray-300 bg-white"
+              className="px-3 py-2 rounded text-sm border border-input bg-background/50 text-foreground"
             >
               <option value="paragraph">Paragraph</option>
               <option value="1">Heading 1</option>
               <option value="2">Heading 2</option>
               <option value="3">Heading 3</option>
             </select>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <select
               onChange={(e) => {
                 const value = e.target.value
                 const { state } = editor
                 const { selection } = state
                 const { $from } = selection
-                
+
                 // Get the current node type
                 let nodeType = $from.parent.type.name
-                
+
                 // If we're in a heading, get the heading level
                 if (nodeType.startsWith('heading')) {
                   // Apply to the current heading
@@ -493,7 +487,7 @@ export default function LOIPage() {
                   }
                 }
               }}
-              className="px-3 py-2 rounded text-sm border border-gray-300 bg-white"
+              className="px-3 py-2 rounded text-sm border border-input bg-background/50 text-foreground"
               title="Line Height"
             >
               <option value="default">Line Height</option>
@@ -507,17 +501,17 @@ export default function LOIPage() {
               <option value="2.5">2.5</option>
               <option value="3">3.0</option>
             </select>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <select
               onChange={(e) => {
                 const value = e.target.value
                 const { state } = editor
                 const { selection } = state
                 const { $from } = selection
-                
+
                 // Get the current node type
                 let nodeType = $from.parent.type.name
-                
+
                 // If we're in a heading, get the heading level
                 if (nodeType.startsWith('heading')) {
                   // Apply to the current heading
@@ -542,7 +536,7 @@ export default function LOIPage() {
                   }
                 }
               }}
-              className="px-3 py-2 rounded text-sm border border-gray-300 bg-white"
+              className="px-3 py-2 rounded text-sm border border-input bg-background/50 text-foreground"
               title="Font Size"
             >
               <option value="default">Font Size</option>
@@ -560,17 +554,17 @@ export default function LOIPage() {
               <option value="32pt">32pt</option>
               <option value="36pt">36pt</option>
             </select>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <select
               onChange={(e) => {
                 const value = e.target.value
                 const { state } = editor
                 const { selection } = state
                 const { $from } = selection
-                
+
                 // Get the current node type
                 let nodeType = $from.parent.type.name
-                
+
                 // If we're in a heading, get the heading level
                 if (nodeType.startsWith('heading')) {
                   // Apply to the current heading
@@ -595,7 +589,7 @@ export default function LOIPage() {
                   }
                 }
               }}
-              className="px-3 py-2 rounded text-sm border border-gray-300 bg-white"
+              className="px-3 py-2 rounded text-sm border border-input bg-background/50 text-foreground"
               title="Font Style"
               style={{ minWidth: '140px' }}
             >
@@ -611,27 +605,25 @@ export default function LOIPage() {
               <option value="'Lucida Sans Unicode', sans-serif">Lucida Sans Unicode</option>
               <option value="'Palatino Linotype', serif">Palatino Linotype</option>
             </select>
-            <div className="w-px h-6 bg-gray-300 mx-1"></div>
+            <div className="w-px h-6 bg-border mx-1"></div>
             <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive('bulletList') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive('bulletList') ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               •
             </button>
             <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              className={`px-3 py-2 rounded text-sm font-medium ${
-                editor.isActive('orderedList') ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${editor.isActive('orderedList') ? 'bg-primary/20 text-primary' : 'hover:bg-accent hover:text-accent-foreground'
+                }`}
             >
               1.
             </button>
             <div className="flex-1"></div>
             <button
               onClick={handleResetToDefault}
-              className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+              className="px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-input rounded hover:bg-accent hover:text-accent-foreground"
             >
               Reset to Default
             </button>
@@ -639,18 +631,21 @@ export default function LOIPage() {
         </div>
 
         {/* Editor - Word-like Document Editor */}
-        <div className="bg-white rounded-lg shadow-lg border-2 border-gray-300 min-h-[800px] overflow-hidden">
-          <div className="border-b-2 border-gray-300 bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3">
+        <div className="bg-card rounded-lg shadow-lg border border-border min-h-[800px] overflow-hidden flex flex-col">
+          <div className="border-b border-border bg-muted/40 px-6 py-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-700">📝 Document Editor - Edit your LOI like Microsoft Word</p>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <p className="text-sm font-medium text-foreground">📝 Document Editor - Edit your LOI like Microsoft Word</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Word Count: {editor.getText().split(/\s+/).filter(word => word.length > 0).length}</span>
               </div>
             </div>
           </div>
-          <div className="editor-wrapper bg-white" style={{ minHeight: '750px', position: 'relative' }}>
-            <div className="absolute inset-0 overflow-auto">
-              {editor && <EditorContent editor={editor} />}
+          <div className="editor-wrapper flex-1 bg-muted/20 relative" style={{ minHeight: '750px' }}>
+            <div className="absolute inset-0 overflow-auto py-8">
+              {/* This wrapper mimics the paper sheet */}
+              <div className="mx-auto bg-white text-black max-w-[800px] min-h-[1000px] shadow-md">
+                {editor && <EditorContent editor={editor} />}
+              </div>
             </div>
           </div>
         </div>
@@ -660,14 +655,14 @@ export default function LOIPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="px-6 py-2 text-sm font-medium text-foreground bg-card border border-input rounded-lg hover:bg-accent disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save Draft"}
           </button>
           <button
             onClick={handleGeneratePDF}
             disabled={generating}
-            className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-6 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50"
           >
             {generating ? "Generating..." : "Generate PDF"}
           </button>
@@ -685,32 +680,20 @@ export default function LOIPage() {
       <style jsx global>{`
         .editor-wrapper {
           position: relative;
-          background: #f5f5f5;
         }
-        .editor-wrapper::before {
-          content: '';
-          position: absolute;
-          left: 80px;
-          top: 0;
-          bottom: 0;
-          width: 1px;
-          background: #e0e0e0;
-          z-index: 1;
-        }
+        /* ProseMirror mimics the paper */
         .ProseMirror {
           outline: none !important;
-          min-height: 750px;
+          min-height: 1000px;
           padding: 3rem 4rem;
           font-family: 'Times New Roman', serif;
           font-size: 11pt;
           line-height: 1.6;
-          color: #000;
-          background: white;
+          color: #000000 !important; /* Always black text on the paper */
+          background: #ffffff !important; /* Always white paper */
           max-width: 800px;
           margin: 0 auto;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
-          position: relative;
-          z-index: 2;
+          box-shadow: none; /* Shadow handled by container */
         }
         .ProseMirror p[style*="line-height"],
         .ProseMirror h1[style*="line-height"],
