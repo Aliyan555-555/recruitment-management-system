@@ -22,44 +22,32 @@ interface FormErrors {
   skills?: string
   locations?: string
   _general?: string
-  workflowSteps?: Record<number, {
-    stepName?: string
-    meetingLink?: string
-    durationMins?: string
-    weightage?: string
-    scoreThreshold?: string
-    evaluationCriteria?: string
-    attachments?: string
-  }>
+  workflowSteps?: {
+    [key: number]: {
+      stepType?: string
+      stepName?: string
+      meetingLink?: string
+      durationMins?: string
+      weightage?: string
+      scoreThreshold?: string
+
+      interviewMode?: string
+    }
+    _general?: string
+  }
 }
 
 interface WorkflowStep {
-  stepName: string
+  stepName?: string // Kept for display/compatibility
+  stepType: string // Required enum
   stepOrder: number
-  isRequired: boolean
-  isSkippable: boolean
   interviewerId?: string
-  stepType?: string
-  skipReason?: string
   durationMins?: number
   weightage?: number
   scoreThreshold?: number
   interviewMode?: string
   meetingLink?: string
-  interviewerIds?: string[]
-  routeVisibility?: string[]
-  evaluationCriteria?: string[]
-  evaluationCriteriaInput?: string
-  candidateInstructions?: string
-  interviewerInstructions?: string
-  attachments?: Array<{
-    file?: File
-    id: string
-    fileName?: string
-    fileSize?: number
-    fileType?: string
-    access: string[]
-  }>
+
 }
 
 export default function EditJobPage() {
@@ -74,19 +62,15 @@ export default function EditJobPage() {
   const [locations, setLocations] = useState<{ city: string; country: string }[]>([])
   const [newLocation, setNewLocation] = useState<{ city: string; country: string }>({ city: "", country: "" })
   const [locationError, setLocationError] = useState<string>("")
+  const [educationLevels, setEducationLevels] = useState<{ id: string; name: string }[]>([])
 
-  const stepOptions = useMemo(() => ([
-    "Initial Screening",
-    "Screening Interview",
-    "Technical Interview",
-    "Focus Group",
-    "Final Interview",
-    "Letter of Intent",
-    "Test",
-    "HR Interview",
-    "Offer",
-    "Other",
-  ]), [])
+  const stepTypeOptions = useMemo(() => [
+    { value: "TEST", label: "Test" },
+    { value: "SCREENING_INTERVIEW", label: "Screening Interview" },
+    { value: "FOCUS_GROUP", label: "Focus Group" },
+    { value: "FINAL_INTERVIEW", label: "Final Interview" },
+    { value: "OFFER", label: "Offer" },
+  ], [])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -109,17 +93,29 @@ export default function EditJobPage() {
   })
   const [skillInput, setSkillInput] = useState("")
 
-  const [interviewers, setInterviewers] = useState<Array<{ id: string; name: string }>>([])
-  const roleOptions = ["ADMIN", "INTERVIEWER", "CANDIDATE"]
+
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
-  // Load job data
+  // Load job data and education levels
   useEffect(() => {
-    const loadJobData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
+
+        // Fetch education levels
+        try {
+          const eduRes = await fetch("/api/admin/education-levels")
+          if (eduRes.ok) {
+            const eduData = await eduRes.json()
+            setEducationLevels(eduData)
+          }
+        } catch (error) {
+          console.error("Error fetching education levels:", error)
+        }
+
+        // Fetch Job Data
         const res = await fetch(`/api/admin/jobs/${jobId}`)
         if (!res.ok) {
           if (res.status === 404) {
@@ -163,44 +159,23 @@ export default function EditJobPage() {
         // Populate workflow steps
         if (job.workflow?.steps && job.workflow.steps.length > 0) {
           const steps = job.workflow.steps.map((step: any) => ({
-            stepName: step.stepName || "",
+            stepName: step.stepName || "", // For display if needed
+            stepType: step.stepType || "", // This should be mapped to ENUM values if possible
             stepOrder: step.stepOrder || 1,
-            isRequired: step.isRequired !== undefined ? step.isRequired : true,
-            isSkippable: step.isSkippable !== undefined ? step.isSkippable : false,
-            interviewerId: step.interviewerId || null,
-            stepType: step.stepType ?? "",
-            skipReason: step.skipReason ?? "",
-            durationMins: step.durationMins !== undefined && step.durationMins !== null ? step.durationMins : undefined,
-            weightage: step.weightage !== undefined && step.weightage !== null ? step.weightage : undefined,
-            scoreThreshold: step.scoreThreshold !== undefined && step.scoreThreshold !== null ? step.scoreThreshold : undefined,
-            interviewMode: step.interviewMode ?? "",
-            meetingLink: step.meetingLink ?? "",
-            interviewerIds: Array.isArray(step.interviewerIds) && step.interviewerIds.length > 0
-              ? step.interviewerIds
-              : (step.interviewerId ? [step.interviewerId] : []),
-            routeVisibility: Array.isArray(step.routeVisibility) ? step.routeVisibility : [],
-            evaluationCriteria: Array.isArray(step.evaluationCriteria) ? step.evaluationCriteria : [],
-            evaluationCriteriaInput: "",
-            candidateInstructions: step.candidateInstructions ?? "",
-            interviewerInstructions: step.interviewerInstructions ?? "",
-            attachments: Array.isArray(step.attachments) && step.attachments.length > 0
-              ? step.attachments.map((att: any) => ({
-                id: att.id || `${Date.now()}-${Math.random()}`,
-                fileName: att.fileName || "",
-                fileSize: att.fileSize || 0,
-                fileType: att.fileType || "",
-                access: Array.isArray(att.access) ? att.access : []
-              }))
-              : []
+            interviewerId: step.interviewerId || undefined,
+            durationMins: step.durationMins || undefined,
+            weightage: step.weightage || undefined,
+            scoreThreshold: step.scoreThreshold || undefined,
+            interviewMode: step.interviewMode || undefined,
+            meetingLink: step.meetingLink || undefined,
+
           }))
           setWorkflowSteps(steps)
         } else {
           // If no workflow, create one empty step
           setWorkflowSteps([{
-            stepName: "",
+            stepType: "",
             stepOrder: 1,
-            isRequired: true,
-            isSkippable: false,
           }])
         }
       } catch (error) {
@@ -213,28 +188,11 @@ export default function EditJobPage() {
     }
 
     if (jobId) {
-      loadJobData()
+      fetchData()
     }
   }, [jobId, router])
 
-  // Load interviewers list
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch("/api/admin/interviewers")
-        if (res.ok) {
-          const data = await res.json()
-          const opts = (data.interviewers || []).map((i: any) => ({
-            id: i.id,
-            name: `${i.firstname} ${i.lastname}`.trim()
-          }))
-          setInterviewers(opts)
-        }
-      } catch (error) {
-        console.error("Error loading interviewers:", error)
-      }
-    })()
-  }, [])
+
 
   // Validation functions (same as create page)
   const validateTitle = (title: string): string | undefined => {
@@ -286,11 +244,11 @@ export default function EditJobPage() {
     if (isNaN(date.getTime())) {
       return `${fieldName} must be a valid date`
     }
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    if (date < today) {
-      return `${fieldName} cannot be in the past`
-    }
+    // const today = new Date()
+    // today.setHours(0, 0, 0, 0)
+    // if (date < today) {
+    //   return `${fieldName} cannot be in the past`
+    // }
     return undefined
   }
 
@@ -365,8 +323,18 @@ export default function EditJobPage() {
   const validateWorkflowStep = (step: WorkflowStep, index: number): Record<string, string> => {
     const stepErrors: Record<string, string> = {}
 
-    if (!step.stepName || step.stepName.trim() === "") {
-      stepErrors.stepName = "Step name is required"
+    if (!step.stepType || step.stepType.trim() === "") {
+      stepErrors.stepType = "Step type is required"
+    }
+
+    if (step.stepType === "OFFER" && index < workflowSteps.length - 1) {
+      stepErrors.stepType = "Offer step must be the last step in the workflow"
+    }
+
+    if (["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType)) {
+      if (!step.interviewMode || step.interviewMode.trim() === "") {
+        stepErrors.interviewMode = "Interview mode is required"
+      }
     }
 
     if (step.interviewMode === "Remote") {
@@ -404,19 +372,6 @@ export default function EditJobPage() {
       const threshold = Number(step.scoreThreshold)
       if (isNaN(threshold) || threshold < 0 || threshold > 100) {
         stepErrors.scoreThreshold = "Score threshold must be between 0 and 100"
-      }
-    }
-
-    if (step.attachments && step.attachments.length > 0) {
-      for (const attachment of step.attachments) {
-        if (attachment.file && attachment.file.size > 10 * 1024 * 1024) {
-          stepErrors.attachments = `File "${attachment.file.name}" exceeds 10MB size limit`
-          break
-        }
-        if (attachment.access.length === 0) {
-          stepErrors.attachments = "Each attachment must have at least one access option selected"
-          break
-        }
       }
     }
 
@@ -561,10 +516,8 @@ export default function EditJobPage() {
     setWorkflowSteps([
       ...workflowSteps,
       {
-        stepName: "",
+        stepType: "",
         stepOrder: workflowSteps.length + 1,
-        isRequired: true,
-        isSkippable: false,
       }
     ])
   }
@@ -611,35 +564,21 @@ export default function EditJobPage() {
       const skillsArray = formData.skills.filter(s => s.trim())
 
       const transformedSteps = workflowSteps.map((step, index) => {
-        // Handle attachments
-        const attachments = (step.attachments || []).map((att: any) => ({
-          id: att.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          fileName: att.file?.name ?? att.fileName ?? "",
-          fileSize: typeof att.file?.size === "number" ? att.file.size : (att.fileSize ?? 0),
-          fileType: att.file?.type ?? att.fileType ?? "",
-          access: Array.isArray(att.access) ? att.access : [],
-        }))
-
         // Create clean step object without temporary UI fields
+        // Map simplified step to API structure 
+        // Note: API likely expects stepName to be present or at least not null if it was used for display
         return {
-          stepName: step.stepName || "",
+          stepName: step.stepType, // Use stepType as name if name is empty, or keep existing logic
           stepOrder: step.stepOrder || (index + 1),
-          isRequired: step.isRequired !== undefined ? step.isRequired : true,
-          isSkippable: step.isSkippable !== undefined ? step.isSkippable : false,
+          isRequired: true, // Default to true as per new simplified logic
+          isSkippable: false, // Default
           interviewerId: step.interviewerId || undefined,
           stepType: step.stepType || undefined,
-          skipReason: step.skipReason || undefined,
           durationMins: step.durationMins !== undefined && step.durationMins !== null ? step.durationMins : undefined,
           weightage: step.weightage !== undefined && step.weightage !== null ? step.weightage : undefined,
           scoreThreshold: step.scoreThreshold !== undefined && step.scoreThreshold !== null ? step.scoreThreshold : undefined,
           interviewMode: step.interviewMode || undefined,
           meetingLink: step.meetingLink || undefined,
-          interviewerIds: Array.isArray(step.interviewerIds) && step.interviewerIds.length > 0 ? step.interviewerIds : undefined,
-          routeVisibility: Array.isArray(step.routeVisibility) && step.routeVisibility.length > 0 ? step.routeVisibility : undefined,
-          evaluationCriteria: Array.isArray(step.evaluationCriteria) && step.evaluationCriteria.length > 0 ? step.evaluationCriteria : undefined,
-          candidateInstructions: step.candidateInstructions || undefined,
-          interviewerInstructions: step.interviewerInstructions || undefined,
-          attachments: attachments.length > 0 ? attachments : undefined,
         }
       })
 
@@ -1098,6 +1037,35 @@ export default function EditJobPage() {
                 )}
               </div>
 
+              {/* Minimum Education */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Minimum Education
+                </label>
+                <select
+                  value={formData.minEducation}
+                  onChange={(e) => setFormData({ ...formData, minEducation: e.target.value })}
+                  className="w-full px-3 py-2 border border-input rounded-md"
+                >
+                  <option value="">Select minimum education</option>
+                  {educationLevels.length > 0 ? (
+                    educationLevels.map((level) => (
+                      <option key={level.id} value={level.name}>
+                        {level.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="High School Diploma">High School Diploma</option>
+                      <option value="Associate Degree">Associate Degree</option>
+                      <option value="Bachelor's Degree">Bachelor&apos;s Degree</option>
+                      <option value="Master's Degree">Master&apos;s Degree</option>
+                      <option value="Doctorate / PhD">Doctorate / PhD</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
               {/* Description */}
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1">
@@ -1317,7 +1285,7 @@ export default function EditJobPage() {
             )}
           </div>
 
-          {/* Workflow Steps - Note: I'll add a simplified version here, you can expand it like create page */}
+          {/* Workflow Steps */}
           <div className="bg-card rounded-lg shadow p-6 border border-border">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-foreground">Workflow Steps</h3>
@@ -1348,77 +1316,63 @@ export default function EditJobPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      Step Name <span className="text-red-500">*</span>
+                      Step Type <span className="text-red-500">*</span>
+                      {step.stepType === "OFFER" && (
+                        <span className="ml-2 text-xs text-primary">(Must be last step)</span>
+                      )}
                     </label>
                     <select
                       required
-                      value={step.stepName}
-                      onChange={(e) => handleStepChange(index, "stepName", e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.stepName ? "border-destructive bg-destructive/10" : "border-input"
+                      value={step.stepType || ""}
+                      onChange={(e) => {
+                        handleStepChange(index, "stepType", e.target.value)
+
+                        // Clear error when step type is selected
+                        if (errors.workflowSteps?.[index]?.stepType && e.target.value) {
+                          setErrors(prev => {
+                            const newErrors = { ...prev }
+                            if (newErrors.workflowSteps?.[index]) {
+                              delete newErrors.workflowSteps[index].stepType
+                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
+                                delete newErrors.workflowSteps[index]
+                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
+                                  delete newErrors.workflowSteps
+                                }
+                              }
+                            }
+                            return newErrors
+                          })
+                        }
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.stepType ? "border-destructive bg-destructive/10" : "border-input"
                         }`}
                     >
-                      <option value="">Select step</option>
-                      {stepOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
+                      <option value="">Select type</option>
+                      {stepTypeOptions.map(opt => {
+                        const isSelectedInOtherStep = workflowSteps.some((s, i) => i !== index && s.stepType === opt.value)
+                        return (
+                          <option
+                            key={opt.value}
+                            value={opt.value}
+                            disabled={(opt.value === "OFFER" && index < workflowSteps.length - 1) || isSelectedInOtherStep}
+                          >
+                            {opt.label} {isSelectedInOtherStep ? "(Already added)" : ""}
+                          </option>
+                        )
+                      })}
                     </select>
-                    {errors.workflowSteps?.[index]?.stepName && (
-                      <p className="mt-1 text-sm text-red-600">{errors.workflowSteps[index].stepName}</p>
+                    {errors.workflowSteps?.[index]?.stepType && (
+                      <p className="mt-1 text-sm text-red-600">{errors.workflowSteps[index].stepType}</p>
+                    )}
+                    {step.stepType === "OFFER" && index === workflowSteps.length - 1 && (
+                      <p className="mt-1 text-sm text-emerald-500 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Offer step is correctly placed as the final step
+                      </p>
                     )}
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Step Type</label>
-                    <select
-                      value={step.stepType || ""}
-                      onChange={(e) => handleStepChange(index, "stepType", e.target.value)}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                    >
-                      <option value="">Select type</option>
-                      <option value="Screening">Screening</option>
-                      <option value="Technical">Technical</option>
-                      <option value="FocusGroup">Focus Group</option>
-                      <option value="Final">Final</option>
-                      <option value="Offer">Offer</option>
-                      <option value="Test">Test</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={step.isRequired}
-                      onChange={(e) => handleStepChange(index, "isRequired", e.target.checked)}
-                      className="mr-2"
-                      id={`required-${index}`}
-                    />
-                    <label htmlFor={`required-${index}`} className="text-sm text-foreground">Required</label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={step.isSkippable}
-                      onChange={(e) => handleStepChange(index, "isSkippable", e.target.checked)}
-                      className="mr-2"
-                      id={`skippable-${index}`}
-                    />
-                    <label htmlFor={`skippable-${index}`} className="text-sm text-foreground">Skippable</label>
-                  </div>
-
-                  {step.isSkippable && (
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-foreground mb-1">Skip Reason</label>
-                      <textarea
-                        value={step.skipReason || ""}
-                        onChange={(e) => handleStepChange(index, "skipReason", e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                        placeholder="Enter reason why this step can be skipped..."
-                      />
-                    </div>
-                  )}
 
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">Duration (mins)</label>
@@ -1431,19 +1385,31 @@ export default function EditJobPage() {
                       className="w-full px-3 py-2 border border-input rounded-md bg-background"
                       placeholder="e.g., 60"
                     />
+                    {errors.workflowSteps?.[index]?.durationMins && (
+                      <p className="mt-1 text-sm text-red-600">{errors.workflowSteps[index].durationMins}</p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Interview Mode</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Interview Mode
+                      {["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType) && (
+                        <span className="text-red-500 ml-1">*</span>
+                      )}
+                    </label>
                     <select
                       value={step.interviewMode || ""}
                       onChange={(e) => handleStepChange(index, "interviewMode", e.target.value)}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.interviewMode ? "border-destructive bg-destructive/10" : "border-input"
+                        }`}
                     >
                       <option value="">Select mode</option>
                       <option value="Onsite">Onsite</option>
                       <option value="Remote">Remote</option>
                     </select>
+                    {errors.workflowSteps?.[index]?.interviewMode && (
+                      <p className="mt-1 text-sm text-red-600">{errors.workflowSteps[index].interviewMode}</p>
+                    )}
                   </div>
 
                   {step.interviewMode === "Remote" && (
@@ -1465,43 +1431,6 @@ export default function EditJobPage() {
                       )}
                     </div>
                   )}
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">Assigned Interviewer(s)</label>
-                    <select
-                      multiple
-                      value={step.interviewerIds || []}
-                      onChange={(e) => {
-                        const options = Array.from(e.target.selectedOptions).map(o => o.value)
-                        handleStepChange(index, "interviewerIds", options)
-                      }}
-                      className="w-full px-3 py-2 border border-input rounded-md h-28 bg-background"
-                    >
-                      {interviewers.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">Candidate Instructions</label>
-                    <textarea
-                      value={step.candidateInstructions || ""}
-                      onChange={(e) => handleStepChange(index, "candidateInstructions", e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">Interviewer Instructions</label>
-                    <textarea
-                      value={step.interviewerInstructions || ""}
-                      onChange={(e) => handleStepChange(index, "interviewerInstructions", e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
-                    />
-                  </div>
                 </div>
               </div>
             ))}
