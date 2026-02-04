@@ -419,13 +419,24 @@ export default function AssessmentPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header Section */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Screening Interview Assessment
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Batch Recruitment - {jobTitle}
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Screening Interview Assessment
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Batch Recruitment - {jobTitle}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
+            className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Candidate List
+          </button>
         </div>
 
         {/* Progress Stepper */}
@@ -839,19 +850,22 @@ export default function AssessmentPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                 </svg>
-                Back to Assessment
+                Previous Step
               </button>
-              {isReadOnly ? (
-                <button
-                  onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
-                  className="bg-primary text-primary-foreground px-10 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-lg flex items-center gap-2"
-                >
-                  Back to Assessments
-                </button>
-              ) : (
+
+              <div className="flex items-center gap-4">
+                {isReadOnly && (
+                  <button
+                    onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
+                    className="bg-background border-2 border-input text-foreground px-8 py-3 rounded-lg font-semibold hover:bg-muted transition-all flex items-center gap-2"
+                  >
+                    Back to Candidate List
+                  </button>
+                )}
+
                 <button
                   onClick={handleSubmit}
-                  disabled={saving}
+                  disabled={isReadOnly || saving}
                   className="bg-primary text-primary-foreground px-10 py-3 rounded-lg font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 flex items-center gap-2"
                 >
                   {saving ? (
@@ -867,11 +881,11 @@ export default function AssessmentPage() {
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      Submit Assessment
+                      {isReadOnly ? "Assessment Submitted" : "Submit Assessment"}
                     </>
                   )}
                 </button>
-              )}
+              </div>
             </div>
           </div>
         )}

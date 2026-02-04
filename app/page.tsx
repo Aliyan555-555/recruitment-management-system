@@ -50,8 +50,8 @@ interface PublicJob {
 export default function HomePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const { stats, recentApplications, upcomingInterviews, loading, error, fetchDashboardData } = useDashboardStore()
-  const { jobs, fetchJobs } = useJobsStore()
+  const { stats, recentApplications, upcomingInterviews, loading: dashboardLoading, error, fetchDashboardData } = useDashboardStore()
+  const { jobs, loading: jobsLoading, fetchJobs } = useJobsStore()
 
   // Public jobs state
   const [publicJobs, setPublicJobs] = useState<PublicJob[]>([])
@@ -126,7 +126,10 @@ export default function HomePage() {
     location: string
   }) => {
     try {
-      setPublicJobsLoading(true)
+      // Only show loading skeleton if we don't have any jobs yet
+      if (publicJobs.length === 0) {
+        setPublicJobsLoading(true)
+      }
       setPublicJobsError(null)
 
       const params = new URLSearchParams()
@@ -369,7 +372,11 @@ export default function HomePage() {
   }
 
   // Authenticated user dashboard
-  const recentJobs = jobs.slice(0, 3)
+  const now = new Date()
+  const filteredActiveJobs = jobs.filter(
+    (job) => new Date(job.postTo) >= now && job.jobStatus === "ACTIVE",
+  )
+  const recentJobs = filteredActiveJobs.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -410,7 +417,7 @@ export default function HomePage() {
         )}
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
@@ -419,12 +426,16 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {jobsLoading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold text-foreground">{stats.activeJobs}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Available positions</p>
+                  <div className="text-2xl font-bold text-foreground">
+                    {filteredActiveJobs.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Available positions
+                  </p>
                 </>
               )}
             </CardContent>
@@ -438,7 +449,7 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {dashboardLoading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
@@ -449,24 +460,7 @@ export default function HomePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-amber-500 shadow-sm hover:shadow-md transition-all">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Interviews</CardTitle>
-              <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center">
-                <Users className="h-4 w-4 text-amber-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="h-8 w-16 bg-muted animate-pulse rounded" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-foreground">{stats.interviews}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Scheduled</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
+
 
           <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -476,7 +470,7 @@ export default function HomePage() {
               </div>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {dashboardLoading ? (
                 <div className="h-8 w-16 bg-muted animate-pulse rounded" />
               ) : (
                 <>
@@ -505,7 +499,7 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              {loading ? (
+              {jobsLoading ? (
                 <div className="grid gap-4">
                   {[1, 2, 3].map((i) => (
                     <JobCardSkeleton key={i} />
@@ -586,48 +580,7 @@ export default function HomePage() {
               </CardContent>
             </Card>
 
-            {/* Upcoming Interviews */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Upcoming Interviews</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {upcomingInterviews.length > 0 ? (
-                  <div className="space-y-4">
-                    {upcomingInterviews.map((interview) => (
-                      <div key={interview.slotId} className="flex flex-col gap-2 p-3 bg-secondary/20 rounded-lg border border-border/50">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-sm">{interview.jobTitle}</p>
-                            <p className="text-xs text-muted-foreground">{interview.jobCompany}</p>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] h-5 bg-background">
-                            {interview.stepName}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Calendar className="h-3.5 w-3.5" />
-                          {new Date(interview.startsAt).toLocaleString(undefined, {
-                            weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-                          })}
-                        </div>
-                        {interview.meetingLink && (
-                          <Button size="sm" variant="secondary" className="w-full h-8 mt-1 text-xs" asChild>
-                            <a href={interview.meetingLink} target="_blank" rel="noopener noreferrer">
-                              Join Meeting
-                            </a>
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-sm text-muted-foreground">
-                    No interviews scheduled
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+
 
             {/* Recent Activity */}
             <Card>

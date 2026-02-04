@@ -22,13 +22,18 @@ export interface Job {
   minimumEducation?: string;
   createdBy: string;
   applicationCount: number;
+  jobStatus: string;
 }
 
 interface JobsState {
   jobs: Job[];
   loading: boolean;
   error: string | null;
-  fetchJobs: () => Promise<void>;
+  fetchJobs: (filters?: {
+    search?: string;
+    department?: string;
+    location?: string;
+  }) => Promise<void>;
   reset: () => void;
 }
 
@@ -43,14 +48,27 @@ export const useJobsStore = create<JobsState>()(
     (set, get) => ({
       ...initialState,
 
-      fetchJobs: async () => {
+      fetchJobs: async (filters) => {
         // Prevent duplicate fetches
         if (get().loading) return;
 
-        set({ loading: true, error: null });
+        // Only set loading to true if we don't have any jobs yet
+        const currentJobs = get().jobs;
+        if (currentJobs.length === 0) {
+          set({ loading: true, error: null });
+        } else {
+          set({ error: null });
+        }
 
         try {
-          const response = await fetch("/api/jobs", {
+          const params = new URLSearchParams();
+          if (filters?.search) params.set("search", filters.search);
+          if (filters?.department && filters.department !== "all")
+            params.set("department", filters.department);
+          if (filters?.location && filters.location !== "all")
+            params.set("location", filters.location);
+
+          const response = await fetch(`/api/jobs?${params.toString()}`, {
             method: "GET",
             headers: {
               "Content-Type": "application/json",
@@ -60,12 +78,12 @@ export const useJobsStore = create<JobsState>()(
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(
-              errorData.error || `Failed to fetch jobs: ${response.statusText}`
+              errorData.error || `Failed to fetch jobs: ${response.statusText}`,
             );
           }
 
           const data = await response.json();
-          
+
           // Transform the API response to match Job interface
           const transformedJobs: Job[] = data.jobs.map((job: any) => ({
             id: job.id.toString(),
@@ -86,6 +104,7 @@ export const useJobsStore = create<JobsState>()(
             minimumEducation: job.minimumEducation || undefined,
             createdBy: job.createdBy || "Unknown",
             applicationCount: job.applicationCount || 0,
+            jobStatus: job.jobStatus || "ACTIVE",
           }));
 
           set({ jobs: transformedJobs, loading: false, error: null });
@@ -101,7 +120,6 @@ export const useJobsStore = create<JobsState>()(
     }),
     {
       name: "jobs-store", // For Redux DevTools
-    }
-  )
+    },
+  ),
 );
-

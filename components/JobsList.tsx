@@ -16,7 +16,7 @@ interface JobsListProps {
 export function JobsList({ jobs, loading = false }: JobsListProps) {
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mt-10">
       {loading ? (
         // Render 3 skeleton cards
         Array.from({ length: 3 }).map((_, idx) => <JobCardSkeleton key={idx} />)
@@ -47,7 +47,7 @@ export function JobsList({ jobs, loading = false }: JobsListProps) {
             <CardContent>
               {job.shortDescription && (
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {job.shortDescription }
+                  {job.shortDescription}
                 </p>
               )}
 

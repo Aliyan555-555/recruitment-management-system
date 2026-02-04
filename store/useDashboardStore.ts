@@ -51,7 +51,7 @@ interface DashboardState {
   reset: () => void;
 }
 
-const initialState: Omit<DashboardState, 'fetchDashboardData' | 'reset'> = {
+const initialState: Omit<DashboardState, "fetchDashboardData" | "reset"> = {
   stats: {
     activeJobs: 0,
     applications: 0,
@@ -73,7 +73,12 @@ export const useDashboardStore = create<DashboardState>()(
         // Prevent duplicate fetches
         if (get().loading) return;
 
-        set({ loading: true, error: null });
+        // Only set loading to true if we don't have any applications yet
+        if (get().recentApplications.length === 0) {
+          set({ loading: true, error: null });
+        } else {
+          set({ error: null });
+        }
 
         try {
           // Fetch all data in parallel
@@ -90,14 +95,22 @@ export const useDashboardStore = create<DashboardState>()(
               fetch("/api/interviews/upcoming", {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
-              }).catch(() => ({ ok: false, json: async () => ({ upcoming: [] }) })),
+              }).catch(() => ({
+                ok: false,
+                json: async () => ({ upcoming: [] }),
+              })),
             ]);
 
           // Handle jobs
           let activeJobs = 0;
           if (jobsResponse.ok) {
             const jobsData = await jobsResponse.json();
-            activeJobs = jobsData.jobs?.length || 0;
+            const now = new Date();
+            const filteredJobs = (jobsData.jobs || []).filter(
+              (job: any) =>
+                new Date(job.postTo) >= now && job.jobStatus === "ACTIVE",
+            );
+            activeJobs = filteredJobs.length;
           }
 
           // Handle applications
@@ -112,7 +125,7 @@ export const useDashboardStore = create<DashboardState>()(
             completedApplications = applications.filter(
               (app: Application) =>
                 app.status === "COMPLETED" ||
-                app.pipeline?.overallStatus === "COMPLETED"
+                app.pipeline?.overallStatus === "COMPLETED",
             ).length;
           }
 
@@ -158,7 +171,6 @@ export const useDashboardStore = create<DashboardState>()(
     }),
     {
       name: "dashboard-store",
-    }
-  )
+    },
+  ),
 );
-

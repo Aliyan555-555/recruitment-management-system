@@ -85,7 +85,7 @@ export function JobsLandingHero({ onSearch, totalJobs, compact }: JobsLandingHer
                         ) : (
                             <>
                                 <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
-                                    Find Your Dream Job{orgName ? ` at ${orgName}` : ""}
+                                    Find Your Job{orgName ? ` at ${orgName}` : ""}
                                 </h1>
                                 <p className="text-lg lg:text-xl text-muted-foreground mb-2 max-w-2xl mx-auto">
                                     Discover exciting career opportunities{orgName ? ` with ${orgName}` : ""}
