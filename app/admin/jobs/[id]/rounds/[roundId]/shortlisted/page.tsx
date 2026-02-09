@@ -26,6 +26,11 @@ interface WorkflowStep {
     stepName: string
     stepType: string | null
     stepOrder: number
+    job?: {
+        id: string
+        title: string
+        jobCode?: string | null
+    }
 }
 
 export default function ShortlistedCandidatesPage() {
@@ -95,9 +100,31 @@ export default function ShortlistedCandidatesPage() {
 
     return (
         <div className="space-y-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Link
+                    href="/admin/jobs"
+                    className="hover:text-foreground transition-colors"
+                >
+                    Jobs
+                </Link>
+                <span>/</span>
+                <Link
+                    href={`/admin/jobs/${params.id}`}
+                    className="hover:text-foreground transition-colors"
+                >
+                    {workflowStep?.job?.title || "Job"}
+                </Link>
+                <span>/</span>
+                <span className="text-foreground font-medium">
+                    {workflowStep?.stepName || "Round"} - Shortlisted
+                </span>
+            </div>
+
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
+             
                     <h2 className="text-2xl font-bold text-foreground">Shortlisted Candidates</h2>
                     <p className="text-muted-foreground">Track assessments and move to next round</p>
                 </div>

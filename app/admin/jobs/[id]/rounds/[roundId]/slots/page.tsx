@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
 
@@ -16,9 +17,22 @@ interface Slot {
     bookings: any[]
 }
 
+interface WorkflowStep {
+    id: string
+    stepName: string
+    stepType: string | null
+    stepOrder: number
+    job?: {
+        id: string
+        title: string
+        jobCode?: string | null
+    }
+}
+
 export default function SlotManagementPage() {
     const params = useParams()
     const [slots, setSlots] = useState<Slot[]>([])
+    const [workflowStep, setWorkflowStep] = useState<WorkflowStep | null>(null)
     const [loading, setLoading] = useState(true)
     const [showCreateModal, setShowCreateModal] = useState(false)
 
@@ -38,9 +52,20 @@ export default function SlotManagementPage() {
 
     useEffect(() => {
         fetchSlots()
-        // Fetch interviewers (mock for now or implement API)
-        // setInterviewers(...)
+        fetchWorkflowStep()
     }, [])
+
+    const fetchWorkflowStep = async () => {
+        try {
+            const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setWorkflowStep(data.workflowStep)
+            }
+        } catch (error) {
+            console.error("Error fetching workflow step:", error)
+        }
+    }
 
     const fetchSlots = async () => {
         try {
@@ -85,10 +110,28 @@ export default function SlotManagementPage() {
 
     return (
         <div className="space-y-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Link href="/admin/jobs" className="hover:text-foreground transition-colors">Jobs</Link>
+                <span>/</span>
+                <Link href={`/admin/jobs/${params.id}`} className="hover:text-foreground transition-colors">
+                    {workflowStep?.job?.title || "Job"}
+                </Link>
+                <span>/</span>
+                <span className="text-foreground font-medium">{workflowStep?.stepName || "Round"} - Slots</span>
+            </div>
+
             <div className="flex justify-between items-center">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Interview Slots</h2>
-                    <p className="text-gray-500">Manage availability for this round</p>
+                    <div className="mb-2">
+                        <span className="text-sm text-muted-foreground">Job: </span>
+                        <span className="text-lg font-semibold text-foreground">{workflowStep?.job?.title || "Loading..."}</span>
+                        {workflowStep?.job?.jobCode && (
+                            <span className="ml-2 text-sm text-muted-foreground">({workflowStep.job.jobCode})</span>
+                        )}
+                    </div>
+                    <h2 className="text-2xl font-bold text-foreground">Interview Slots</h2>
+                    <p className="text-muted-foreground">Manage availability for this round</p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}

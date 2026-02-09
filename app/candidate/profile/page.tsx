@@ -617,7 +617,7 @@ export default function CandidateProfilePage() {
             </div>
 
             {/* Additional Details (Employment / Certs) */}
-            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+            {/* <div className="bg-card rounded-xl shadow-sm border border-border p-6">
               <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
                 <FileText className="h-5 w-5 text-primary" /> Additional Details
               </h2>
@@ -659,7 +659,7 @@ export default function CandidateProfilePage() {
                   )}
                 </div>
               )}
-            </div>
+            </div> */}
 
           </div>
         </div>

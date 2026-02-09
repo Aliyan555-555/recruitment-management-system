@@ -20,6 +20,11 @@ interface WorkflowStep {
     stepName: string
     stepType: string
     stepOrder: number
+    job?: {
+        id: string
+        title: string
+        jobCode?: string | null
+    }
 }
 
 export default function AppliedCandidatesPage() {
@@ -102,8 +107,11 @@ export default function AppliedCandidatesPage() {
     }
 
     const isSelectable = (candidate: Candidate) => {
-        // Candidates who are already shortlisted or completed cannot be selected again
-        return candidate.status !== "SHORTLISTED" && candidate.status !== "COMPLETED"
+        // Only PENDING candidates can be shortlisted/rejected
+        // IN_PROGRESS = already shortlisted, assessment in progress
+        // COMPLETED = assessment completed
+        // REJECTED = already rejected
+        return candidate.status === "PENDING"
     }
 
     const toggleSelectCandidate = (candidateId: string) => {
@@ -153,9 +161,11 @@ export default function AppliedCandidatesPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:py-6">
                 {/* Header */}
                 <div className="mb-8">
+                    {/* Breadcrumb */}
+                 
                     <div className="flex items-center gap-3 mb-4">
                         <Link
                             href={`/admin/jobs/${jobId}`}
@@ -167,6 +177,27 @@ export default function AppliedCandidatesPage() {
                             Back to Job
                         </Link>
                     </div>
+
+                    <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+                        <Link
+                            href="/admin/jobs"
+                            className="hover:text-foreground transition-colors"
+                        >
+                            Jobs
+                        </Link>
+                        <span>/</span>
+                        <Link
+                            href={`/admin/jobs/${jobId}`}
+                            className="hover:text-foreground transition-colors"
+                        >
+                            {workflowStep?.job?.title || "Job"}
+                        </Link>
+                        <span>/</span>
+                        <span className="text-foreground font-medium">
+                            {workflowStep?.stepName || "Round"} - Applied
+                        </span>
+                    </div>
+
 
                     <div className="flex items-start justify-between">
                         <div>
@@ -221,9 +252,9 @@ export default function AppliedCandidatesPage() {
                                 </svg>
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">Applied</p>
+                                <p className="text-sm font-medium text-muted-foreground">Pending</p>
                                 <p className="text-2xl font-bold text-foreground">
-                                    {filteredCandidates.length}
+                                    {candidates.filter(c => c.status === "PENDING").length}
                                 </p>
                             </div>
                         </div>
@@ -239,7 +270,7 @@ export default function AppliedCandidatesPage() {
                             <div>
                                 <p className="text-sm font-medium text-muted-foreground">Pending Review</p>
                                 <p className="text-2xl font-bold text-foreground">
-                                    {filteredCandidates.filter(c => c.status === "PENDING").length}
+                                    {candidates.filter(c => c.status === "PENDING").length}
                                 </p>
                             </div>
                         </div>
@@ -286,8 +317,6 @@ export default function AppliedCandidatesPage() {
                             >
                                 <option value="all">All Status</option>
                                 <option value="PENDING">Pending</option>
-                                <option value="IN_PROGRESS">In Progress</option>
-                                <option value="COMPLETED">Completed</option>
                                 <option value="REJECTED">Rejected</option>
                             </select>
                         </div>
@@ -350,16 +379,30 @@ export default function AppliedCandidatesPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredCandidates.map((candidate) => (
-                                        <tr key={candidate.id} className={`hover:bg-muted/50 transition-colors ${!isSelectable(candidate) ? 'bg-muted/30 opacity-60' : ''}`}>
+                                    filteredCandidates.map((candidate) => {
+                                        const selectable = isSelectable(candidate)
+                                        const statusReason = candidate.status === "IN_PROGRESS" ? "Already shortlisted - assessment in progress" :
+                                                           candidate.status === "COMPLETED" ? "Assessment completed" :
+                                                           candidate.status === "REJECTED" ? "Already rejected" : ""
+                                        
+                                        return (
+                                        <tr key={candidate.id} className={`hover:bg-muted/50 transition-colors ${!selectable ? 'bg-muted/30 opacity-75' : ''}`}>
                                             <td className="px-6 py-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedCandidates.has(candidate.id)}
-                                                    onChange={() => toggleSelectCandidate(candidate.id)}
-                                                    disabled={!isSelectable(candidate)}
-                                                    className={`w-4 h-4 text-primary border-input rounded focus:ring-primary ${!isSelectable(candidate) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                />
+                                                <div className="relative group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedCandidates.has(candidate.id)}
+                                                        onChange={() => toggleSelectCandidate(candidate.id)}
+                                                        disabled={!selectable}
+                                                        className={`w-4 h-4 text-primary border-input rounded focus:ring-primary ${!selectable ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                        title={!selectable ? statusReason : ''}
+                                                    />
+                                                    {!selectable && (
+                                                        <div className="absolute left-0 top-full mt-1 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10 transition-opacity">
+                                                            {statusReason}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
@@ -391,11 +434,13 @@ export default function AppliedCandidatesPage() {
                                                 })()}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${candidate.status === "PENDING" ? "bg-yellow-500/10 text-yellow-600" :
-                                                    candidate.status === "SHORTLISTED" ? "bg-emerald-500/10 text-emerald-500" :
-                                                        candidate.status === "REJECTED" ? "bg-destructive/10 text-destructive" :
-                                                            "bg-primary/10 text-primary"
-                                                    }`}>
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                                    candidate.status === "PENDING" ? "bg-yellow-500/10 text-yellow-600" :
+                                                    candidate.status === "IN_PROGRESS" ? "bg-blue-500/10 text-blue-600" :
+                                                    candidate.status === "COMPLETED" ? "bg-emerald-500/10 text-emerald-500" :
+                                                    candidate.status === "REJECTED" ? "bg-destructive/10 text-destructive" :
+                                                    "bg-muted text-muted-foreground"
+                                                }`}>
                                                     {candidate.status}
                                                 </span>
                                             </td>
@@ -438,7 +483,8 @@ export default function AppliedCandidatesPage() {
                                                 </div>
                                             </td>
                                         </tr>
-                                    ))
+                                        )
+                                    })
                                 )}
                             </tbody>
                         </table>

@@ -21,6 +21,11 @@ interface WorkflowStep {
     stepName: string
     stepType: string | null
     stepOrder: number
+    job?: {
+        id: string
+        title: string
+        jobCode?: string | null
+    }
 }
 
 export default function OffersPage() {
@@ -87,9 +92,41 @@ export default function OffersPage() {
 
     return (
         <div className="space-y-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Link
+                    href="/admin/jobs"
+                    className="hover:text-foreground transition-colors"
+                >
+                    Jobs
+                </Link>
+                <span>/</span>
+                <Link
+                    href={`/admin/jobs/${params.id}`}
+                    className="hover:text-foreground transition-colors"
+                >
+                    {workflowStep?.job?.title || "Job"}
+                </Link>
+                <span>/</span>
+                <span className="text-foreground font-medium">
+                    {workflowStep?.stepName || "Round"} - Offers
+                </span>
+            </div>
+
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
+                    <div className="mb-2">
+                        <span className="text-sm text-muted-foreground">Job: </span>
+                        <span className="text-lg font-semibold text-foreground">
+                            {workflowStep?.job?.title || "Loading..."}
+                        </span>
+                        {workflowStep?.job?.jobCode && (
+                            <span className="ml-2 text-sm text-muted-foreground">
+                                ({workflowStep.job.jobCode})
+                            </span>
+                        )}
+                    </div>
                     <h2 className="text-2xl font-bold text-foreground">Manage Offers</h2>
                     <p className="text-muted-foreground">Generate and track offer letters for candidates who accepted the LOI</p>
                 </div>

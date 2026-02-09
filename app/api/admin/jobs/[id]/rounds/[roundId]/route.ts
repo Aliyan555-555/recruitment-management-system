@@ -43,6 +43,16 @@ export async function GET(
       return NextResponse.json({ error: "Round does not belong to this job" }, { status: 400 })
     }
 
+    // Get next workflow step (if any) for navigation
+    const nextStep = await prisma.workflowStep.findFirst({
+      where: {
+        workflowId: workflowStep.workflowId,
+        stepOrder: { gt: workflowStep.stepOrder }
+      },
+      orderBy: { stepOrder: "asc" },
+      select: { id: true, stepName: true, stepOrder: true }
+    })
+
     return NextResponse.json({
       workflowStep: {
         id: workflowStep.id.toString(),
@@ -53,7 +63,12 @@ export async function GET(
           id: workflowStep.workflow.job.id.toString(),
           title: workflowStep.workflow.job.title,
           jobCode: workflowStep.workflow.job.jobCode
-        }
+        },
+        nextStep: nextStep ? {
+          id: nextStep.id.toString(),
+          stepName: nextStep.stepName,
+          stepOrder: nextStep.stepOrder
+        } : null
       }
     })
   } catch (error) {

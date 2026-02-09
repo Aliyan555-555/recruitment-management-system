@@ -40,7 +40,7 @@ export async function GET(
         ...(status === "shortlisted" ? { 
           status: { in: ["IN_PROGRESS", "COMPLETED"] }
         } : status === "applied" ? {
-          status: { in: ["PENDING", "IN_PROGRESS", "COMPLETED", "REJECTED"] }
+          status: { in: ["PENDING", "REJECTED"] }
         } : {})
       },
       include: {
@@ -133,6 +133,25 @@ export async function POST(
 
     switch (action) {
       case "shortlist":
+        // Validate that candidates are in PENDING status before shortlisting
+        const pendingSteps = await prisma.candidatePipelineStep.findMany({
+          where: {
+            workflowStepId: roundId,
+            pipeline: {
+              jobId: jobId,
+              candidateId: { in: candidateIds.map(id => BigInt(id)) }
+            },
+            status: "PENDING"
+          },
+          select: { id: true }
+        })
+
+        if (pendingSteps.length !== candidateIds.length) {
+          return NextResponse.json({ 
+            error: "Some candidates are not in PENDING status and cannot be shortlisted" 
+          }, { status: 400 })
+        }
+
         // Update pipeline steps to IN_PROGRESS status
         await prisma.candidatePipelineStep.updateMany({
           where: {
@@ -140,7 +159,8 @@ export async function POST(
             pipeline: {
               jobId: jobId,
               candidateId: { in: candidateIds.map(id => BigInt(id)) }
-            }
+            },
+            status: "PENDING" // Only update PENDING candidates
           },
           data: {
             status: "IN_PROGRESS",
@@ -162,6 +182,25 @@ export async function POST(
         break
 
       case "reject":
+        // Validate that candidates are in PENDING status before rejecting
+        const pendingStepsForReject = await prisma.candidatePipelineStep.findMany({
+          where: {
+            workflowStepId: roundId,
+            pipeline: {
+              jobId: jobId,
+              candidateId: { in: candidateIds.map(id => BigInt(id)) }
+            },
+            status: "PENDING"
+          },
+          select: { id: true }
+        })
+
+        if (pendingStepsForReject.length !== candidateIds.length) {
+          return NextResponse.json({ 
+            error: "Some candidates are not in PENDING status and cannot be rejected" 
+          }, { status: 400 })
+        }
+
         // Update pipeline steps to REJECTED
         await prisma.candidatePipelineStep.updateMany({
           where: {
@@ -169,7 +208,8 @@ export async function POST(
             pipeline: {
               jobId: jobId,
               candidateId: { in: candidateIds.map(id => BigInt(id)) }
-            }
+            },
+            status: "PENDING" // Only update PENDING candidates
           },
           data: {
             status: "REJECTED",

@@ -30,11 +30,29 @@ interface CandidateResult {
   movedToNext?: boolean
 }
 
+interface WorkflowStep {
+  id: string
+  stepName: string
+  stepType: string | null
+  stepOrder: number
+  job?: {
+    id: string
+    title: string
+    jobCode?: string | null
+  }
+  nextStep?: {
+    id: string
+    stepName: string
+    stepOrder: number
+  } | null
+}
+
 export default function ResultsPage() {
   const params = useParams()
   const router = useRouter()
   const [stats, setStats] = useState<ResultsStats | null>(null)
   const [candidates, setCandidates] = useState<CandidateResult[]>([])
+  const [workflowStep, setWorkflowStep] = useState<WorkflowStep | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -44,7 +62,20 @@ export default function ResultsPage() {
 
   useEffect(() => {
     fetchResults()
+    fetchWorkflowStep()
   }, [])
+
+  const fetchWorkflowStep = async () => {
+    try {
+      const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setWorkflowStep(data.workflowStep)
+      }
+    } catch (error) {
+      console.error("Error fetching workflow step:", error)
+    }
+  }
 
   const fetchResults = async () => {
     try {
@@ -176,10 +207,22 @@ export default function ResultsPage() {
 
   return (
     <div className="space-y-8">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/admin/jobs" className="hover:text-foreground transition-colors">Jobs</Link>
+        <span>/</span>
+        <Link href={`/admin/jobs/${params.id}`} className="hover:text-foreground transition-colors">
+          {workflowStep?.job?.title || "Job"}
+        </Link>
+        <span>/</span>
+        <span className="text-foreground font-medium">{workflowStep?.stepName || "Round"} - Results</span>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
+       
           <h2 className="text-2xl font-bold text-foreground">Round Results</h2>
-          <p className="text-sm text-muted-foreground">Job #{params.id} · Round #{params.roundId}</p>
+          <p className="text-sm text-muted-foreground">{workflowStep?.stepName || "Round"} assessment results</p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <input
@@ -339,7 +382,7 @@ export default function ResultsPage() {
       </Card>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-start items-center mt-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mt-6">
         <Link
           href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
           className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent transition-all shadow-sm hover:shadow-md"
@@ -349,6 +392,27 @@ export default function ResultsPage() {
           </svg>
           Back
         </Link>
+        {workflowStep?.nextStep ? (
+          <Link
+            href={`/admin/jobs/${params.id}/rounds/${workflowStep.nextStep.id}/applied`}
+            className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+          >
+            Next Round: {workflowStep.nextStep.stepName}
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        ) : (
+          <Link
+            href={`/admin/jobs/${params.id}`}
+            className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+          >
+            Back to Job
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        )}
       </div>
     </div>
   )
