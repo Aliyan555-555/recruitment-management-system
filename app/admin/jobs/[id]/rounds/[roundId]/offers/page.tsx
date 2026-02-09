@@ -41,8 +41,12 @@ export default function OffersPage() {
 
     const fetchData = async () => {
         try {
-            // Fetch workflow step details
+            // Fetch workflow step details (job/round must exist)
             const stepRes = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+            if (stepRes.status === 404 || stepRes.status === 400) {
+                router.replace("/admin/jobs")
+                return
+            }
             if (stepRes.ok) {
                 const stepData = await stepRes.json()
                 setWorkflowStep(stepData.workflowStep)
@@ -83,6 +87,7 @@ export default function OffersPage() {
             }
         } catch (error) {
             console.error("Error fetching data:", error)
+            router.replace("/admin/jobs")
         } finally {
             setLoading(false)
         }

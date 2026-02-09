@@ -251,14 +251,7 @@ export async function DELETE(
 
     // Check if job exists
     const job = await prisma.job.findUnique({
-      where: { id: jobId },
-      include: {
-        _count: {
-          select: {
-            applications: true
-          }
-        }
-      }
+      where: { id: jobId }
     })
 
     if (!job) {
@@ -268,15 +261,7 @@ export async function DELETE(
       )
     }
 
-    // Check if job has applications (optional: prevent deletion if there are applications)
-    if (job._count.applications > 0) {
-      return NextResponse.json(
-        { error: "Cannot delete job with existing applications. Please deactivate it instead." },
-        { status: 400 }
-      )
-    }
-
-    // Delete job (cascade will delete related records: skills, locations, workflow, etc.)
+    // Delete job (cascade will delete applications, pipelines, workflow, skills, locations, etc.)
     await prisma.job.delete({
       where: { id: jobId }
     })

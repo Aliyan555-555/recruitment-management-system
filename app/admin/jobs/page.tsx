@@ -87,31 +87,35 @@ export default function AdminJobsPage() {
     }
   }, [openMenuId])
 
-  const handleDelete = async (jobId: string, jobTitle: string) => {
-    if (!confirm(`Are you sure you want to delete "${jobTitle}"? This action cannot be undone.`)) {
+  const handleDelete = async (job: Job) => {
+    const appCount = job._count?.applications ?? job.applicationCount ?? 0
+    const confirmMessage = appCount > 0
+      ? `Delete "${job.title}"? This job has ${appCount} application(s). The job and all applications, pipeline data, and related records will be permanently deleted. This cannot be undone.`
+      : `Are you sure you want to delete "${job.title}"? This action cannot be undone.`
+    if (!confirm(confirmMessage)) {
       return
     }
 
-    setDeletingId(jobId)
+    setDeletingId(job.id)
     setOpenMenuId(null)
     try {
-      const res = await fetch(`/api/admin/jobs/${jobId}`, {
+      const res = await fetch(`/api/admin/jobs/${job.id}`, {
         method: "DELETE",
       })
 
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setJobs(jobs.filter(job => job.id !== jobId))
-        setStatusMessage({ type: "success", message: `Job "${jobTitle}" deleted successfully.` })
-        setTimeout(() => setStatusMessage(null), 3000)
+        setJobs(prev => prev.filter(j => j.id !== job.id))
+        setStatusMessage({ type: "success", message: `Job "${job.title}" deleted successfully.` })
+        setTimeout(() => setStatusMessage(null), 4000)
       } else {
-        const data = await res.json()
         setStatusMessage({ type: "error", message: data.error || "Failed to delete job" })
-        setTimeout(() => setStatusMessage(null), 5000)
+        setTimeout(() => setStatusMessage(null), 6000)
       }
     } catch (error) {
       console.error("Error deleting job:", error)
       setStatusMessage({ type: "error", message: "Failed to delete job. Please try again." })
-      setTimeout(() => setStatusMessage(null), 5000)
+      setTimeout(() => setStatusMessage(null), 6000)
     } finally {
       setDeletingId(null)
     }
@@ -452,7 +456,7 @@ export default function AdminJobsPage() {
                     )}
                     <div className="border-t border-border my-1"></div>
                     <button
-                      onClick={() => handleDelete(job.id, job.title)}
+                      onClick={() => handleDelete(job)}
                       disabled={deletingId === job.id}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >

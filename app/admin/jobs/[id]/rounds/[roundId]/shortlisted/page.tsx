@@ -46,8 +46,12 @@ export default function ShortlistedCandidatesPage() {
 
     const fetchData = async () => {
         try {
-            // Fetch workflow step details
+            // Fetch workflow step details (job/round must exist)
             const stepRes = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+            if (stepRes.status === 404 || stepRes.status === 400) {
+                router.replace("/admin/jobs")
+                return
+            }
             let stepType: string | null = null
             if (stepRes.ok) {
                 const stepData = await stepRes.json()
@@ -91,6 +95,7 @@ export default function ShortlistedCandidatesPage() {
             }
         } catch (error) {
             console.error("Error fetching data:", error)
+            router.replace("/admin/jobs")
         } finally {
             setLoading(false)
         }

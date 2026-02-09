@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 
 interface JobDetails {
@@ -43,6 +43,7 @@ interface JobDetails {
 
 export default function JobDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const [job, setJob] = useState<JobDetails | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -50,19 +51,24 @@ export default function JobDetailPage() {
     async function fetchJob() {
       try {
         const res = await fetch(`/api/admin/jobs/${params.id}`)
+        if (res.status === 404) {
+          router.replace("/admin/jobs")
+          return
+        }
         if (res.ok) {
           const data = await res.json()
           setJob(data.job)
         }
       } catch (error) {
         console.error("Error fetching job:", error)
+        router.replace("/admin/jobs")
       } finally {
         setLoading(false)
       }
     }
 
     fetchJob()
-  }, [params.id])
+  }, [params.id, router])
 
   if (loading) {
     return <div>Loading job details...</div>

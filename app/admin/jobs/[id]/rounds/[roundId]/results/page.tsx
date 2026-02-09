@@ -68,18 +68,27 @@ export default function ResultsPage() {
   const fetchWorkflowStep = async () => {
     try {
       const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+      if (res.status === 404 || res.status === 400) {
+        router.replace("/admin/jobs")
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setWorkflowStep(data.workflowStep)
       }
     } catch (error) {
       console.error("Error fetching workflow step:", error)
+      router.replace("/admin/jobs")
     }
   }
 
   const fetchResults = async () => {
     try {
       const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/results`)
+      if (res.status === 404 || res.status === 400) {
+        router.replace("/admin/jobs")
+        return
+      }
       if (res.ok) {
         const data = await res.json()
         setStats(data.stats)
@@ -87,6 +96,7 @@ export default function ResultsPage() {
       }
     } catch (error) {
       console.error("Error fetching results:", error)
+      router.replace("/admin/jobs")
     } finally {
       setLoading(false)
     }

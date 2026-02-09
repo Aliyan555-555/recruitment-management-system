@@ -48,8 +48,12 @@ export default function AppliedCandidatesPage() {
         try {
             setLoading(true)
 
-            // Fetch workflow step details
+            // Fetch workflow step details (job/round must exist)
             const stepRes = await fetch(`/api/admin/jobs/${jobId}/rounds/${roundId}`)
+            if (stepRes.status === 404 || stepRes.status === 400) {
+                router.replace("/admin/jobs")
+                return
+            }
             if (stepRes.ok) {
                 const stepData = await stepRes.json()
                 setWorkflowStep(stepData.workflowStep)
@@ -63,6 +67,7 @@ export default function AppliedCandidatesPage() {
             }
         } catch (error) {
             console.error("Error fetching data:", error)
+            router.replace("/admin/jobs")
         } finally {
             setLoading(false)
         }

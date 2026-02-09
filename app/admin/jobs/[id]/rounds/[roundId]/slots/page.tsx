@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { toast } from "sonner"
@@ -31,6 +31,7 @@ interface WorkflowStep {
 
 export default function SlotManagementPage() {
     const params = useParams()
+    const router = useRouter()
     const [slots, setSlots] = useState<Slot[]>([])
     const [workflowStep, setWorkflowStep] = useState<WorkflowStep | null>(null)
     const [loading, setLoading] = useState(true)
@@ -58,12 +59,17 @@ export default function SlotManagementPage() {
     const fetchWorkflowStep = async () => {
         try {
             const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}`)
+            if (res.status === 404 || res.status === 400) {
+                router.replace("/admin/jobs")
+                return
+            }
             if (res.ok) {
                 const data = await res.json()
                 setWorkflowStep(data.workflowStep)
             }
         } catch (error) {
             console.error("Error fetching workflow step:", error)
+            router.replace("/admin/jobs")
         }
     }
 
