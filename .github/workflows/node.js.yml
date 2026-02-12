@@ -48,6 +48,9 @@ jobs:
           echo "SMTP_USER=${{ secrets.SMTP_USER }}" >> .env
           echo "SMTP_PASS=${{ secrets.SMTP_PASS }}" >> .env
           echo "SMTP_FROM=${{ secrets.SMTP_FROM }}" >> .env
+          echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env
+          echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env
+          echo "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env
 
       - name: Install dependencies
         run: npm i --force
