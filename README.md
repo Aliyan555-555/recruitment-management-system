@@ -168,6 +168,13 @@ Make sure to set all required environment variables in your production environme
 - `NEXTAUTH_URL` - Your production URL
 - `NEXTAUTH_SECRET` - A secure random string
 
+Optional (for Cloudinary image hosting – organization logos and profile avatars):
+- `CLOUDINARY_CLOUD_NAME` - From [Cloudinary Console](https://console.cloudinary.com/)
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+When these are set, logos and avatars are uploaded to Cloudinary instead of local storage. Copy from `.env.example` for a full template.
+
 ### Build
 
 ```bash

@@ -14,15 +14,20 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const department = searchParams.get("department");
     const location = searchParams.get("location");
+    const includeExpired = searchParams.get("includeExpired") === "1";
+
+    const isAdmin = session.user.role === "ADMIN";
+    const showAllJobs = isAdmin && includeExpired;
 
     const where: any = {
       deletedAt: null,
       status: true,
-      jobStatus: "ACTIVE",
-      postTo: {
-        gte: new Date(),
-      },
     };
+
+    if (!showAllJobs) {
+      where.jobStatus = "ACTIVE";
+      where.postTo = { gte: new Date() };
+    }
 
     if (search) {
       where.OR = [

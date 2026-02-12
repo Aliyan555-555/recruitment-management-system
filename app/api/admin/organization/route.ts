@@ -3,6 +3,12 @@ import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/rbac"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
+import {
+  isCloudinaryConfigured,
+  uploadImage,
+  validateImageFile,
+  CLOUDINARY,
+} from "@/lib/cloudinary"
 
 // GET /api/admin/organization - Get organization settings
 export async function GET(request: NextRequest) {
@@ -66,19 +72,50 @@ export async function PATCH(request: NextRequest) {
       console.error("Error parsing locations:", e)
     }
 
-    let logoUrl = undefined
+    let logoUrl: string | undefined
     if (logoFile && logoFile.size > 0) {
+      const validation = validateImageFile(logoFile, {
+        maxFileSize: CLOUDINARY.MAX_FILE_SIZE,
+        allowedMimeTypes: CLOUDINARY.ALLOWED_MIME_TYPES,
+      })
+      if (validation) {
+        return NextResponse.json(
+          { error: validation.message },
+          { status: 400 }
+        )
+      }
+
       const buffer = Buffer.from(await logoFile.arrayBuffer())
-      const filename = `logo-${Date.now()}${path.extname(logoFile.name)}`
-      const uploadDir = path.join(process.cwd(), "public/uploads/organization")
-      
-      try {
-        await mkdir(uploadDir, { recursive: true })
-        await writeFile(path.join(uploadDir, filename), buffer)
-        logoUrl = `/uploads/organization/${filename}`
-      } catch (error) {
-        console.error("Error saving logo file:", error)
-        // Continue without updating logo if upload fails
+      const mimeType = logoFile.type || "image/png"
+
+      if (isCloudinaryConfigured()) {
+        try {
+          const result = await uploadImage(buffer, mimeType, {
+            folder: CLOUDINARY.FOLDERS.ORGANIZATION_LOGOS,
+            publicIdPrefix: "logo",
+          })
+          logoUrl = result.secureUrl
+        } catch (error) {
+          console.error("Cloudinary logo upload error:", error)
+          return NextResponse.json(
+            { error: error instanceof Error ? error.message : "Logo upload failed." },
+            { status: 500 }
+          )
+        }
+      } else {
+        const filename = `logo-${Date.now()}${path.extname(logoFile.name)}`
+        const uploadDir = path.join(process.cwd(), "public/uploads/organization")
+        try {
+          await mkdir(uploadDir, { recursive: true })
+          await writeFile(path.join(uploadDir, filename), buffer)
+          logoUrl = `/uploads/organization/${filename}`
+        } catch (error) {
+          console.error("Error saving logo file:", error)
+          return NextResponse.json(
+            { error: "Failed to save logo." },
+            { status: 500 }
+          )
+        }
       }
     }
 

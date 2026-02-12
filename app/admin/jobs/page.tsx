@@ -50,7 +50,7 @@ export default function AdminJobsPage() {
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const res = await fetch("/api/jobs")
+        const res = await fetch("/api/jobs?includeExpired=1")
         if (res.ok) {
           const data = await res.json()
           setJobs(data.jobs || [])

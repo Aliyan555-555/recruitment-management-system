@@ -90,16 +90,28 @@ export default function AdminSettingsPage() {
     }
   }
 
+  const ALLOWED_LOGO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"]
+  const MAX_LOGO_SIZE_MB = 2
+
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setLogoFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
+    if (!file) return
+
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+      toast.error(`Invalid file type. Use JPG, PNG, WebP or SVG.`)
+      e.target.value = ""
+      return
     }
+    if (file.size > MAX_LOGO_SIZE_MB * 1024 * 1024) {
+      toast.error(`Logo must be under ${MAX_LOGO_SIZE_MB}MB.`)
+      e.target.value = ""
+      return
+    }
+
+    setLogoFile(file)
+    const reader = new FileReader()
+    reader.onloadend = () => setLogoPreview(reader.result as string)
+    reader.readAsDataURL(file)
   }
 
 
@@ -122,15 +134,17 @@ export default function AdminSettingsPage() {
 
       const res = await fetch("/api/admin/organization", {
         method: "PATCH",
-        body: formData
+        body: formData,
       })
 
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        const data = await res.json()
         setOrgSettings(data.settings)
+        setLogoPreview(data.settings?.logo ?? logoPreview)
+        setLogoFile(null)
         toast.success("Organization settings saved successfully!")
       } else {
-        toast.error("Failed to save settings")
+        toast.error(data.error ?? "Failed to save settings")
       }
     } catch (error) {
       console.error("Error saving settings:", error)

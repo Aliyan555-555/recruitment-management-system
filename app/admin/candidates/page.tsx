@@ -117,19 +117,21 @@ export default function AdminCandidatesPage() {
       filtered = filtered.filter(p => p.jobId === jobFilter)
     }
 
-    // Date range filter
+    // Date range filter (use appliedAt when available, else startedAt; both are Unix seconds from API)
+    const toAppliedDate = (p: CandidatePipeline) => {
+      const raw = p.appliedAt ?? p.startedAt
+      if (raw === undefined || raw === null || raw === "") return new Date(0)
+      const n = Number(raw)
+      return Number.isNaN(n) ? new Date(raw) : new Date(n * 1000)
+    }
     if (dateFrom) {
-      filtered = filtered.filter(p => {
-        const appliedDate = new Date(p.startedAt)
-        return appliedDate >= new Date(dateFrom)
-      })
+      filtered = filtered.filter(p => toAppliedDate(p) >= new Date(dateFrom))
     }
     if (dateTo) {
       filtered = filtered.filter(p => {
-        const appliedDate = new Date(p.startedAt)
         const toDate = new Date(dateTo)
         toDate.setHours(23, 59, 59, 999)
-        return appliedDate <= toDate
+        return toAppliedDate(p) <= toDate
       })
     }
 
@@ -156,6 +158,19 @@ export default function AdminCandidatesPage() {
     setJobFilter("ALL")
     setDateFrom("")
     setDateTo("")
+  }
+
+  /** API returns appliedAt/startedAt as Unix seconds (string). Parse and format for display. */
+  const formatAppliedDate = (raw: string | undefined): string => {
+    if (raw === undefined || raw === null || raw === "") return "—"
+    const n = Number(raw)
+    const date = Number.isNaN(n) ? new Date(raw) : new Date(n * 1000)
+    if (Number.isNaN(date.getTime())) return "—"
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
   }
 
   const getStatusColor = (status: string) => {
@@ -386,11 +401,7 @@ export default function AdminCandidatesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-muted-foreground">
-                          {new Date(pipeline.startedAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                          {formatAppliedDate(pipeline.appliedAt ?? pipeline.startedAt)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
