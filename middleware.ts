@@ -470,12 +470,11 @@ export const config = {
     /*
      * Match all request paths except:
      * - api routes (handled separately)
-     * - _next/static (static files)
-     * - _next/image (image optimization)
+     * - _next (static, image, webpack-hmr, and all Next.js internals - avoids "bind" error on upgrade requests)
      * - favicon.ico
      * - public folder files
      * - files with extensions
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
+    '/((?!api|_next|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)$).*)',
   ],
 }

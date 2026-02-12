@@ -14,8 +14,9 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const jobId = searchParams?.get("jobId")
+  const sessionExpired = searchParams?.get("error") === "SessionExpired"
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState(sessionExpired ? "Your session expired. Please sign in again." : "")
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -117,9 +118,9 @@ export default function LoginPage() {
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
-              {error && (
+              {(error || sessionExpired) && (
                 <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-                  {error}
+                  {error || "Your session expired. Please sign in again."}
                 </div>
               )}
 
