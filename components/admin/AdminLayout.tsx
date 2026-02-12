@@ -2,26 +2,25 @@
 
 import { useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
 
-  // useEffect(() => {
-    // Redirect to admin login if not authenticated
-    // if (status === "unauthenticated") {
-    //   const currentPath = window.location.pathname
-    //   router.push(`/admin/login?callbackUrl=${encodeURIComponent(currentPath)}`)
-    // }
-
-    // Check if user has admin role
-    // if (status === "authenticated" && session?.user?.role !== "ADMIN") {
-    //   router.push("/unauthorized")
-    // }
-  // }, [status, session, router])
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      const callbackUrl = pathname ? encodeURIComponent(pathname) : encodeURIComponent("/admin/dashboard")
+      router.replace(`/admin/login?callbackUrl=${callbackUrl}`)
+      return
+    }
+    if (status === "authenticated" && session?.user?.role !== "ADMIN") {
+      router.replace("/unauthorized")
+    }
+  }, [status, session?.user?.role, router, pathname])
 
   // Show loading state while checking authentication
   if (status === "loading") {
@@ -35,9 +34,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
-  // Don't render admin layout if not authenticated
-  if (status === "unauthenticated") {
-    return null
+  // While redirecting (unauthenticated or wrong role), show a brief message instead of white screen
+  if (status === "unauthenticated" || (status === "authenticated" && session?.user?.role !== "ADMIN")) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 dark:bg-slate-950">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
+          <p className="mt-4 text-sm text-muted-foreground">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

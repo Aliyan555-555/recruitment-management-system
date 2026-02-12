@@ -13,8 +13,9 @@ import { Shield, Loader2, Eye, EyeOff, ArrowLeft } from "lucide-react"
 export default function AdminLoginPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const sessionExpired = searchParams?.get("error") === "SessionExpired"
     const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState("")
+    const [error, setError] = useState(sessionExpired ? "Your session expired. Please sign in again." : "")
     const [formData, setFormData] = useState({
         email: "",
         password: "",
@@ -78,10 +79,9 @@ export default function AdminLoginPage() {
             //     callbackUrl = "/admin/dashboard"
             // }
             
-            // Force a full page reload to ensure cookies are available to middleware
-            // Using window.location.replace to avoid adding to history
-            // window.location.replace(callbackUrl)
-            router.push("/admin/dashboard")
+            const callbackUrl = searchParams?.get("callbackUrl")
+            const target = callbackUrl && callbackUrl.startsWith("/admin") ? callbackUrl : "/admin/dashboard"
+            router.push(target)
         } catch (error) {
             setError("An error occurred. Please try again.")
             setIsLoading(false)
@@ -117,9 +117,9 @@ export default function AdminLoginPage() {
                     </CardHeader>
                     <form onSubmit={handleSubmit}>
                         <CardContent className="space-y-4">
-                            {error && (
+                            {(error || sessionExpired) && (
                                 <div className="p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
-                                    {error}
+                                    {error || "Your session expired. Please sign in again."}
                                 </div>
                             )}
 

@@ -43,7 +43,12 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
       const elapsed = Date.now() - started
       if (elapsed >= SESSION_LOADING_TIMEOUT_MS) {
         loadingStartedAt.current = null
-        const loginUrl = "/login?error=SessionExpired&callbackUrl=" + encodeURIComponent(pathname || "/")
+        const callback = encodeURIComponent(pathname || "/")
+        const loginUrl = pathname?.startsWith("/admin")
+          ? `/admin/login?error=SessionExpired&callbackUrl=${callback}`
+          : pathname?.startsWith("/interviewer")
+            ? `/interviewer/login?error=SessionExpired&callbackUrl=${callback}`
+            : `/login?error=SessionExpired&callbackUrl=${callback}`
         router.replace(loginUrl)
       }
     }, SESSION_LOADING_TIMEOUT_MS)
