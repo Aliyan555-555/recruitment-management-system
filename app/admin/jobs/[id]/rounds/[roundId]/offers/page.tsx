@@ -120,21 +120,7 @@ export default function OffersPage() {
 
             {/* Header */}
             <div className="flex justify-between items-center">
-                <div>
-                    <div className="mb-2">
-                        <span className="text-sm text-muted-foreground">Job: </span>
-                        <span className="text-lg font-semibold text-foreground">
-                            {workflowStep?.job?.title || "Loading..."}
-                        </span>
-                        {workflowStep?.job?.jobCode && (
-                            <span className="ml-2 text-sm text-muted-foreground">
-                                ({workflowStep.job.jobCode})
-                            </span>
-                        )}
-                    </div>
-                    <h2 className="text-2xl font-bold text-foreground">Manage Offers</h2>
-                    <p className="text-muted-foreground">Generate and track offer letters for candidates who accepted the LOI</p>
-                </div>
+
                 <div className="flex items-center gap-3">
                     <Link
                         href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
