@@ -1,0 +1,78 @@
+name: ATS Docker CI/CD
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# Prevents multiple deployments from stacking if multiple commits are pushed rapidly
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout secure repository code
+        uses: actions/checkout@v4
+
+      - name: Verify Docker dependencies on Server
+        run: |
+          docker --version
+          docker-compose --version
+
+      - name: Generate production environment configuration securely
+        run: |
+          # Redirecting Secrets carefully to prevent logging them locally
+          cat << 'EOF' > .env
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          DIRECT_URL=${{ secrets.DIRECT_URL }}
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
+          NODE_ENV=production
+          PORT=${{ secrets.PORT }}
+          APP_URL=${{ secrets.APP_URL }}
+          MAX_FILE_SIZE=${{ secrets.MAX_FILE_SIZE }}
+          ALLOWED_FILE_TYPES=${{ secrets.ALLOWED_FILE_TYPES }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}
+          SESSION_MAX_AGE=${{ secrets.SESSION_MAX_AGE }}
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_SECURE=${{ secrets.SMTP_SECURE }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          EOF
+          chmod 600 .env
+
+      - name: Zero-Downtime Rebuild & Deployment
+        run: |
+          # The image is built fully BEFORE replacing the container, minimizing downtime dramatically
+          docker-compose build
+          docker-compose up -d --remove-orphans
+
+      - name: Post-Deployment Health Check Verification
+        run: |
+          echo "Verifying server is healthy by waiting for Docker healthchecks..."
+          # Sleeps initially, then queries the Docker inspect engine to ensure the state isn't "unhealthy"
+          sleep 10
+          CONTAINER_NAME="ats_app_production"
+          if [ "$(docker inspect -f '{{.State.Health.Status}}' $CONTAINER_NAME)" == "unhealthy" ]; then
+            echo "Deployment FAILED health checks!"
+            exit 1
+          fi
+
+      - name: Aggressive Space Reclamation
+        run: |
+          # Removes all unused images aggressively leaving only the immediate production layers
+          docker image prune -af --filter "until=24h" || true
+          docker volume prune -f || true

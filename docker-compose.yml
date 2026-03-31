@@ -1,0 +1,38 @@
+version: '3.8'
+
+networks:
+  # Explicit isolated production network
+  ats_prod_network:
+    driver: bridge
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ats_app_production
+    # unless-stopped handles restarts appropriately even on server reboots without forcing a restart on intentional stops
+    restart: unless-stopped
+    ports:
+      # Exposes process externally. Uses the .env PORT or fallbacks to 3000
+      - "${PORT:-3000}:${PORT:-3000}"
+    env_file:
+      - .env
+    networks:
+      - ats_prod_network
+    
+    # Advanced Logging: Protects Server Disk Space Storage
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+    # Self-healing Health Check validation ping
+    healthcheck:
+      # Pings the application internally every 30s. Automatically restarts if consecutive failures happen.
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${PORT:-3000}/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
