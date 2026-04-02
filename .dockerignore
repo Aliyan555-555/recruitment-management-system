@@ -8,3 +8,8 @@ README.md
 .github
 *.log
 .DS_Store
+.env
+.env.*
+!.env.example
+coverage
+.vscode

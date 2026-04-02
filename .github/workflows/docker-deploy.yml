@@ -6,29 +6,95 @@ on:
   pull_request:
     branches: ["main"]
 
-# Prevents multiple deployments from stacking if multiple commits are pushed rapidly
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  ci_security_scan:
+    name: Lint, Build, and Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint project
+        run: npm run lint
+
+      - name: Build project
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run build
+
+      - name: Build Docker image for scanning
+        run: docker build -t ats-app:ci .
+
+      - name: Run Trivy filesystem scan (repo)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload filesystem scan to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-fs.sarif
+
+      - name: Run Trivy image scan (container)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ats-app:ci
+          scanners: vuln,secret
+          format: sarif
+          output: trivy-image.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+      - name: Upload image scan to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+
   deploy:
+    name: Deploy to Production Host
     runs-on: self-hosted
     environment: production
     timeout-minutes: 30
+    needs: ci_security_scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      - name: Checkout secure repository code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify Docker dependencies on Server
+      - name: Verify Docker engine and Compose plugin
         run: |
           docker --version
-          docker-compose --version
+          docker compose version
 
-      - name: Generate production environment configuration securely
+      - name: Generate production environment file
         run: |
-          # Redirecting Secrets carefully to prevent logging them locally
           cat << 'EOF' > .env
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           DIRECT_URL=${{ secrets.DIRECT_URL }}
@@ -54,25 +120,24 @@ jobs:
           EOF
           chmod 600 .env
 
-      - name: Zero-Downtime Rebuild & Deployment
+      - name: Rebuild and deploy
         run: |
-          # The image is built fully BEFORE replacing the container, minimizing downtime dramatically
-          docker-compose build
-          docker-compose up -d --remove-orphans
+          docker compose build --pull
+          docker compose up -d --remove-orphans
 
-      - name: Post-Deployment Health Check Verification
+      - name: Validate deployed container health
         run: |
-          echo "Verifying server is healthy by waiting for Docker healthchecks..."
-          # Sleeps initially, then queries the Docker inspect engine to ensure the state isn't "unhealthy"
-          sleep 10
+          echo "Waiting for health check status..."
+          sleep 15
           CONTAINER_NAME="ats_app_production"
-          if [ "$(docker inspect -f '{{.State.Health.Status}}' $CONTAINER_NAME)" == "unhealthy" ]; then
-            echo "Deployment FAILED health checks!"
+          STATUS="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER_NAME")"
+          echo "Container health status: $STATUS"
+          if [ "$STATUS" = "unhealthy" ]; then
+            echo "Deployment failed: health check is unhealthy"
             exit 1
           fi
 
-      - name: Aggressive Space Reclamation
+      - name: Prune unused Docker resources
         run: |
-          # Removes all unused images aggressively leaving only the immediate production layers
           docker image prune -af --filter "until=24h" || true
           docker volume prune -f || true
