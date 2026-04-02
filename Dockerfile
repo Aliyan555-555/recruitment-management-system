@@ -1,83 +1,111 @@
 # syntax=docker/dockerfile:1
-# --------------------------------------------------------
-# 1. Base Node Image
-# --------------------------------------------------------
-FROM node:22-alpine AS base
-ENV CI=true
+# ==============================================================
+# Multi-stage build — ATS Application
+# Node 22 + Chromium (Puppeteer) — Production-hardened
+# ==============================================================
 
-# --------------------------------------------------------
-# 2. Dependencies Stage
-# --------------------------------------------------------
-FROM base AS deps
-# libc6-compat is required by some Node native modules on Alpine
-# openssl is required for Prisma
-RUN apk add --no-cache libc6-compat openssl
+# ──────────────────────────────────────────────────────────────
+# STAGE 1: base
+#   Shared OS layer — system deps + tini only.
+# ──────────────────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 
-# Copy dependency manifests
+# Install only the minimal shared system deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    openssl \
+    tini \
+    # ── Chromium runtime shared libraries ──────────────────
+    libnss3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libxshmfence1 \
+    wget \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Providing build-time defaults for environment variables that
+# Next.js or Prisma might try to validate during build stages.
+# These will be overridden by runtime values from .env/compose.
+ENV DATABASE_URL="postgresql://build_only:build_only@localhost:5432/build_only" \
+    NEXTAUTH_SECRET="dummy_secret_for_build_stability" \
+    NEXTAUTH_URL="http://localhost:3000" \
+    NEXT_TELEMETRY_DISABLED=1
+
+# ──────────────────────────────────────────────────────────────
+# STAGE 2: deps
+#   Install npm packages with exact lock file.
+# ──────────────────────────────────────────────────────────────
+FROM base AS deps
+
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
 
-# The user explicitly requires legacy-peer-deps for this project
-RUN npm install --legacy-peer-deps
+# --legacy-peer-deps required for Mantine/Next.js dependency tree
+# --ignore-scripts prevents postinstall scripts from running as root
+# Using npm install instead of ci because local package-lock.json may drift
+RUN npm install --legacy-peer-deps --ignore-scripts && \
+    # Run Prisma generate explicitly (was blocked by --ignore-scripts)
+    npx prisma generate
 
-# --------------------------------------------------------
-# 3. Builder Stage
-# --------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
+# STAGE 3: builder
+#   Compile the Next.js application.
+# ──────────────────────────────────────────────────────────────
 FROM base AS builder
-RUN apk add --no-cache openssl
-WORKDIR /app
 
-# Copy deps from previous stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set build-time env vars
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-
-# Re-generate Prisma Client to ensure architecture matches Alpine
-RUN npx prisma generate
-
-# Build Next.js application
+# Increase V8 heap for the build process to prevent OOM
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npm run build
 
-# --------------------------------------------------------
-# 4. Production Runner Stage
-# --------------------------------------------------------
+# ──────────────────────────────────────────────────────────────
+# STAGE 4: runner  ← final production image
+# ──────────────────────────────────────────────────────────────
 FROM base AS runner
-WORKDIR /app
 
-# Install tini for proper application signal handling and zombie process reaping
-RUN apk add --no-cache tini openssl
+# ── Final Runtime Environment ──────────────────────────────────
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME="0.0.0.0" \
+    # V8 heap cap: well under the 1G container limit (768MB + overhead)
+    NODE_OPTIONS="--max-old-space-size=768" \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    # Avoid --single-process: often worsens CPU churn; shm_size in compose helps.
+    CHROMIUM_FLAGS="--headless=new --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-extensions --mute-audio"
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Install Chromium only in the final stage
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Create highly secure non-root user and group
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+# Non-root user setup
+RUN groupadd --system --gid 1001 nodejs && \
+    useradd --system --uid 1001 --gid nodejs --no-create-home nextjs
 
-# Copy essential public facing assets
-COPY --from=builder /app/public ./public
-
-# Setup prerender cache directory with correct non-root ownership
-RUN mkdir .next && chown nextjs:nodejs .next
-
-# Leverage Next.js Standalone feature
-# This traces dependencies & copies ONLY the required files & node_modules for production.
+# Copy artifacts from builder
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# standalone output includes node_modules and manifest
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Restrict the container process to the non-root user
-USER nextjs
+# Persistence/Cache dirs
+RUN mkdir -p .next && chown nextjs:nodejs .next
 
 EXPOSE 3000
 
-# Use tini as the primary entrypoint for proper signal handling (e.g. SIGTERM, SIGINT)
-ENTRYPOINT ["/sbin/tini", "--"]
+USER nextjs
 
-# Execute the traced standalone server
-CMD ["node", "server.js"]
+ENTRYPOINT ["tini", "--", "node", "server.js"]

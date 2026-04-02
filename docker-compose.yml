@@ -1,38 +1,86 @@
-version: '3.8'
+
 
 networks:
-  # Explicit isolated production network
-  ats_prod_network:
+  ats_network:
     driver: bridge
+    name: ats_internal_net
 
 services:
+
+  # ──────────────────────────────────────────────────────────────
+  # Next.js Application (with Puppeteer/Chromium)
+  # ──────────────────────────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ats_app_production
-    # unless-stopped handles restarts appropriately even on server reboots without forcing a restart on intentional stops
+      target: runner
+    container_name: ats_app
     restart: unless-stopped
+
+    # CRITICAL for Chromium — prevents IPC crashes and CPU thrashing
+    shm_size: '256mb'
+
+    # ── Resource limits (top-level — enforced in Compose v2) ──
+    cpus: '1.50'
+    mem_limit: 1g
+    memswap_limit: 1g          # disables swap
+
+    # ── Process limit (anti fork-bomb) ───────────────────────
+    pids_limit: 200
+
+    # ── File descriptor + core dump limits ───────────────────
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+      core:
+        soft: 0
+        hard: 0                # no core dumps — prevents sensitive data leaks
+
+    # ── Kernel capability hardening ───────────────────────────
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - SETPCAP
+    security_opt:
+      - no-new-privileges:true
+
+    # ── Immutable root filesystem ─────────────────────────────
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=256m         # Chromium temp files (exec flag required)
+      - /app/.next/cache:size=256m  # Next.js render cache
+
     ports:
-      # Exposes process externally. Uses the .env PORT or fallbacks to 3000
       - "${PORT:-3000}:${PORT:-3000}"
+
+    # All secrets via .env — never hardcoded in this file
     env_file:
       - .env
+
+    environment:
+      NODE_ENV:     production
+      NODE_OPTIONS: "--max-old-space-size=768"
+
     networks:
-      - ats_prod_network
-    
-    # Advanced Logging: Protects Server Disk Space Storage
+      - ats_network
+
+    # Give Node.js time to finish in-flight requests before SIGKILL
+    stop_grace_period: 30s
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider --timeout=5 http://localhost:${PORT:-3000}/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
     logging:
       driver: "json-file"
       options:
         max-size: "20m"
-        max-file: "3"
-
-    # Self-healing Health Check validation ping
-    healthcheck:
-      # Pings the application internally every 30s. Automatically restarts if consecutive failures happen.
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:$${PORT:-3000}/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+        max-file: "5"
