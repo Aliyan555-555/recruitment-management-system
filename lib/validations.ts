@@ -21,7 +21,6 @@ const experienceEntrySchema = z.object({
 
 const skillEntrySchema = z.object({
   name: z.string().min(2, "Skill name must be at least 2 characters"),
-  level: z.number().min(1).max(10),
 })
 
 const jobPreferenceSchema = z.object({
@@ -92,4 +91,22 @@ export type LoginInput = z.infer<typeof loginSchema>
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
 export type ValidateResetTokenInput = z.infer<typeof validateResetTokenSchema>
+
+export const startSkillAssessmentSchema = z.object({
+  userSkillId: z.string().min(1, "User skill ID is required"),
+})
+
+export const submitSkillAssessmentSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().min(1, "Question ID is required"),
+        selectedOption: z.string().min(1, "Selected option is required"),
+      })
+    )
+    .min(1, "At least one answer is required"),
+})
+
+export type StartSkillAssessmentInput = z.infer<typeof startSkillAssessmentSchema>
+export type SubmitSkillAssessmentInput = z.infer<typeof submitSkillAssessmentSchema>
 

@@ -76,7 +76,8 @@ model User {
   batchCandidatesEvaluatedBy BatchCandidate[]           @relation("BatchCandidateEvaluatorUser")
 
   // Password Reset Relations
-  passwordResetTokens        PasswordResetToken[]
+  passwordResetTokens PasswordResetToken[]
+  skillAssessments    SkillAssessment[]
 
   @@index([role])
   @@index([userStatus])
@@ -137,18 +138,108 @@ model UserEducationLevel {
 }
 
 model UserSkills {
-  id        BigInt @id @default(autoincrement())
-  userId    BigInt @map("user_id")
-  skillName String @db.VarChar(255)
-  level     Int
-  createdAt BigInt @map("created_at")
-  updatedAt BigInt @map("updated_at")
+  id               BigInt              @id @default(autoincrement())
+  userId           BigInt              @map("user_id")
+  skillName        String              @db.VarChar(255)
+  level            Int
+  verifiedLevel    VerifiedSkillLevel? @map("verified_level")
+  verifiedAt       BigInt?             @map("verified_at")
+  lastAssessmentId BigInt?             @map("last_assessment_id")
+  createdAt        BigInt              @map("created_at")
+  updatedAt        BigInt              @map("updated_at")
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessments SkillAssessment[]
 
   @@index([userId])
+  @@index([verifiedLevel])
+  @@index([skillName])
   @@map("user_skills")
+}
+
+model SkillAssessmentConfig {
+  id                    BigInt  @id @default(autoincrement())
+  skillName             String  @unique @map("skill_name") @db.VarChar(255)
+  questionCount         Int     @default(10) @map("question_count")
+  minPassPoints         Int     @default(60) @map("min_pass_points")
+  maxPoints             Int     @default(100) @map("max_points")
+  levelThresholds       Json    @map("level_thresholds")
+  maxAttempts           Int     @default(3) @map("max_attempts")
+  cooldownHours         Int     @default(24) @map("cooldown_hours")
+  attemptTimeoutMinutes Int     @default(60) @map("attempt_timeout_minutes")
+  isActive              Boolean @default(true) @map("is_active")
+  createdAt             BigInt  @map("created_at")
+  updatedAt             BigInt  @map("updated_at")
+
+  @@map("skill_assessment_config")
+}
+
+model SkillAssessment {
+  id            BigInt                @id @default(autoincrement())
+  userSkillId   BigInt                @map("user_skill_id")
+  userId        BigInt                @map("user_id")
+  skillName     String                @map("skill_name") @db.VarChar(255)
+  status        SkillAssessmentStatus @default(IN_PROGRESS)
+  attemptNumber Int                   @map("attempt_number")
+  minPoints     Int                   @map("min_points")
+  maxPoints     Int                   @map("max_points")
+  totalPoints   Int                   @map("total_points")
+  scoredPoints  Int?                  @map("scored_points")
+  level         VerifiedSkillLevel?
+  startedAt     BigInt                @map("started_at")
+  submittedAt   BigInt?               @map("submitted_at")
+  expiresAt     BigInt?               @map("expires_at")
+  createdAt     BigInt                @map("created_at")
+  updatedAt     BigInt                @map("updated_at")
+
+  userSkill UserSkills           @relation(fields: [userSkillId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions AssessmentQuestion[]
+  answers   AssessmentAnswer[]
+
+  @@unique([userSkillId, attemptNumber])
+  @@index([userSkillId])
+  @@index([userId])
+  @@index([skillName])
+  @@index([status])
+  @@index([level])
+  @@index([submittedAt])
+  @@map("skill_assessment")
+}
+
+model AssessmentQuestion {
+  id            BigInt @id @default(autoincrement())
+  assessmentId  BigInt @map("assessment_id")
+  question      String @db.Text
+  options       Json
+  correctOption String @map("correct_option") @db.VarChar(500)
+  points        Int
+  order         Int
+
+  assessment SkillAssessment    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers    AssessmentAnswer[]
+
+  @@unique([assessmentId, order])
+  @@index([assessmentId])
+  @@map("assessment_question")
+}
+
+model AssessmentAnswer {
+  id             BigInt  @id @default(autoincrement())
+  assessmentId   BigInt  @map("assessment_id")
+  questionId     BigInt  @map("question_id")
+  selectedOption String  @map("selected_option") @db.VarChar(500)
+  isCorrect      Boolean @map("is_correct")
+  pointsAwarded  Int     @map("points_awarded")
+  createdAt      BigInt  @map("created_at")
+
+  assessment SkillAssessment    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  question   AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, questionId])
+  @@index([assessmentId])
+  @@map("assessment_answer")
 }
 
 model UserExperience {
@@ -629,6 +720,21 @@ enum PipelineMode {
   BATCH
 }
 
+enum SkillAssessmentStatus {
+  IN_PROGRESS
+  SUBMITTED
+  PASSED
+  FAILED
+  EXPIRED
+}
+
+enum VerifiedSkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  PROFESSIONAL
+  EXPERT
+}
+
 model CandidatePipelineStep {
   id             BigInt             @id @default(autoincrement())
   pipelineId     BigInt             @map("pipeline_id")
@@ -843,26 +949,26 @@ model LetterOfIntent {
 }
 
 model OfferLetter {
-  id                BigInt       @id @default(autoincrement())
-  letterOfIntentId  BigInt       @unique @map("letter_of_intent_id")
-  pipelineStepId    BigInt       @map("pipeline_step_id")
-  candidateId       BigInt       @map("candidate_id")
-  jobId             BigInt       @map("job_id")
-  status            LetterStatus @default(DRAFTED)
-  formData          Json         @map("form_data")
-  generatedAt       BigInt?      @map("generated_at")
-  sentAt            BigInt?      @map("sent_at")
-  acceptedAt        BigInt?      @map("accepted_at")
-  rejectedAt        BigInt?      @map("rejected_at")
-  expiredAt         BigInt?      @map("expired_at")
-  createdAt         BigInt       @map("created_at")
-  updatedAt         BigInt       @map("updated_at")
+  id               BigInt       @id @default(autoincrement())
+  letterOfIntentId BigInt       @unique @map("letter_of_intent_id")
+  pipelineStepId   BigInt       @map("pipeline_step_id")
+  candidateId      BigInt       @map("candidate_id")
+  jobId            BigInt       @map("job_id")
+  status           LetterStatus @default(DRAFTED)
+  formData         Json         @map("form_data")
+  generatedAt      BigInt?      @map("generated_at")
+  sentAt           BigInt?      @map("sent_at")
+  acceptedAt       BigInt?      @map("accepted_at")
+  rejectedAt       BigInt?      @map("rejected_at")
+  expiredAt        BigInt?      @map("expired_at")
+  createdAt        BigInt       @map("created_at")
+  updatedAt        BigInt       @map("updated_at")
 
   // Relations
-  letterOfIntent LetterOfIntent      @relation(fields: [letterOfIntentId], references: [id], onDelete: Cascade)
+  letterOfIntent LetterOfIntent        @relation(fields: [letterOfIntentId], references: [id], onDelete: Cascade)
   pipelineStep   CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
-  candidate      User                @relation("CandidateOfferLetters", fields: [candidateId], references: [id], onDelete: Cascade)
-  job            Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate      User                  @relation("CandidateOfferLetters", fields: [candidateId], references: [id], onDelete: Cascade)
+  job            Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([candidateId])
   @@index([jobId])
@@ -873,17 +979,17 @@ model OfferLetter {
 }
 
 model OrganizationSettings {
-  id          BigInt   @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  logo        String?  @db.VarChar(255)
-  website     String?  @db.VarChar(255)
+  id           BigInt  @id @default(autoincrement())
+  name         String  @db.VarChar(255)
+  logo         String? @db.VarChar(255)
+  website      String? @db.VarChar(255)
   contactEmail String? @map("contact_email") @db.VarChar(100)
   contactPhone String? @map("contact_phone") @db.VarChar(20)
-  address     String?  @db.VarChar(500)
-  description String?  @db.Text
-  socialLinks Json?    @map("social_links")
-  locations   Json?    @map("locations")
-  updatedAt   BigInt   @map("updated_at")
+  address      String? @db.VarChar(500)
+  description  String? @db.Text
+  socialLinks  Json?   @map("social_links")
+  locations    Json?   @map("locations")
+  updatedAt    BigInt  @map("updated_at")
 
   @@map("organization_settings")
 }

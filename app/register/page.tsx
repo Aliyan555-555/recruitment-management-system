@@ -250,7 +250,7 @@ export default function RegisterPage() {
 
   const upsertSkillEntry = (id: string, field: keyof SkillEntry, value: string | number) => {
     setSkills((prev) =>
-      prev.map((entry) => (entry.id === id ? { ...entry, [field]: field === "level" ? Number(value) : value } : entry))
+      prev.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry))
     )
   }
 
@@ -438,7 +438,6 @@ export default function RegisterPage() {
         .filter((entry) => entry.name.trim())
         .map((entry) => ({
           name: entry.name.trim(),
-          level: entry.level,
         })),
       jobPreference: {
         firstPriority: jobPreference.firstPriority || undefined,
@@ -470,11 +469,9 @@ export default function RegisterPage() {
   }
 
   if (success) {
-    // Redirect to job application if jobId is provided
-    if (jobId) {
-      router.push(`/jobs/${jobId}/apply/success`)
-      return null
-    }
+    const loginUrl = jobId
+      ? `/login?jobId=${jobId}`
+      : "/login?callbackUrl=/candidate/assessments/required"
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted px-4">
@@ -489,14 +486,14 @@ export default function RegisterPage() {
             <CardDescription>Your multi-step profile has been submitted successfully.</CardDescription>
           </CardHeader>
           <CardContent className="text-center space-y-2">
-            <p className="text-muted-foreground">You can now sign in to view jobs and track applications.</p>
+            <p className="text-muted-foreground">
+              Sign in to complete AI skill assessments for all skills on your profile before
+              applying to jobs.
+            </p>
           </CardContent>
           <CardFooter className="flex justify-center gap-4 flex-wrap">
-            <Button onClick={() => router.push("/login")} className="min-w-[180px]">
-              Go to Login
-            </Button>
-            <Button variant="outline" onClick={() => router.push("/")} className="min-w-[180px]">
-              Browse Jobs
+            <Button onClick={() => router.push(loginUrl)} className="min-w-[180px]">
+              Sign in &amp; start assessments
             </Button>
           </CardFooter>
         </Card>

@@ -3,6 +3,18 @@ import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
 
+const VERIFIED_LEVEL_ORDER = ["BEGINNER", "INTERMEDIATE", "PROFESSIONAL", "EXPERT"] as const
+
+function meetsMinVerifiedLevel(
+  level: string,
+  minLevel: string
+): boolean {
+  const levelIndex = VERIFIED_LEVEL_ORDER.indexOf(level as (typeof VERIFIED_LEVEL_ORDER)[number])
+  const minIndex = VERIFIED_LEVEL_ORDER.indexOf(minLevel as (typeof VERIFIED_LEVEL_ORDER)[number])
+  if (levelIndex === -1 || minIndex === -1) return false
+  return levelIndex >= minIndex
+}
+
 export async function GET(req: NextRequest) {
   try {
     const user = await requireAdmin()
@@ -17,6 +29,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get("status")
     const jobId = searchParams.get("jobId")
+    const verifiedSkill = searchParams.get("verifiedSkill")?.trim().toLowerCase()
+    const minVerifiedLevel = searchParams.get("minVerifiedLevel")?.trim().toUpperCase()
 
     const where: any = {}
     
@@ -77,8 +91,39 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({
-      pipelines: pipelines.map(p => {
+    const candidateIds = [...new Set(pipelines.map((p) => p.candidateId))]
+    const verifiedSkillsByCandidate = new Map<
+      string,
+      Array<{ skillName: string; verifiedLevel: string }>
+    >()
+
+    if (candidateIds.length > 0) {
+      const verifiedSkills = await prisma.userSkills.findMany({
+        where: {
+          userId: { in: candidateIds },
+          verifiedLevel: { not: null },
+        },
+        select: {
+          userId: true,
+          skillName: true,
+          verifiedLevel: true,
+        },
+        orderBy: { skillName: "asc" },
+      })
+
+      for (const skill of verifiedSkills) {
+        if (!skill.verifiedLevel) continue
+        const key = skill.userId.toString()
+        const existing = verifiedSkillsByCandidate.get(key) ?? []
+        existing.push({
+          skillName: skill.skillName,
+          verifiedLevel: skill.verifiedLevel,
+        })
+        verifiedSkillsByCandidate.set(key, existing)
+      }
+    }
+
+    const mappedPipelines = pipelines.map(p => {
         const pipelineSteps = p.steps ?? []
         const totalWorkflowSteps = p.job.workflow?.steps.length ?? 0
         const metrics = calculatePipelineMetrics({
@@ -105,8 +150,40 @@ export async function GET(req: NextRequest) {
           startedAt: p.startedAt.toString(),
           appliedAt: p.application.appliedAt.toString(),
           applicationStatus: p.application.status,
+          verifiedSkills: verifiedSkillsByCandidate.get(p.candidateId.toString()) ?? [],
         }
       })
+
+    let filteredPipelines = mappedPipelines
+
+    const hasMinLevelFilter =
+      !!minVerifiedLevel &&
+      VERIFIED_LEVEL_ORDER.includes(minVerifiedLevel as (typeof VERIFIED_LEVEL_ORDER)[number])
+
+    if (verifiedSkill && hasMinLevelFilter) {
+      filteredPipelines = filteredPipelines.filter((pipeline) =>
+        pipeline.verifiedSkills.some(
+          (skill) =>
+            skill.skillName.toLowerCase().includes(verifiedSkill) &&
+            meetsMinVerifiedLevel(skill.verifiedLevel, minVerifiedLevel)
+        )
+      )
+    } else if (verifiedSkill) {
+      filteredPipelines = filteredPipelines.filter((pipeline) =>
+        pipeline.verifiedSkills.some((skill) =>
+          skill.skillName.toLowerCase().includes(verifiedSkill)
+        )
+      )
+    } else if (hasMinLevelFilter) {
+      filteredPipelines = filteredPipelines.filter((pipeline) =>
+        pipeline.verifiedSkills.some((skill) =>
+          meetsMinVerifiedLevel(skill.verifiedLevel, minVerifiedLevel)
+        )
+      )
+    }
+
+    return NextResponse.json({
+      pipelines: filteredPipelines,
     })
   } catch (error: any) {
     console.error("Error fetching pipelines:", error)

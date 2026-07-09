@@ -734,9 +734,9 @@ export default function Page({ params }: { params: { id: string } }) {
                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-800 rounded-full text-sm font-medium border border-green-200"
                     >
                       {skill.skillName}
-                      {skill.level && (
+                      {skill.verifiedLevel && (
                         <span className="text-xs bg-green-200 px-2 py-0.5 rounded-full">
-                          {getSkillLevel(skill.level)}
+                          Verified: {skill.verifiedLevel.charAt(0) + skill.verifiedLevel.slice(1).toLowerCase()}
                         </span>
                       )}
                     </span>

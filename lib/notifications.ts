@@ -169,3 +169,28 @@ export async function notifyCandidateSlotsAvailable(
   })
 }
 
+/**
+ * Notify candidate when a skill assessment result is available
+ */
+export async function notifySkillAssessmentResult(
+  candidateId: bigint,
+  skillName: string,
+  passed: boolean,
+  level: string | null,
+  assessmentId: bigint
+) {
+  const title = passed ? "Skill Assessment Verified" : "Skill Assessment Update"
+  const message = passed
+    ? `Your ${skillName} assessment is complete. Verified level: ${level ?? "N/A"}.`
+    : `Your ${skillName} assessment is complete. You can review your result and re-attempt when eligible.`
+
+  return await createNotification({
+    userId: candidateId,
+    title,
+    message,
+    type: passed ? "COMPLETION" : "SYSTEM",
+    entityType: "skill_assessment",
+    entityId: assessmentId,
+  })
+}
+

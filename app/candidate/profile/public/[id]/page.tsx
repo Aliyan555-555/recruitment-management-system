@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Globe, Linkedin, Github, ExternalLink, FileText, Calendar, User, AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
 import { Button } from "@/components/ui/button"
 
 interface PublicProfileData {
@@ -31,7 +32,7 @@ interface PublicProfileData {
     skills: Array<{
       id: string
       skillName: string
-      level: number
+      verifiedLevel?: string | null
     }>
     experiences: Array<{
       id: string
@@ -291,9 +292,12 @@ export default function PublicProfilePage() {
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
                     {user.skills.map((skill) => (
-                      <Badge key={skill.id} variant="secondary" className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground border-0">
-                        {skill.skillName} • {skill.level}/10
-                      </Badge>
+                      <div key={skill.id} className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary" className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground border-0">
+                          {skill.skillName}
+                        </Badge>
+                        <VerifiedLevelBadge level={skill.verifiedLevel} />
+                      </div>
                     ))}
                   </div>
                 </CardContent>

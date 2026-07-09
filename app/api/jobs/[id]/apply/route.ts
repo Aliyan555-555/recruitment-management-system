@@ -5,6 +5,7 @@ import { notifyAdminNewApplication, notifyInterviewerAssignment } from "@/lib/no
 import { sendApplicationConfirmationEmail, sendInterviewerAssignmentEmail, sendAdminNewApplicationEmail } from "@/lib/email"
 import { handleBulkApplication } from "@/lib/services/bulk-hiring-service"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
+import { getMandatoryAssessmentStatus } from "@/lib/assessments/mandatory"
 
 export async function POST(
   req: NextRequest,
@@ -15,6 +16,21 @@ export async function POST(
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const mandatoryStatus = await getMandatoryAssessmentStatus(BigInt(session.user.id))
+    if (mandatoryStatus.required) {
+      return NextResponse.json(
+        {
+          error:
+            mandatoryStatus.reason === "no_skills"
+              ? "Add skills to your profile and complete AI assessments before applying."
+              : "Complete AI assessments for all skills before applying to jobs.",
+          code: "MANDATORY_ASSESSMENTS_PENDING",
+          redirectTo: "/candidate/assessments/required",
+        },
+        { status: 403 }
+      )
     }
 
     const body = await req.json()

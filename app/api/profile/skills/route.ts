@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
+/** Placeholder until AI assessment sets verifiedLevel */
+const DEFAULT_SKILL_LEVEL = 0
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
@@ -11,13 +14,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
+    const skillName = body.skillName?.trim()
+
+    if (!skillName) {
+      return NextResponse.json({ error: "Skill name is required" }, { status: 400 })
+    }
+
     const userId = BigInt(session.user.id)
 
     const skill = await prisma.userSkills.create({
       data: {
         userId: userId,
-        skillName: body.skillName,
-        level: body.level,
+        skillName,
+        level: DEFAULT_SKILL_LEVEL,
         createdAt: BigInt(Date.now()),
         updatedAt: BigInt(Date.now())
       }
@@ -26,7 +35,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       id: skill.id.toString(),
       skillName: skill.skillName,
-      level: skill.level
+      verifiedLevel: skill.verifiedLevel,
     })
   } catch (error) {
     console.error("Add skill error:", error)
@@ -36,4 +45,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-

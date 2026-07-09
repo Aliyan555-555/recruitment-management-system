@@ -126,7 +126,6 @@ export const skillEntrySchemaJoi = Joi.object({
   name: Joi.string().min(2).required().messages({
     "string.empty": "Skill name is required",
   }),
-  level: Joi.number().min(1).max(10).required(),
 }).options({ allowUnknown: true })
 
 export const jobPreferenceSchemaJoi = Joi.object({

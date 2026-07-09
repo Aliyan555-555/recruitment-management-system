@@ -3,6 +3,12 @@
 import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
+
+interface VerifiedSkill {
+  skillName: string
+  verifiedLevel: string
+}
 
 interface CandidatePipeline {
   id: string
@@ -21,6 +27,7 @@ interface CandidatePipeline {
   applicationId?: string
   applicationStatus?: string
   appliedAt?: string
+  verifiedSkills?: VerifiedSkill[]
 }
 
 interface Job {
@@ -42,6 +49,8 @@ export default function AdminCandidatesPage() {
   const [jobFilter, setJobFilter] = useState<string>(jobIdParam || "ALL")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+  const [verifiedSkillFilter, setVerifiedSkillFilter] = useState("")
+  const [minVerifiedLevelFilter, setMinVerifiedLevelFilter] = useState("ALL")
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -75,6 +84,14 @@ export default function AdminCandidatesPage() {
           params.append("jobId", jobIdParam)
         }
 
+        if (verifiedSkillFilter.trim()) {
+          params.append("verifiedSkill", verifiedSkillFilter.trim())
+        }
+
+        if (minVerifiedLevelFilter !== "ALL") {
+          params.append("minVerifiedLevel", minVerifiedLevelFilter)
+        }
+
         if (params.toString()) {
           url += `?${params.toString()}`
         }
@@ -90,7 +107,7 @@ export default function AdminCandidatesPage() {
     }
 
     fetchPipelines()
-  }, [jobIdParam])
+  }, [jobIdParam, verifiedSkillFilter, minVerifiedLevelFilter])
 
   // Apply filters
   const filteredPipelines = useMemo(() => {
@@ -150,7 +167,7 @@ export default function AdminCandidatesPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchText, statusFilter, jobFilter, dateFrom, dateTo])
+  }, [searchText, statusFilter, jobFilter, dateFrom, dateTo, verifiedSkillFilter, minVerifiedLevelFilter])
 
   const handleClearFilters = () => {
     setSearchText("")
@@ -158,6 +175,8 @@ export default function AdminCandidatesPage() {
     setJobFilter("ALL")
     setDateFrom("")
     setDateTo("")
+    setVerifiedSkillFilter("")
+    setMinVerifiedLevelFilter("ALL")
   }
 
   /** API returns appliedAt/startedAt as Unix seconds (string). Parse and format for display. */
@@ -303,6 +322,34 @@ export default function AdminCandidatesPage() {
               className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-foreground"
             />
           </div>
+
+          {/* Verified Skill Filter */}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Verified Skill</label>
+            <input
+              type="text"
+              value={verifiedSkillFilter}
+              onChange={(e) => setVerifiedSkillFilter(e.target.value)}
+              placeholder="e.g. React, Python..."
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+
+          {/* Min Verified Level */}
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Min Verified Level</label>
+            <select
+              value={minVerifiedLevelFilter}
+              onChange={(e) => setMinVerifiedLevelFilter(e.target.value)}
+              className="w-full px-4 py-2 bg-background border border-input rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-foreground"
+            >
+              <option value="ALL">Any level</option>
+              <option value="BEGINNER">Beginner+</option>
+              <option value="INTERMEDIATE">Intermediate+</option>
+              <option value="PROFESSIONAL">Professional+</option>
+              <option value="EXPERT">Expert</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -365,6 +412,9 @@ export default function AdminCandidatesPage() {
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                       Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      Verified Skills
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap sticky right-0 bg-muted/50 border-l border-border">
                       Actions
@@ -439,6 +489,25 @@ export default function AdminCandidatesPage() {
                         >
                           {pipeline.status.replace(/_/g, " ")}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {pipeline.verifiedSkills && pipeline.verifiedSkills.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-xs">
+                            {pipeline.verifiedSkills.slice(0, 3).map((skill) => (
+                              <div key={`${skill.skillName}-${skill.verifiedLevel}`} className="flex items-center gap-1">
+                                <span className="text-xs text-foreground">{skill.skillName}</span>
+                                <VerifiedLevelBadge level={skill.verifiedLevel} className="text-[10px] px-1.5 py-0" />
+                              </div>
+                            ))}
+                            {pipeline.verifiedSkills.length > 3 && (
+                              <span className="text-xs text-muted-foreground">
+                                +{pipeline.verifiedSkills.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">None</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right sticky right-0 bg-card border-l border-border">
                         <Link

@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, UserCircle, Loader2, Eye, EyeOff } from "lucide-react"
+import { fetchMandatoryRedirectPath } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const jobId = searchParams?.get("jobId")
+  const callbackUrl = searchParams?.get("callbackUrl")
   const sessionExpired = searchParams?.get("error") === "SessionExpired"
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(sessionExpired ? "Your session expired. Please sign in again." : "")
@@ -48,9 +50,15 @@ export default function LoginPage() {
         const session = await response.json()
         const userRole = session?.user?.role
 
-        if (jobId && userRole === "CANDIDATE") {
-          // Redirect to job page; applications now use profile data (no CV required)
-          router.push(`/jobs/${jobId}`)
+        if (userRole === "CANDIDATE") {
+          const fallback = jobId
+            ? `/jobs/${jobId}`
+            : callbackUrl && callbackUrl.startsWith("/")
+              ? callbackUrl
+              : "/"
+
+          const redirectPath = await fetchMandatoryRedirectPath(fallback)
+          router.push(redirectPath)
           router.refresh()
           setIsLoading(false)
           return
@@ -72,14 +80,12 @@ export default function LoginPage() {
             router.push("/interviewer/login")
           }, 2000)
           return
-        } else {
-          router.push("/")
         }
         router.refresh()
         setIsLoading(false)
       } catch (err) {
         console.error("Error fetching session:", err)
-        router.push("/")
+        router.push(callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/")
         router.refresh()
         setIsLoading(false)
       }

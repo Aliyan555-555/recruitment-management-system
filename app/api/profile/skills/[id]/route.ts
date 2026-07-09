@@ -25,9 +25,9 @@ export async function PUT(
       return NextResponse.json({ error: "Skill not found" }, { status: 404 })
     }
 
-    if (!body.skillName?.trim() || body.level === undefined) {
+    if (!body.skillName?.trim()) {
       return NextResponse.json(
-        { error: "Skill name and level are required" },
+        { error: "Skill name is required" },
         { status: 400 }
       )
     }
@@ -36,7 +36,6 @@ export async function PUT(
       where: { id: skillId },
       data: {
         skillName: body.skillName.trim(),
-        level: Number(body.level),
         updatedAt: BigInt(Date.now()),
       },
     })
@@ -44,7 +43,7 @@ export async function PUT(
     return NextResponse.json({
       id: skill.id.toString(),
       skillName: skill.skillName,
-      level: skill.level,
+      verifiedLevel: skill.verifiedLevel,
     })
   } catch (error) {
     console.error("Update skill error:", error)
@@ -75,6 +74,21 @@ export async function DELETE(
 
     if (!existing || existing.userId !== userId) {
       return NextResponse.json({ error: "Skill not found" }, { status: 404 })
+    }
+
+    const assessmentCount = await prisma.skillAssessment.count({
+      where: { userSkillId: skillId },
+    })
+
+    if (assessmentCount > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete a skill that has assessment history. This protects your verified results and attempt limits.",
+          code: "SKILL_HAS_ASSESSMENTS",
+        },
+        { status: 409 }
+      )
     }
 
     await prisma.userSkills.delete({

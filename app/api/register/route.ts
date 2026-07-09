@@ -191,7 +191,7 @@ export async function POST(req: Request) {
             data: {
               userId: createdUser.id,
               skillName: skill.name,
-              level: skill.level,
+              level: 0,
               createdAt: currentTime,
               updatedAt: currentTime,
             },

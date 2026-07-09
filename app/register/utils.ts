@@ -25,7 +25,6 @@ export const createExperienceEntry = (): ExperienceEntry => ({
 export const createSkillEntry = (): SkillEntry => ({
   id: createId(),
   name: "",
-  level: 5,
 })
 
 export const isExperienceStarted = (entry: ExperienceEntry) =>

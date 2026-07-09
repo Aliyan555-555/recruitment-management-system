@@ -21,7 +21,6 @@ export type ExperienceEntry = {
 export type SkillEntry = {
   id: string
   name: string
-  level: number
 }
 
 export type PersonalInfoState = {

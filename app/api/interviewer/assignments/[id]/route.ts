@@ -140,7 +140,7 @@ export async function GET(
             })),
             skills: step.pipeline.candidate.skills.map((skill: any) => ({
               skillName: skill.skillName,
-              level: skill.level,
+              verifiedLevel: skill.verifiedLevel,
             })),
             profileDetails: step.pipeline.candidate.profileDetails ? {
               title: step.pipeline.candidate.profileDetails.title,

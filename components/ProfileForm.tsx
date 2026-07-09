@@ -33,7 +33,6 @@ interface Education {
 interface Skill {
   id: string
   skillName: string
-  level: number
 }
 
 interface CV {
@@ -95,7 +94,6 @@ export function ProfileForm({ user }: { user: any }) {
   // Skills State
   const [skills, setSkills] = useState<Skill[]>(user.skills)
   const [newSkillName, setNewSkillName] = useState("")
-  const [newSkillLevel, setNewSkillLevel] = useState("5")
 
   // CV State
   const [cvs, setCvs] = useState<CV[]>([])
@@ -284,7 +282,6 @@ export function ProfileForm({ user }: { user: any }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           skillName: newSkillName,
-          level: parseInt(newSkillLevel)
         })
       })
 
@@ -292,7 +289,6 @@ export function ProfileForm({ user }: { user: any }) {
         const newSkill = await response.json()
         setSkills([...skills, newSkill])
         setNewSkillName("")
-        setNewSkillLevel("5")
       }
     } catch (error) {
       console.error("Error adding skill:", error)
@@ -706,7 +702,7 @@ export function ProfileForm({ user }: { user: any }) {
       <Card>
         <CardHeader>
           <CardTitle>Skills</CardTitle>
-          <CardDescription>Showcase your professional skills</CardDescription>
+          <CardDescription>Add skills by name — verify proficiency with AI assessments.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
@@ -716,28 +712,15 @@ export function ProfileForm({ user }: { user: any }) {
               onChange={(e) => setNewSkillName(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleAddSkill()}
             />
-            <Select value={newSkillLevel} onValueChange={setNewSkillLevel}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Beginner</SelectItem>
-                <SelectItem value="3">Intermediate</SelectItem>
-                <SelectItem value="5">Advanced</SelectItem>
-                <SelectItem value="7">Expert</SelectItem>
-                <SelectItem value="10">Master</SelectItem>
-              </SelectContent>
-            </Select>
-              <Button onClick={handleAddSkill} disabled={loading}>
-                <Plus className="h-4 w-4" />
-              </Button>
+            <Button onClick={handleAddSkill} disabled={loading}>
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-2">
             {skills.map((skill) => (
               <Badge key={skill.id} variant="secondary" className="flex items-center gap-2 px-3 py-1">
                 <span>{skill.skillName}</span>
-                <span className="text-xs">({skill.level}/10)</span>
                 <Button
                   variant="ghost"
                   size="sm"

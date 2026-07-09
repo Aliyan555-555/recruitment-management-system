@@ -32,6 +32,7 @@ import {
   User,
 } from "lucide-react"
 import Link from "next/link"
+import { ProfileSkillsCard } from "@/components/candidate/ProfileSkillsCard"
 
 interface ProfileData {
   user: {
@@ -58,7 +59,7 @@ interface ProfileData {
     skills: Array<{
       id: string
       skillName: string
-      level: number
+      verifiedLevel?: string | null
     }>
     experiences: Array<{
       id: string
@@ -104,21 +105,6 @@ const formatRange = (start?: string, end?: string, isCurrent?: boolean) => {
   const opts: Intl.DateTimeFormatOptions = { year: "numeric", month: "short" }
   const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString(undefined, opts) : "")
   return `${fmt(start)} - ${isCurrent ? "Present" : fmt(end) || "N/A"}`
-}
-
-const SkillPill: React.FC<{ name: string; level: number }> = ({ name, level }) => {
-  const pct = Math.min(100, Math.max(0, Math.round((level / 10) * 100)))
-  return (
-    <div className="w-full md:w-1/2 lg:w-full">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium">{name}</span>
-        <span className="text-xs text-muted-foreground">{level}/10</span>
-      </div>
-      <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
-        <div className="h-2 rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#fb923c,#f97316)" }} />
-      </div>
-    </div>
-  )
 }
 
 export default function CandidateProfilePage() {
@@ -442,25 +428,7 @@ export default function CandidateProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Skills Card */}
-            <Card className="shadow-sm bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold text-foreground">Skills</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {user.skills.length > 0 ? (
-                    user.skills.map((skill) => (
-                      <Badge key={skill.id} variant="secondary" className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground border-0">
-                        {skill.skillName} • {skill.level}/10
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No skills added.</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <ProfileSkillsCard />
 
             {/* Contact Information */}
             <Card className="shadow-sm bg-card border-border">

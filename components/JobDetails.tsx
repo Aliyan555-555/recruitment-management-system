@@ -23,6 +23,7 @@ import {
   Bookmark
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { fetchMandatoryRedirectPath } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface JobLocation {
   city: string
@@ -84,6 +85,13 @@ export function JobDetails({
     setApplying(true)
     setErrorMessage(null)
     try {
+      const mandatoryPath = await fetchMandatoryRedirectPath()
+      if (mandatoryPath === "/candidate/assessments/required") {
+        router.push(mandatoryPath)
+        setApplying(false)
+        return
+      }
+
       const response = await fetch(`/api/jobs/${job.id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

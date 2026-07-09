@@ -161,7 +161,9 @@ export async function GET(
           skills: pipeline.candidate.skills.map(skill => ({
             id: skill.id.toString(),
             skillName: skill.skillName,
-            level: skill.level,
+            verifiedLevel: skill.verifiedLevel,
+            verifiedAt: skill.verifiedAt?.toString() ?? null,
+            lastAssessmentId: skill.lastAssessmentId?.toString() ?? null,
             createdAt: skill.createdAt.toString()
           })),
           profileDetails: pipeline.candidate.profileDetails ? {

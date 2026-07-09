@@ -15,6 +15,7 @@ import { useDashboardStore } from "@/store/useDashboardStore"
 import { useJobsStore } from "@/store/useJobsStore"
 import { JobCardSkeleton } from "@/components/JobCardSkeleton"
 import type { Job } from "@/store/useJobsStore"
+import { useMandatoryAssessmentRedirect } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface PublicJob {
   id: string
@@ -50,6 +51,7 @@ interface PublicJob {
 export default function HomePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
+  useMandatoryAssessmentRedirect(status === "authenticated" && session?.user?.role === "CANDIDATE")
   const { stats, recentApplications, upcomingInterviews, loading: dashboardLoading, error, fetchDashboardData } = useDashboardStore()
   const { jobs, loading: jobsLoading, fetchJobs } = useJobsStore()
 

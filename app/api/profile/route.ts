@@ -84,7 +84,9 @@ export async function GET(req: NextRequest) {
         skills: user.skills.map(skill => ({
           id: skill.id.toString(),
           skillName: skill.skillName,
-          level: skill.level
+          verifiedLevel: skill.verifiedLevel,
+          verifiedAt: skill.verifiedAt?.toString() ?? null,
+          lastAssessmentId: skill.lastAssessmentId?.toString() ?? null,
         })),
         experiences: user.experiences.map(exp => ({
           id: exp.id.toString(),

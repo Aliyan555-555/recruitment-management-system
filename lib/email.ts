@@ -750,3 +750,65 @@ export async function sendOfferLetterSentEmail(
     html
   })
 }
+
+/**
+ * Send skill assessment result email to candidate
+ */
+export async function sendSkillAssessmentResultEmail(
+  candidateEmail: string,
+  candidateName: string,
+  skillName: string,
+  passed: boolean,
+  level: string | null,
+  scoredPoints: number,
+  maxPoints: number
+): Promise<void> {
+  const subject = passed
+    ? `Skill Assessment Verified: ${skillName}`
+    : `Skill Assessment Update: ${skillName}`
+
+  const resultMessage = passed
+    ? `You verified <strong>${skillName}</strong> at the <strong>${level ?? "verified"}</strong> level.`
+    : `You didn't meet the minimum score for <strong>${skillName}</strong> yet. Review the material and re-attempt when you're ready.`
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .info-box { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2563eb; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Skill Assessment Result</h1>
+        </div>
+        <div class="content">
+          <p>Hello ${candidateName},</p>
+          <p>${resultMessage}</p>
+          <div class="info-box">
+            <p><strong>Skill:</strong> ${skillName}</p>
+            <p><strong>Score:</strong> ${scoredPoints} / ${maxPoints}</p>
+            ${passed && level ? `<p><strong>Verified Level:</strong> ${level}</p>` : ""}
+          </div>
+          <p style="margin-top: 30px; font-size: 12px; color: #666;">
+            This is an automated notification from the Recruitment Management System.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  await sendEmail({
+    to: candidateEmail,
+    subject,
+    html,
+  })
+}

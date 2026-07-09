@@ -11,7 +11,8 @@ import {
   Settings,
   Building2,
   ChevronRight,
-  LogOut
+  LogOut,
+  Sparkles,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -30,6 +31,11 @@ const navItems = [
     href: "/admin/candidates",
     label: "Candidates",
     icon: Users
+  },
+  {
+    href: "/admin/assessments",
+    label: "Skill Assessments",
+    icon: Sparkles
   },
   {
     href: "/admin/users",

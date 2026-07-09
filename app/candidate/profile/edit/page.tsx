@@ -9,8 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Plus, Trash2, X, Edit2, ArrowLeft } from "lucide-react"
+import { Loader2, Plus, Trash2, Edit2, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import {
+  SkillAssessmentStatus,
+  SkillAssessmentStatusList,
+} from "@/components/candidate/SkillAssessmentActions"
 import {
   TITLES,
   RELIGION_OPTIONS,
@@ -99,14 +103,10 @@ export default function EditProfilePage() {
   const [editingExperienceId, setEditingExperienceId] = useState<string | null>(null)
 
   // Skills State
-  const [skills, setSkills] = useState<Array<{
-    id: string
-    skillName: string
-    level: number
-  }>>([])
-  const [newSkill, setNewSkill] = useState({ skillName: "", level: 5 })
+  const [skillAssessmentStatuses, setSkillAssessmentStatuses] = useState<SkillAssessmentStatus[]>([])
+  const [loadingAssessmentStatuses, setLoadingAssessmentStatuses] = useState(false)
+  const [newSkillName, setNewSkillName] = useState("")
   const [showAddSkill, setShowAddSkill] = useState(false)
-  const [editingSkillId, setEditingSkillId] = useState<string | null>(null)
 
   // Job Preferences State
   const [firstPriority, setFirstPriority] = useState("")
@@ -219,21 +219,18 @@ export default function EditProfilePage() {
           })))
         }
 
-        // Populate Skills
-        if (user.skills) {
-          setSkills(user.skills.map((skill: any) => ({
-            id: skill.id,
-            skillName: skill.skillName,
-            level: skill.level
-          })))
-        }
-
-        // Populate Preferences
+        // Skills load via assessment status endpoint
         if (user.jobPreference) {
           setFirstPriority(user.jobPreference.firstPriority || "")
           setSecondPriority(user.jobPreference.secondPriority || "")
           setThirdPriority(user.jobPreference.thirdPriority || "")
           setSummary(user.jobPreference.summary || "")
+        }
+
+        const statusRes = await fetch("/api/assessments/skills/status")
+        if (statusRes.ok) {
+          const statusData = await statusRes.json()
+          setSkillAssessmentStatuses(statusData.skills || [])
         }
 
       } catch (err: any) {
@@ -247,7 +244,25 @@ export default function EditProfilePage() {
     }
 
     fetchData()
-  }, []) // Removed dependency on toast
+  }, [])
+
+  const fetchAssessmentStatuses = async () => {
+    try {
+      setLoadingAssessmentStatuses(true)
+      const res = await fetch("/api/assessments/skills/status")
+      if (!res.ok) return
+      const data = await res.json()
+      setSkillAssessmentStatuses(data.skills || [])
+    } catch {
+      // Non-blocking: skills editing still works without assessment status.
+    } finally {
+      setLoadingAssessmentStatuses(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAssessmentStatuses()
+  }, [])
 
   const handleSave = async () => {
     try {
@@ -384,7 +399,8 @@ export default function EditProfilePage() {
 
   // --- Skills Handlers ---
   const handleAddSkill = async () => {
-    if (!newSkill.skillName) {
+    const skillName = newSkillName.trim()
+    if (!skillName) {
       toast.error("Validation Error", { description: "Skill name is required" })
       return
     }
@@ -392,25 +408,27 @@ export default function EditProfilePage() {
       const res = await fetch("/api/profile/skills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newSkill)
+        body: JSON.stringify({ skillName })
       })
       if (!res.ok) throw new Error("Failed to add skill")
-      const skill = await res.json()
-      setSkills([skill, ...skills])
-      setNewSkill({ skillName: "", level: 5 })
+      setNewSkillName("")
       setShowAddSkill(false)
+      await fetchAssessmentStatuses()
     } catch (err) {
       toast.error("Error", { description: "Failed to add skill" })
     }
   }
 
-  const handleDeleteSkill = async (id: string) => {
+  const handleDeleteSkill = async (userSkillId: string) => {
     try {
-      const res = await fetch(`/api/profile/skills/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete")
-      setSkills(skills.filter(s => s.id !== id))
-    } catch (err) {
-      toast.error("Error", { description: "Failed to delete skill" })
+      const res = await fetch(`/api/profile/skills/${userSkillId}`, { method: "DELETE" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to delete skill")
+      }
+      await fetchAssessmentStatuses()
+    } catch (err: any) {
+      toast.error("Error", { description: err.message || "Failed to delete skill" })
     }
   }
 
@@ -780,7 +798,7 @@ export default function EditProfilePage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Skills</CardTitle>
-              <CardDescription>Add your technical skills.</CardDescription>
+              <CardDescription>Add your technical skills and verify them with AI assessments.</CardDescription>
             </div>
             {!showAddSkill && (
               <Button size="sm" onClick={() => setShowAddSkill(true)}>
@@ -788,23 +806,26 @@ export default function EditProfilePage() {
               </Button>
             )}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             {showAddSkill && (
               <div className="p-4 border rounded-lg space-y-4 bg-muted/30">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Skill Name</Label>
-                    <Input value={newSkill.skillName} onChange={e => setNewSkill(prev => ({ ...prev, skillName: e.target.value }))} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Level (1-10)</Label>
-                    <Select value={newSkill.level.toString()} onValueChange={val => setNewSkill(prev => ({ ...prev, level: parseInt(val) }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(l => <SelectItem key={l} value={l.toString()}>{l}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skill-name">Skill Name</Label>
+                  <Input
+                    id="skill-name"
+                    value={newSkillName}
+                    onChange={(e) => setNewSkillName(e.target.value)}
+                    placeholder="e.g. React, Python, Project Management"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddSkill()
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Proficiency is set automatically after you pass the AI assessment.
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleAddSkill}>Save</Button>
@@ -812,16 +833,12 @@ export default function EditProfilePage() {
                 </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-2">
-              {skills.map(skill => (
-                <div key={skill.id} className="flex items-center gap-2 bg-secondary px-3 py-1 rounded-full text-sm">
-                  <span>{skill.skillName} ({skill.level})</span>
-                  <button onClick={() => handleDeleteSkill(skill.id)} className="text-muted-foreground hover:text-destructive">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
+
+            <SkillAssessmentStatusList
+              skills={skillAssessmentStatuses}
+              loading={loadingAssessmentStatuses}
+              onDelete={handleDeleteSkill}
+            />
           </CardContent>
         </Card>
 

@@ -89,7 +89,8 @@ export async function GET(
         skills: user.skills.map((skill) => ({
           id: skill.id.toString(),
           skillName: skill.skillName,
-          level: skill.level,
+          verifiedLevel: skill.verifiedLevel,
+          verifiedAt: skill.verifiedAt?.toString() ?? null,
         })),
         experiences: user.experiences.map((exp) => ({
           id: exp.id.toString(),

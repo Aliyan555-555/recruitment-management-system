@@ -128,7 +128,12 @@ const ExperienceSkillsStep = ({
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold">Skills</h3>
+        <div>
+          <h3 className="text-lg font-semibold">Skills</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add skill names only — proficiency is verified later via AI assessment.
+          </p>
+        </div>
         {skills.map((skill, index) => (
           <div key={skill.id} className="flex flex-col md:flex-row items-center gap-4 border rounded-lg p-4">
             <div className="w-full">
@@ -144,26 +149,6 @@ const ExperienceSkillsStep = ({
               {getFieldError(`skills.${index}.name`) && (
                 <p className="text-xs text-destructive">
                   {getFieldError(`skills.${index}.name`)}
-                </p>
-              )}
-            </div>
-            <div className="w-full md:max-w-[200px]">
-              <Label>Level</Label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={skill.level}
-                onChange={(e) => {
-                  clearFieldError("skills")
-                  clearFieldError(`skills.${index}.level`)
-                  onSkillChange(skill.id, "level", Number(e.target.value))
-                }}
-              />
-              <p className="text-xs text-muted-foreground mt-1">1 = Beginner, 10 = Expert</p>
-              {getFieldError(`skills.${index}.level`) && (
-                <p className="text-xs text-destructive">
-                  {getFieldError(`skills.${index}.level`)}
                 </p>
               )}
             </div>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { CandidateSkillAssessmentsPanel } from "@/components/admin/CandidateSkillAssessmentsPanel"
 
 interface Experience {
   id: string
@@ -29,7 +31,8 @@ interface Education {
 interface Skill {
   id: string
   skillName: string
-  level: number
+  verifiedLevel?: string | null
+  verifiedAt?: string | null
 }
 
 interface ProfileDetails {
@@ -193,11 +196,6 @@ export default function CandidatePipelineDetailPage() {
       default:
         return "bg-muted text-muted-foreground"
     }
-  }
-
-  const getSkillLevel = (level: number) => {
-    const levels = ["Beginner", "Elementary", "Intermediate", "Advanced", "Expert"]
-    return levels[level - 1] || "Unknown"
   }
 
   return (
@@ -541,14 +539,14 @@ export default function CandidatePipelineDetailPage() {
                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/10 text-green-800 dark:text-green-300 rounded-full text-sm font-medium border border-green-200 dark:border-green-800"
                     >
                       {skill.skillName}
-                      <span className="text-xs bg-green-200 dark:bg-green-800 px-2 py-0.5 rounded-full">
-                        {getSkillLevel(skill.level)}
-                      </span>
+                      <VerifiedLevelBadge level={skill.verifiedLevel} />
                     </span>
                   ))}
                 </div>
               </div>
             )}
+
+            <CandidateSkillAssessmentsPanel candidateId={pipeline.candidate.id} />
 
             {/* Job Preferences */}
             {pipeline.candidate.jobPreference && (

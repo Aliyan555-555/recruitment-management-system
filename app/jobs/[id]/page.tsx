@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar"
 import { JobDetails } from "@/components/JobDetails"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { MandatoryAssessmentRedirect } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface JobLocation {
   city: string
@@ -195,6 +196,7 @@ export default function JobDetailsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
+      <MandatoryAssessmentRedirect />
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <JobDetails

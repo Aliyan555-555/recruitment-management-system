@@ -1,0 +1,39 @@
+
+# Connect to Supabase via connection pooling
+DATABASE_URL="postgresql://postgres.rseyfcoizxonbryldmmz:DmIKpMtV5tBYs8kC@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Direct connection to the database. Used for migrations
+DIRECT_URL="postgresql://postgres.rseyfcoizxonbryldmmz:DmIKpMtV5tBYs8kC@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+
+
+NEXTAUTH_SECRET="your-super-secret-key-change-this-in-production"
+NEXTAUTH_URL="https://moventa.meteoricsolutions.com"
+
+# -----------------------------------------------------------------------------
+# APPLICATION CONFIGURATION
+# -----------------------------------------------------------------------------
+NODE_ENV="production"
+PORT=3000
+APP_URL="https://moventa.meteoricsolutions.com"
+
+# -----------------------------------------------------------------------------
+# FILE UPLOAD CONFIGURATION
+# -----------------------------------------------------------------------------
+MAX_FILE_SIZE=5242880
+ALLOWED_FILE_TYPES="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+UPLOAD_DIR="./uploads"
+CV_STORAGE_PATH="./uploads/cvs"
+GALLERY_STORAGE_PATH="./uploads/gallery"
+
+# -----------------------------------------------------------------------------
+# SECURITY CONFIGURATION
+# -----------------------------------------------------------------------------
+JWT_SECRET="your-jwt-secret-key"
+JWT_EXPIRES_IN="7d"
+SESSION_MAX_AGE=604800
+
+# -----------------------------------------------------------------------------
+# OPTIONAL CONFIGURATIONS
+# -----------------------------------------------------------------------------
+# LOG_LEVEL="info"
+# ITEMS_PER_PAGE=10
