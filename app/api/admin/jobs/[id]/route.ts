@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
+import { parseAndValidateSkillNames } from "@/lib/skills"
 
 interface WorkflowStepInput {
   stepName: string
@@ -411,6 +412,19 @@ export async function PUT(
       }
     }
 
+    let normalizedJobSkills: string[] | undefined
+    if (body.skills !== undefined) {
+      if (body.skills.length > 0) {
+        const skillsResult = parseAndValidateSkillNames(body.skills)
+        if (!skillsResult.valid) {
+          return NextResponse.json({ error: skillsResult.error }, { status: 400 })
+        }
+        normalizedJobSkills = skillsResult.normalized
+      } else {
+        normalizedJobSkills = []
+      }
+    }
+
     // Update job using transaction
     const updatedJob = await prisma.$transaction(async (tx) => {
       // Update job basic info
@@ -462,16 +476,16 @@ export async function PUT(
       }
 
       // Update skills if provided
-      if (body.skills !== undefined) {
+      if (normalizedJobSkills !== undefined) {
         // Delete existing skills
         await tx.jobSkill.deleteMany({
           where: { jobId: jobId }
         })
 
         // Create new skills
-        if (body.skills.length > 0) {
+        if (normalizedJobSkills.length > 0) {
           await tx.jobSkill.createMany({
-            data: body.skills.map(skill => ({
+            data: normalizedJobSkills.map(skill => ({
               jobId: jobId,
               skillName: skill
             }))

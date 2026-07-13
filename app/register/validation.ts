@@ -1,4 +1,5 @@
 import Joi from "joi"
+import { validateAndNormalizeSkillName } from "@/lib/skills"
 
 export const personalInfoSchema = Joi.object({
   title: Joi.string().required().messages({ "any.required": "Title is required" }),
@@ -123,9 +124,19 @@ export const experienceEntrySchemaJoi = Joi.object({
 }).options({ allowUnknown: true })
 
 export const skillEntrySchemaJoi = Joi.object({
-  name: Joi.string().min(2).required().messages({
-    "string.empty": "Skill name is required",
-  }),
+  name: Joi.string()
+    .required()
+    .custom((value, helpers) => {
+      const result = validateAndNormalizeSkillName(value)
+      if (!result.valid) {
+        return helpers.error("any.custom", { message: result.error })
+      }
+      return result.normalized
+    })
+    .messages({
+      "string.empty": "Skill name is required",
+      "any.custom": "{{#message}}",
+    }),
 }).options({ allowUnknown: true })
 
 export const jobPreferenceSchemaJoi = Joi.object({

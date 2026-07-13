@@ -47,6 +47,10 @@ export function getCandidateResultMessage(
   level: VerifiedSkillLevel | null
 ): string {
   if (status === "PASSED" && level) {
+    if (level === "BEGINNER") {
+      return "You passed, but your skill is still at Beginner level. Keep practicing and use your remaining attempts to improve."
+    }
+
     return `Great work. You verified this skill at the ${level.toLowerCase()} level.`
   }
 

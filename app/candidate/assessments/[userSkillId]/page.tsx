@@ -57,6 +57,9 @@ export default function TakeSkillAssessmentPage({
     maxPoints: number
     canReattempt: boolean
     cooldownEndsAt: string | null
+    cycleUnlocksAt: string | null
+    attemptsUsedInCycle: number | null
+    maxAttempts: number | null
     assessmentId: string
   } | null>(null)
 
@@ -103,6 +106,9 @@ export default function TakeSkillAssessmentPage({
           maxPoints: payload.maxPoints,
           canReattempt: false,
           cooldownEndsAt: null,
+          cycleUnlocksAt: null,
+          attemptsUsedInCycle: null,
+          maxAttempts: null,
           assessmentId: payload.id,
         })
       }
@@ -211,6 +217,9 @@ export default function TakeSkillAssessmentPage({
         maxPoints: data.assessment.maxPoints,
         canReattempt: data.canReattempt,
         cooldownEndsAt: data.cooldownEndsAt,
+        cycleUnlocksAt: data.cycleUnlocksAt ?? null,
+        attemptsUsedInCycle: data.attemptsUsedInCycle ?? null,
+        maxAttempts: data.maxAttempts ?? null,
         assessmentId: data.assessment.id,
       })
     } catch (error: any) {
@@ -242,9 +251,11 @@ export default function TakeSkillAssessmentPage({
           <CardHeader>
             <CardTitle>{skillName} Assessment Result</CardTitle>
             <CardDescription>
-              {result.passed
-                ? "Your skill has been verified."
-                : "Keep building — you can try again when eligible."}
+              {result.passed && result.level && result.level !== "BEGINNER"
+                ? "Your skill has been verified above Beginner."
+                : result.cycleUnlocksAt
+                  ? "You used all attempts in this cycle. Learn during the waiting period, then try again."
+                  : "Keep building — you can try again when eligible."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -268,12 +279,19 @@ export default function TakeSkillAssessmentPage({
               <div className="rounded-lg border border-border p-4">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
                 <p className="mt-1 text-lg font-semibold">
-                  {result.passed ? "Verified" : "Not yet verified"}
+                  {result.passed && result.level && result.level !== "BEGINNER"
+                    ? "Verified"
+                    : "Beginner"}
                 </p>
+                {result.attemptsUsedInCycle != null && result.maxAttempts != null && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Attempts this cycle: {result.attemptsUsedInCycle}/{result.maxAttempts}
+                  </p>
+                )}
               </div>
             </div>
 
-            {result.passed && result.level && (
+            {result.passed && result.level && result.level !== "BEGINNER" && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">Verified level:</span>
                 <Badge
@@ -283,6 +301,12 @@ export default function TakeSkillAssessmentPage({
                   {formatVerifiedLevel(result.level)}
                 </Badge>
               </div>
+            )}
+
+            {result.cycleUnlocksAt && (
+              <p className="text-sm text-muted-foreground">
+                Next 3 attempts unlock after the 7-day learning period.
+              </p>
             )}
 
             <div className="flex flex-wrap gap-3">

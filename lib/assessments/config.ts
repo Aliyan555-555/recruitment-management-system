@@ -26,6 +26,7 @@ export type SkillAssessmentConfigValues = {
   levelThresholds: LevelThresholds
   maxAttempts: number
   cooldownHours: number
+  cycleResetDays: number
   attemptTimeoutMinutes: number
   isActive: boolean
 }
@@ -72,6 +73,10 @@ export async function getSkillAssessmentConfig(
     levelThresholds: parseLevelThresholds(config.levelThresholds),
     maxAttempts: config.maxAttempts,
     cooldownHours: config.cooldownHours,
+    cycleResetDays:
+      "cycleResetDays" in config && typeof config.cycleResetDays === "number"
+        ? config.cycleResetDays
+        : 7,
     attemptTimeoutMinutes: config.attemptTimeoutMinutes,
     isActive: config.isActive,
   }

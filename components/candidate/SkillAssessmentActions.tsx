@@ -14,10 +14,13 @@ export type SkillAssessmentStatus = {
   verifiedAt: string | null
   inProgressAssessmentId: string | null
   canStart: boolean
+  skillImproved?: boolean
+  cycleLocked?: boolean
   maxAttemptsReached: boolean
   attemptsUsed: number
   maxAttempts: number
   cooldownEndsAt: string | null
+  cycleUnlocksAt?: string | null
   lastAssessmentId: string | null
 }
 
@@ -31,6 +34,7 @@ export function SkillAssessmentActions({
   showDelete?: boolean
 }) {
   const [cooldownLabel, setCooldownLabel] = useState<string | null>(null)
+  const [cycleUnlockLabel, setCycleUnlockLabel] = useState<string | null>(null)
 
   useEffect(() => {
     if (!skill.cooldownEndsAt) {
@@ -39,9 +43,7 @@ export function SkillAssessmentActions({
     }
 
     const update = () => {
-      setCooldownLabel(
-        formatCooldownRemaining(Number(skill.cooldownEndsAt))
-      )
+      setCooldownLabel(formatCooldownRemaining(Number(skill.cooldownEndsAt)))
     }
 
     update()
@@ -49,12 +51,35 @@ export function SkillAssessmentActions({
     return () => clearInterval(interval)
   }, [skill.cooldownEndsAt])
 
+  useEffect(() => {
+    if (!skill.cycleUnlocksAt) {
+      setCycleUnlockLabel(null)
+      return
+    }
+
+    const update = () => {
+      setCycleUnlockLabel(formatCooldownRemaining(Number(skill.cycleUnlocksAt)))
+    }
+
+    update()
+    const interval = setInterval(update, 30_000)
+    return () => clearInterval(interval)
+  }, [skill.cycleUnlocksAt])
+
   const assessmentHref = skill.inProgressAssessmentId
     ? `/candidate/assessments/${skill.userSkillId}?assessmentId=${skill.inProgressAssessmentId}`
     : `/candidate/assessments/${skill.userSkillId}`
 
   const showTakeAssessment =
     skill.canStart || Boolean(skill.inProgressAssessmentId)
+
+  const skillImproved =
+    skill.skillImproved ??
+    (skill.verifiedLevel === "INTERMEDIATE" ||
+      skill.verifiedLevel === "PROFESSIONAL" ||
+      skill.verifiedLevel === "EXPERT")
+
+  const cycleLocked = skill.cycleLocked ?? skill.maxAttemptsReached
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -66,6 +91,11 @@ export function SkillAssessmentActions({
         <p className="text-xs text-muted-foreground">
           Attempts used: {skill.attemptsUsed}/{skill.maxAttempts}
         </p>
+        {cycleLocked && (
+          <p className="text-xs text-muted-foreground">
+            Complete 3 attempts without improving? Take time to learn, then try again.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -78,13 +108,13 @@ export function SkillAssessmentActions({
                 : "Take AI Assessment"}
             </Link>
           </Button>
-        ) : skill.verifiedLevel ? (
+        ) : skillImproved ? (
           <Button size="sm" variant="outline" disabled>
-            Already verified
+            Skill improved
           </Button>
-        ) : skill.maxAttemptsReached ? (
+        ) : cycleLocked && cycleUnlockLabel ? (
           <Button size="sm" variant="outline" disabled>
-            Max attempts reached
+            Next cycle in {cycleUnlockLabel}
           </Button>
         ) : cooldownLabel ? (
           <Button size="sm" variant="outline" disabled>

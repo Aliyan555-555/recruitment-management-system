@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { getSkillAssessmentConfig } from "@/lib/assessments/config"
 import {
-  expireStaleInProgressAttempts,
-  getCompletedAttemptCount,
+  getAttemptEligibilityState,
+  isSkillImproved,
 } from "@/lib/assessments/attempt-rules"
 
 export type MandatorySkill = {
@@ -10,8 +10,12 @@ export type MandatorySkill = {
   skillName: string
   inProgressAssessmentId: string | null
   completedAttempts: number
+  attemptsUsed: number
   maxAttempts: number
   verifiedLevel: string | null
+  canStart: boolean
+  cycleLocked: boolean
+  cycleUnlocksAt: string | null
 }
 
 export type MandatoryAssessmentStatus = {
@@ -26,7 +30,7 @@ function isSkillAssessmentFulfilled(
   verifiedLevel: string | null,
   completedAttempts: number
 ): boolean {
-  return Boolean(verifiedLevel) || completedAttempts >= 1
+  return isSkillImproved(verifiedLevel) || completedAttempts >= 1
 }
 
 export async function getMandatoryAssessmentStatus(
@@ -55,24 +59,14 @@ export async function getMandatoryAssessmentStatus(
   for (const skill of skills) {
     const config = await getSkillAssessmentConfig(skill.skillName)
 
-    await expireStaleInProgressAttempts(
+    const state = await getAttemptEligibilityState(
       skill.id,
-      config.attemptTimeoutMinutes,
-      now
+      config,
+      now,
+      skill.verifiedLevel
     )
 
-    const completedAttempts = await getCompletedAttemptCount(skill.id)
-
-    const inProgress = await prisma.skillAssessment.findFirst({
-      where: {
-        userSkillId: skill.id,
-        status: "IN_PROGRESS",
-      },
-      orderBy: { startedAt: "desc" },
-      select: { id: true },
-    })
-
-    if (isSkillAssessmentFulfilled(skill.verifiedLevel, completedAttempts)) {
+    if (isSkillAssessmentFulfilled(skill.verifiedLevel, state.completedAttempts)) {
       completedCount += 1
       continue
     }
@@ -80,10 +74,14 @@ export async function getMandatoryAssessmentStatus(
     pendingSkills.push({
       userSkillId: skill.id.toString(),
       skillName: skill.skillName,
-      inProgressAssessmentId: inProgress?.id.toString() ?? null,
-      completedAttempts,
+      inProgressAssessmentId: state.inProgress?.id.toString() ?? null,
+      completedAttempts: state.completedAttempts,
+      attemptsUsed: state.attemptsInCurrentCycle,
       maxAttempts: config.maxAttempts,
       verifiedLevel: skill.verifiedLevel,
+      canStart: state.canStart,
+      cycleLocked: state.cycleLocked,
+      cycleUnlocksAt: state.cycleUnlocksAt?.toString() ?? null,
     })
   }
 

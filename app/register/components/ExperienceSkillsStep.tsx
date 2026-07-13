@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ExperienceEntry, SkillEntry } from "@/app/register/types"
+import { sanitizeSkillInput } from "@/lib/skills"
 
 type ExperienceSkillsStepProps = {
   experiences: ExperienceEntry[]
@@ -131,7 +132,7 @@ const ExperienceSkillsStep = ({
         <div>
           <h3 className="text-lg font-semibold">Skills</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Add skill names only — proficiency is verified later via AI assessment.
+            Add skill names only — no spaces, stored in uppercase. Proficiency is verified later via AI assessment.
           </p>
         </div>
         {skills.map((skill, index) => (
@@ -140,10 +141,11 @@ const ExperienceSkillsStep = ({
               <Label>Skill Name *</Label>
               <Input
                 value={skill.name}
+                placeholder="e.g. REACT, PYTHON"
                 onChange={(e) => {
                   clearFieldError("skills")
                   clearFieldError(`skills.${index}.name`)
-                  onSkillChange(skill.id, "name", e.target.value)
+                  onSkillChange(skill.id, "name", sanitizeSkillInput(e.target.value))
                 }}
               />
               {getFieldError(`skills.${index}.name`) && (

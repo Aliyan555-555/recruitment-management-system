@@ -45,8 +45,13 @@ export function formatCooldownRemaining(cooldownEndsAt: number | null): string |
   if (remainingMs <= 0) return null
 
   const totalMinutes = Math.ceil(remainingMs / (60 * 1000))
-  const hours = Math.floor(totalMinutes / 60)
+  const days = Math.floor(totalMinutes / (24 * 60))
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60)
   const minutes = totalMinutes % 60
+
+  if (days > 0) {
+    return days === 1 ? `1 day ${hours}h` : `${days} days ${hours}h`
+  }
 
   if (hours > 0) {
     return `${hours}h ${minutes}m`

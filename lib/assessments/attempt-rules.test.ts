@@ -2,8 +2,11 @@ import assert from "node:assert/strict"
 import { describe, it } from "node:test"
 import type { SkillAssessment } from "@prisma/client"
 import {
+  getAttemptsInCurrentCycle,
   getCooldownEndsAt,
+  getCycleUnlocksAt,
   isCooldownActive,
+  isSkillImproved,
 } from "./attempt-rules"
 
 function mockAttempt(submittedAt: bigint): SkillAssessment {
@@ -26,6 +29,48 @@ function mockAttempt(submittedAt: bigint): SkillAssessment {
     updatedAt: submittedAt,
   }
 }
+
+describe("isSkillImproved", () => {
+  it("treats Beginner and null as not improved", () => {
+    assert.equal(isSkillImproved(null), false)
+    assert.equal(isSkillImproved("BEGINNER"), false)
+  })
+
+  it("treats Intermediate and above as improved", () => {
+    assert.equal(isSkillImproved("INTERMEDIATE"), true)
+    assert.equal(isSkillImproved("PROFESSIONAL"), true)
+    assert.equal(isSkillImproved("EXPERT"), true)
+  })
+})
+
+describe("getAttemptsInCurrentCycle", () => {
+  it("returns zero for a fresh cycle", () => {
+    assert.equal(getAttemptsInCurrentCycle(0, 3, false), 0)
+    assert.equal(getAttemptsInCurrentCycle(3, 3, false), 0)
+    assert.equal(getAttemptsInCurrentCycle(6, 3, false), 0)
+  })
+
+  it("returns partial progress inside a cycle", () => {
+    assert.equal(getAttemptsInCurrentCycle(1, 3, false), 1)
+    assert.equal(getAttemptsInCurrentCycle(2, 3, false), 2)
+    assert.equal(getAttemptsInCurrentCycle(4, 3, false), 1)
+  })
+
+  it("returns max attempts when the cycle is locked", () => {
+    assert.equal(getAttemptsInCurrentCycle(3, 3, true), 3)
+    assert.equal(getAttemptsInCurrentCycle(6, 3, true), 3)
+  })
+})
+
+describe("getCycleUnlocksAt", () => {
+  it("adds cycle reset days in seconds", () => {
+    const cycleEnd = BigInt(1_000_000)
+    assert.equal(
+      getCycleUnlocksAt(cycleEnd, 7),
+      cycleEnd + BigInt(7 * 24 * 60 * 60)
+    )
+  })
+})
 
 describe("isCooldownActive", () => {
   it("returns false when there is no prior attempt", () => {

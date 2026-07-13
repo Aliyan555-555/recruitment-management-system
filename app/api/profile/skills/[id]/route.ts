@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Prisma } from "@prisma/client"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import {
+  SKILL_ERRORS,
+  validateAndNormalizeSkillName,
+} from "@/lib/skills"
 
 export async function PUT(
   req: NextRequest,
@@ -25,17 +30,31 @@ export async function PUT(
       return NextResponse.json({ error: "Skill not found" }, { status: 404 })
     }
 
-    if (!body.skillName?.trim()) {
-      return NextResponse.json(
-        { error: "Skill name is required" },
-        { status: 400 }
-      )
+    const validation = validateAndNormalizeSkillName(body.skillName ?? "")
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+
+    const skillName = validation.normalized
+
+    if (skillName !== existing.skillName) {
+      const duplicate = await prisma.userSkills.findFirst({
+        where: {
+          userId,
+          skillName,
+          id: { not: skillId },
+        },
+      })
+
+      if (duplicate) {
+        return NextResponse.json({ error: SKILL_ERRORS.DUPLICATE }, { status: 409 })
+      }
     }
 
     const skill = await prisma.userSkills.update({
       where: { id: skillId },
       data: {
-        skillName: body.skillName.trim(),
+        skillName,
         updatedAt: BigInt(Date.now()),
       },
     })
@@ -46,6 +65,13 @@ export async function PUT(
       verifiedLevel: skill.verifiedLevel,
     })
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return NextResponse.json({ error: SKILL_ERRORS.DUPLICATE }, { status: 409 })
+    }
+
     console.error("Update skill error:", error)
     return NextResponse.json(
       { error: "Failed to update skill" },
@@ -104,4 +130,3 @@ export async function DELETE(
     )
   }
 }
-

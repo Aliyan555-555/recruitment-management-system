@@ -3,9 +3,10 @@ import { requireCandidate } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { submitSkillAssessmentSchema } from "@/lib/validations"
 import {
+  canReattemptAssessment,
   expireStaleInProgressAttempts,
   getAttemptEligibilityState,
-  getCompletedAttemptCount,
+  isSkillImproved,
   isTerminalStatus,
 } from "@/lib/assessments/attempt-rules"
 import { getSkillAssessmentConfig } from "@/lib/assessments/config"
@@ -202,7 +203,7 @@ export async function POST(
           where: { id: assessment.userSkillId },
           data: {
             verifiedLevel: level,
-            verifiedAt: now,
+            ...(isSkillImproved(level) ? { verifiedAt: now } : {}),
             lastAssessmentId: assessmentId,
             updatedAt: BigInt(Date.now()),
           },
@@ -211,6 +212,7 @@ export async function POST(
         await tx.userSkills.update({
           where: { id: assessment.userSkillId },
           data: {
+            verifiedLevel: "BEGINNER",
             lastAssessmentId: assessmentId,
             updatedAt: BigInt(Date.now()),
           },
@@ -248,8 +250,6 @@ export async function POST(
       now
     )
 
-    const completedAttempts = await getCompletedAttemptCount(assessment.userSkillId)
-
     const userSkill = await prisma.userSkills.findUnique({
       where: { id: assessment.userSkillId },
       select: { verifiedLevel: true },
@@ -262,10 +262,11 @@ export async function POST(
       userSkill?.verifiedLevel ?? null
     )
 
-    const canReattempt =
-      !passed &&
-      completedAttempts < config.maxAttempts &&
-      !eligibility.cooldownActive
+    const canReattempt = canReattemptAssessment(
+      passed,
+      userSkill?.verifiedLevel ?? null,
+      eligibility
+    )
 
     return NextResponse.json({
       success: true,
@@ -276,6 +277,11 @@ export async function POST(
       cooldownEndsAt: eligibility.cooldownActive
         ? eligibility.cooldownEndsAt?.toString() ?? null
         : null,
+      cycleUnlocksAt: eligibility.cycleLocked
+        ? eligibility.cycleUnlocksAt?.toString() ?? null
+        : null,
+      attemptsUsedInCycle: eligibility.attemptsInCurrentCycle,
+      maxAttempts: config.maxAttempts,
     })
   } catch (error) {
     if (isAssessmentConfigError(error)) {

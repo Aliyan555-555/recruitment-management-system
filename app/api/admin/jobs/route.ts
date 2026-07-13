@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { generateJobCode } from "@/lib/utils"
+import { parseAndValidateSkillNames } from "@/lib/skills"
 
 // Helper function to convert stepType to human-readable stepName
 function getStepNameFromType(stepType: string): string {
@@ -196,6 +197,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let normalizedJobSkills: string[] = []
+    if (body.skills && body.skills.length > 0) {
+      const skillsResult = parseAndValidateSkillNames(body.skills)
+      if (!skillsResult.valid) {
+        return NextResponse.json({ error: skillsResult.error }, { status: 400 })
+      }
+      normalizedJobSkills = skillsResult.normalized
+    }
+
     // Create job with workflow
     const job = await prisma.$transaction(async (tx) => {
       // Create the job
@@ -270,9 +280,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Create job skills if provided
-      if (body.skills && body.skills.length > 0) {
+      if (normalizedJobSkills.length > 0) {
         await tx.jobSkill.createMany({
-          data: body.skills.map(skill => ({
+          data: normalizedJobSkills.map(skill => ({
             jobId: newJob.id,
             skillName: skill
           }))

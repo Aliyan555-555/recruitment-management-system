@@ -44,11 +44,16 @@ export async function GET() {
           verifiedAt: skill.verifiedAt?.toString() ?? null,
           inProgressAssessmentId: state.inProgress?.id.toString() ?? null,
           canStart: state.canStart,
-          maxAttemptsReached: state.maxAttemptsReached,
-          attemptsUsed: state.completedAttempts,
+          skillImproved: state.skillImproved,
+          cycleLocked: state.cycleLocked,
+          maxAttemptsReached: state.cycleLocked,
+          attemptsUsed: state.attemptsInCurrentCycle,
           maxAttempts: config.maxAttempts,
           cooldownEndsAt: state.cooldownActive
             ? state.cooldownEndsAt?.toString() ?? null
+            : null,
+          cycleUnlocksAt: state.cycleLocked
+            ? state.cycleUnlocksAt?.toString() ?? null
             : null,
           lastAssessmentId: skill.lastAssessmentId?.toString() ?? null,
         }

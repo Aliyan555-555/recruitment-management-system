@@ -192,6 +192,7 @@ export async function POST(req: Request) {
               userId: createdUser.id,
               skillName: skill.name,
               level: 0,
+              verifiedLevel: "BEGINNER",
               createdAt: currentTime,
               updatedAt: currentTime,
             },

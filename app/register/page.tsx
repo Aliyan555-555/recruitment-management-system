@@ -51,6 +51,10 @@ import {
   securitySchema,
 } from "./validation"
 import { NATIONALITY_TO_COUNTRY_CODE } from "@/lib/nationalityMap"
+import {
+  SKILL_ERRORS,
+  validateAndNormalizeSkillName,
+} from "@/lib/skills"
 
 const mapJoiErrors = (details: ValidationErrorItem[], prefix: string): FieldErrors => {
   return details.reduce<FieldErrors>((acc, { message, path }) => {
@@ -328,6 +332,16 @@ export default function RegisterPage() {
           }
         })
 
+        const seenSkillNames = new Set<string>()
+        skills.forEach((skill, index) => {
+          const result = validateAndNormalizeSkillName(skill.name)
+          if (!result.valid) return
+          if (seenSkillNames.has(result.normalized)) {
+            errors[`skills.${index}.name`] = SKILL_ERRORS.DUPLICATE
+          }
+          seenSkillNames.add(result.normalized)
+        })
+
         if (Object.keys(errors).length) {
           applyFieldErrors(["experience", "skills"], errors)
           setStepError("Please fix the highlighted experience and skill fields.")
@@ -436,9 +450,12 @@ export default function RegisterPage() {
         })),
       skillsInput: skills
         .filter((entry) => entry.name.trim())
-        .map((entry) => ({
-          name: entry.name.trim(),
-        })),
+        .map((entry) => {
+          const result = validateAndNormalizeSkillName(entry.name)
+          return {
+            name: result.valid ? result.normalized : entry.name.trim(),
+          }
+        }),
       jobPreference: {
         firstPriority: jobPreference.firstPriority || undefined,
         secondPriority: jobPreference.secondPriority || undefined,

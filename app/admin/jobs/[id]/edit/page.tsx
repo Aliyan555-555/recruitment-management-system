@@ -4,6 +4,8 @@ import { useMemo, useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
+import { toast } from "sonner"
+import { addSkillToList, sanitizeSkillInput } from "@/lib/skills"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
@@ -92,6 +94,16 @@ export default function EditJobPage() {
     skills: [] as string[],
   })
   const [skillInput, setSkillInput] = useState("")
+
+  const handleAddJobSkill = () => {
+    const result = addSkillToList(formData.skills, skillInput)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    setFormData({ ...formData, skills: result.skills })
+    setSkillInput("")
+  }
 
 
 
@@ -1102,29 +1114,19 @@ export default function EditJobPage() {
                   <input
                     type="text"
                     value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
+                    onChange={(e) => setSkillInput(sanitizeSkillInput(e.target.value))}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
-                        const value = skillInput.trim()
-                        if (value && !formData.skills.includes(value)) {
-                          setFormData({ ...formData, skills: [...formData.skills, value] })
-                          setSkillInput("")
-                        }
+                        handleAddJobSkill()
                       }
                     }}
                     className="flex-1 px-3 py-2 border border-input rounded-md bg-background"
-                    placeholder="e.g., JavaScript, React, Node.js"
+                    placeholder="e.g., JAVASCRIPT, REACT, NODE.JS"
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      const value = skillInput.trim()
-                      if (value && !formData.skills.includes(value)) {
-                        setFormData({ ...formData, skills: [...formData.skills, value] })
-                        setSkillInput("")
-                      }
-                    }}
+                    onClick={handleAddJobSkill}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
                   >
                     Add

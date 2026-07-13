@@ -27,6 +27,12 @@ import {
 } from "@/lib/countries"
 import { formatCnic, formatPakPhone, formatPostalCode } from "@/app/register/utils"
 import { NATIONALITY_TO_COUNTRY_CODE, COUNTRY_CODE_TO_NATIONALITY } from "@/lib/nationalityMap"
+import {
+  normalizeSkillName,
+  sanitizeSkillInput,
+  SKILL_ERRORS,
+  validateAndNormalizeSkillName,
+} from "@/lib/skills"
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -399,23 +405,36 @@ export default function EditProfilePage() {
 
   // --- Skills Handlers ---
   const handleAddSkill = async () => {
-    const skillName = newSkillName.trim()
-    if (!skillName) {
-      toast.error("Validation Error", { description: "Skill name is required" })
+    const validation = validateAndNormalizeSkillName(newSkillName)
+    if (!validation.valid) {
+      toast.error("Validation Error", { description: validation.error })
       return
     }
+
+    const isDuplicate = skillAssessmentStatuses.some(
+      (skill) => normalizeSkillName(skill.skillName) === validation.normalized,
+    )
+
+    if (isDuplicate) {
+      toast.error("Validation Error", { description: SKILL_ERRORS.DUPLICATE })
+      return
+    }
+
     try {
       const res = await fetch("/api/profile/skills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skillName })
+        body: JSON.stringify({ skillName: validation.normalized })
       })
-      if (!res.ok) throw new Error("Failed to add skill")
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to add skill")
+      }
       setNewSkillName("")
       setShowAddSkill(false)
       await fetchAssessmentStatuses()
-    } catch (err) {
-      toast.error("Error", { description: "Failed to add skill" })
+    } catch (err: any) {
+      toast.error("Error", { description: err.message || "Failed to add skill" })
     }
   }
 
@@ -814,8 +833,8 @@ export default function EditProfilePage() {
                   <Input
                     id="skill-name"
                     value={newSkillName}
-                    onChange={(e) => setNewSkillName(e.target.value)}
-                    placeholder="e.g. React, Python, Project Management"
+                    onChange={(e) => setNewSkillName(sanitizeSkillInput(e.target.value))}
+                    placeholder="e.g. REACT, PYTHON, NODE.JS"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault()
@@ -824,7 +843,7 @@ export default function EditProfilePage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Proficiency is set automatically after you pass the AI assessment.
+                    Skills are stored in uppercase without spaces. Proficiency is set after you pass the AI assessment.
                   </p>
                 </div>
                 <div className="flex gap-2">

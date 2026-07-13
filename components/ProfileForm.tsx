@@ -10,6 +10,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Trash2, Plus, Save, Upload, FileText, Edit2, X } from "lucide-react"
 import {
+  normalizeSkillName,
+  sanitizeSkillInput,
+  validateAndNormalizeSkillName,
+} from "@/lib/skills"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -273,7 +278,13 @@ export function ProfileForm({ user }: { user: any }) {
   }
 
   const handleAddSkill = async () => {
-    if (!newSkillName.trim()) return
+    const validation = validateAndNormalizeSkillName(newSkillName)
+    if (!validation.valid) return
+
+    const isDuplicate = skills.some(
+      (skill) => normalizeSkillName(skill.skillName) === validation.normalized,
+    )
+    if (isDuplicate) return
 
     setLoading(true)
     try {
@@ -281,7 +292,7 @@ export function ProfileForm({ user }: { user: any }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          skillName: newSkillName,
+          skillName: validation.normalized,
         })
       })
 
@@ -707,9 +718,9 @@ export function ProfileForm({ user }: { user: any }) {
         <CardContent className="space-y-4">
           <div className="flex gap-2">
             <Input
-              placeholder="Skill name (e.g., JavaScript)"
+              placeholder="Skill name (e.g., REACT)"
               value={newSkillName}
-              onChange={(e) => setNewSkillName(e.target.value)}
+              onChange={(e) => setNewSkillName(sanitizeSkillInput(e.target.value))}
               onKeyPress={(e) => e.key === "Enter" && handleAddSkill()}
             />
             <Button onClick={handleAddSkill} disabled={loading}>

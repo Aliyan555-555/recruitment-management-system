@@ -155,6 +155,7 @@ model UserSkills {
   @@index([userId])
   @@index([verifiedLevel])
   @@index([skillName])
+  @@unique([userId, skillName])
   @@map("user_skills")
 }
 
@@ -167,6 +168,7 @@ model SkillAssessmentConfig {
   levelThresholds       Json    @map("level_thresholds")
   maxAttempts           Int     @default(3) @map("max_attempts")
   cooldownHours         Int     @default(24) @map("cooldown_hours")
+  cycleResetDays        Int     @default(7) @map("cycle_reset_days")
   attemptTimeoutMinutes Int     @default(60) @map("attempt_timeout_minutes")
   isActive              Boolean @default(true) @map("is_active")
   createdAt             BigInt  @map("created_at")
@@ -390,6 +392,7 @@ model JobSkill {
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([jobId])
+  @@unique([jobId, skillName])
   @@map("job_skills")
 }
 

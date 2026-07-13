@@ -13,14 +13,19 @@ import {
 } from "@/components/ui/card"
 import { Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
 import { SkillVerificationBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { formatCooldownRemaining } from "@/lib/assessments/level-display"
 
 type MandatorySkill = {
   userSkillId: string
   skillName: string
   inProgressAssessmentId: string | null
   completedAttempts: number
+  attemptsUsed: number
   maxAttempts: number
   verifiedLevel: string | null
+  canStart: boolean
+  cycleLocked: boolean
+  cycleUnlocksAt: string | null
 }
 
 type MandatoryStatus = {
@@ -139,6 +144,13 @@ export default function RequiredAssessmentsPage() {
             ? `/candidate/assessments/${skill.userSkillId}?assessmentId=${skill.inProgressAssessmentId}`
             : `/candidate/assessments/${skill.userSkillId}`
 
+          const cycleUnlockLabel = skill.cycleUnlocksAt
+            ? formatCooldownRemaining(Number(skill.cycleUnlocksAt))
+            : null
+
+          const canLaunch =
+            skill.canStart || Boolean(skill.inProgressAssessmentId)
+
           return (
             <Card key={skill.userSkillId}>
               <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -148,17 +160,32 @@ export default function RequiredAssessmentsPage() {
                     <SkillVerificationBadge level={skill.verifiedLevel} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Attempts used: {skill.completedAttempts}/{skill.maxAttempts}
+                    Attempts used: {skill.attemptsUsed}/{skill.maxAttempts}
                   </p>
+                  {skill.cycleLocked && cycleUnlockLabel && (
+                    <p className="text-sm text-muted-foreground">
+                      Next 3 attempts unlock in {cycleUnlockLabel}
+                    </p>
+                  )}
                 </div>
-                <Button asChild>
-                  <Link href={href}>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {skill.inProgressAssessmentId
-                      ? "Continue assessment"
-                      : "Start assessment"}
-                  </Link>
-                </Button>
+                {canLaunch ? (
+                  <Button asChild>
+                    <Link href={href}>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      {skill.inProgressAssessmentId
+                        ? "Continue assessment"
+                        : "Start assessment"}
+                    </Link>
+                  </Button>
+                ) : skill.cycleLocked && cycleUnlockLabel ? (
+                  <Button disabled variant="outline">
+                    Next cycle in {cycleUnlockLabel}
+                  </Button>
+                ) : (
+                  <Button disabled variant="outline">
+                    Waiting for next attempt
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )

@@ -1,4 +1,8 @@
 import { z } from "zod"
+import {
+  SKILL_ERRORS,
+  validateAndNormalizeSkillName,
+} from "@/lib/skills"
 
 const educationEntrySchema = z.object({
   educationLevelId: z.string().min(1, "Education level is required"),
@@ -19,8 +23,24 @@ const experienceEntrySchema = z.object({
   isCurrent: z.boolean().optional(),
 })
 
+const skillNameFieldSchema = z
+  .string()
+  .superRefine((value, ctx) => {
+    const result = validateAndNormalizeSkillName(value)
+    if (!result.valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.error,
+      })
+    }
+  })
+  .transform((value) => {
+    const result = validateAndNormalizeSkillName(value)
+    return result.valid ? result.normalized : value
+  })
+
 const skillEntrySchema = z.object({
-  name: z.string().min(2, "Skill name must be at least 2 characters"),
+  name: skillNameFieldSchema,
 })
 
 const jobPreferenceSchema = z.object({
@@ -60,7 +80,26 @@ export const registerSchema = z.object({
   profile: profileDetailSchema.optional(),
   educationHistory: z.array(educationEntrySchema).optional(),
   experiences: z.array(experienceEntrySchema).optional(),
-  skillsInput: z.array(skillEntrySchema).optional(),
+  skillsInput: z
+    .array(skillEntrySchema)
+    .optional()
+    .superRefine((skills, ctx) => {
+      if (!skills?.length) return
+
+      const seen = new Set<string>()
+      for (let index = 0; index < skills.length; index += 1) {
+        const name = skills[index]?.name
+        if (!name) continue
+        if (seen.has(name)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: SKILL_ERRORS.DUPLICATE,
+            path: [index, "name"],
+          })
+        }
+        seen.add(name)
+      }
+    }),
   jobPreference: jobPreferenceSchema.optional(),
 })
 

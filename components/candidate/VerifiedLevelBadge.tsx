@@ -35,19 +35,23 @@ export function SkillVerificationBadge({
   level: string | null | undefined
   className?: string
 }) {
-  if (level) {
-    return <VerifiedLevelBadge level={level} className={className} />
+  const displayLevel = level ?? "BEGINNER"
+
+  if (displayLevel === "BEGINNER") {
+    return (
+      <Badge
+        variant="outline"
+        title={getVerifiedLevelDescription("BEGINNER") ?? undefined}
+        className={cn(
+          "text-xs font-medium",
+          getVerifiedLevelBadgeClass("BEGINNER"),
+          className
+        )}
+      >
+        Beginner
+      </Badge>
+    )
   }
 
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        "text-xs font-medium border-dashed text-muted-foreground",
-        className
-      )}
-    >
-      Not AI verified
-    </Badge>
-  )
+  return <VerifiedLevelBadge level={displayLevel} className={className} />
 }
