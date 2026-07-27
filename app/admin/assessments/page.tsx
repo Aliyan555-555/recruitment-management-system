@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Loader2 } from "lucide-react"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
-import { formatVerifiedLevel } from "@/lib/assessments/level-display"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 
 interface AssessmentResult {
   id: string
@@ -12,13 +11,11 @@ interface AssessmentResult {
   candidateName: string
   candidateEmail: string
   skillName: string
-  status: string
   passed: boolean
   attemptNumber: number
   scoredPoints: number | null
   maxPoints: number | null
-  level: string | null
-  verifiedLevel: string | null
+  scorePercentage: number | null
   submittedAt: string | null
 }
 
@@ -41,17 +38,6 @@ function formatSubmittedAt(raw: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   })
-}
-
-function getStatusClass(status: string): string {
-  switch (status) {
-    case "PASSED":
-      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-    case "FAILED":
-      return "bg-destructive/10 text-destructive border-destructive/20"
-    default:
-      return "bg-muted text-muted-foreground border-border"
-  }
 }
 
 export default function AdminSkillAssessmentsPage() {
@@ -219,8 +205,7 @@ export default function AdminSkillAssessmentsPage() {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Skill</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Attempt</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Score</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Level</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Percentage</th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-muted-foreground uppercase">Submitted</th>
                   </tr>
                 </thead>
@@ -239,23 +224,7 @@ export default function AdminSkillAssessmentsPage() {
                           : "—"}
                       </td>
                       <td className="px-6 py-4">
-                        {result.level ? (
-                          <VerifiedLevelBadge level={result.level} />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                        {result.verifiedLevel && result.verifiedLevel !== result.level && (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Profile: {formatVerifiedLevel(result.verifiedLevel)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full border ${getStatusClass(result.status)}`}
-                        >
-                          {result.status.replace(/_/g, " ")}
-                        </span>
+                        <SkillPercentageBadge percentage={result.scorePercentage} />
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
                         {formatSubmittedAt(result.submittedAt)}

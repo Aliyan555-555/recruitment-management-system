@@ -59,3 +59,14 @@ export function mapScoreToLevel(
 export function hasPassedAssessment(scoredPoints: number, minPassPoints: number): boolean {
   return scoredPoints >= minPassPoints
 }
+
+export function calculateScorePercentage(
+  scoredPoints: number | null | undefined,
+  maxPoints: number | null | undefined
+): number | null {
+  if (scoredPoints == null || maxPoints == null || maxPoints <= 0) {
+    return null
+  }
+
+  return Math.round((scoredPoints / maxPoints) * 100)
+}

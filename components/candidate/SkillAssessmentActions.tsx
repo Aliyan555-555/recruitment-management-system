@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Loader2, Sparkles, Trash2 } from "lucide-react"
-import { SkillVerificationBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 import { formatCooldownRemaining } from "@/lib/assessments/level-display"
 
 export type SkillAssessmentStatus = {
@@ -12,6 +12,7 @@ export type SkillAssessmentStatus = {
   skillName: string
   verifiedLevel: string | null
   verifiedAt: string | null
+  skillPercentage: number | null
   inProgressAssessmentId: string | null
   canStart: boolean
   skillImproved?: boolean
@@ -86,7 +87,7 @@ export function SkillAssessmentActions({
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium text-foreground">{skill.skillName}</span>
-          <SkillVerificationBadge level={skill.verifiedLevel} />
+          <SkillPercentageBadge percentage={skill.skillPercentage} />
         </div>
         <p className="text-xs text-muted-foreground">
           Attempts used: {skill.attemptsUsed}/{skill.maxAttempts}

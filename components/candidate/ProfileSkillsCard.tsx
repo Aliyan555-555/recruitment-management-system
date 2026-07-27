@@ -39,7 +39,7 @@ export function ProfileSkillsCard() {
     loadSkills()
   }, [loadSkills])
 
-  const verifiedCount = skills.filter((skill) => skill.verifiedLevel).length
+  const assessedCount = skills.filter((skill) => skill.skillPercentage != null).length
 
   return (
     <Card className="shadow-sm bg-card border-border">
@@ -47,11 +47,10 @@ export function ProfileSkillsCard() {
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold text-foreground">Skills</CardTitle>
           <CardDescription className="text-xs leading-relaxed">
-            Each skill is verified separately by AI. Levels: Beginner, Intermediate,
-            Professional, Expert.
+            Each skill is assessed separately by AI. Your score is shown as a percentage.
             {skills.length > 0 && (
               <span className="mt-1 block">
-                {verifiedCount} of {skills.length} skills AI verified
+                {assessedCount} of {skills.length} skills assessed
               </span>
             )}
           </CardDescription>

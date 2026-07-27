@@ -3,11 +3,12 @@
 import { useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 
 interface VerifiedSkill {
   skillName: string
   verifiedLevel: string
+  skillPercentage: number | null
 }
 
 interface CandidatePipeline {
@@ -496,7 +497,10 @@ export default function AdminCandidatesPage() {
                             {pipeline.verifiedSkills.slice(0, 3).map((skill) => (
                               <div key={`${skill.skillName}-${skill.verifiedLevel}`} className="flex items-center gap-1">
                                 <span className="text-xs text-foreground">{skill.skillName}</span>
-                                <VerifiedLevelBadge level={skill.verifiedLevel} className="text-[10px] px-1.5 py-0" />
+                                <SkillPercentageBadge
+                                  percentage={skill.skillPercentage}
+                                  className="text-[10px] px-1.5 py-0"
+                                />
                               </div>
                             ))}
                             {pipeline.verifiedSkills.length > 3 && (

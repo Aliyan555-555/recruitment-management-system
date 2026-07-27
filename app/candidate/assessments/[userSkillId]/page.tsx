@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react"
 import { toast } from "sonner"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
-import { formatVerifiedLevel, getVerifiedLevelBadgeClass } from "@/lib/assessments/level-display"
+import { formatSkillPercentage } from "@/lib/assessments/level-display"
 
 type AssessmentQuestion = {
   id: string
@@ -52,7 +51,7 @@ export default function TakeSkillAssessmentPage({
   const [result, setResult] = useState<{
     passed: boolean
     message: string
-    level: string | null
+    scorePercentage: number | null
     scoredPoints: number | null
     maxPoints: number
     canReattempt: boolean
@@ -101,7 +100,7 @@ export default function TakeSkillAssessmentPage({
         setResult({
           passed: payload.passed,
           message: payload.message,
-          level: payload.level,
+          scorePercentage: payload.scorePercentage,
           scoredPoints: payload.scoredPoints,
           maxPoints: payload.maxPoints,
           canReattempt: false,
@@ -212,7 +211,7 @@ export default function TakeSkillAssessmentPage({
       setResult({
         passed: data.passed,
         message: data.message,
-        level: data.assessment.level,
+        scorePercentage: data.assessment.scorePercentage,
         scoredPoints: data.assessment.scoredPoints,
         maxPoints: data.assessment.maxPoints,
         canReattempt: data.canReattempt,
@@ -251,8 +250,8 @@ export default function TakeSkillAssessmentPage({
           <CardHeader>
             <CardTitle>{skillName} Assessment Result</CardTitle>
             <CardDescription>
-              {result.passed && result.level && result.level !== "BEGINNER"
-                ? "Your skill has been verified above Beginner."
+              {result.passed && result.scorePercentage != null && result.scorePercentage >= 40
+                ? `You scored ${result.scorePercentage}% on this assessment.`
                 : result.cycleUnlocksAt
                   ? "You used all attempts in this cycle. Learn during the waiting period, then try again."
                   : "Keep building — you can try again when eligible."}
@@ -277,11 +276,9 @@ export default function TakeSkillAssessmentPage({
                 </p>
               </div>
               <div className="rounded-lg border border-border p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {result.passed && result.level && result.level !== "BEGINNER"
-                    ? "Verified"
-                    : "Beginner"}
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Skill Percentage</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {formatSkillPercentage(result.scorePercentage)}
                 </p>
                 {result.attemptsUsedInCycle != null && result.maxAttempts != null && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -290,18 +287,6 @@ export default function TakeSkillAssessmentPage({
                 )}
               </div>
             </div>
-
-            {result.passed && result.level && result.level !== "BEGINNER" && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Verified level:</span>
-                <Badge
-                  variant="outline"
-                  className={getVerifiedLevelBadgeClass(result.level)}
-                >
-                  {formatVerifiedLevel(result.level)}
-                </Badge>
-              </div>
-            )}
 
             {result.cycleUnlocksAt && (
               <p className="text-sm text-muted-foreground">

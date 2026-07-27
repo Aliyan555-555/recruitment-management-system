@@ -176,13 +176,15 @@ export async function notifySkillAssessmentResult(
   candidateId: bigint,
   skillName: string,
   passed: boolean,
-  level: string | null,
+  scorePercentage: number | null,
   assessmentId: bigint
 ) {
-  const title = passed ? "Skill Assessment Verified" : "Skill Assessment Update"
+  const title = passed ? "Skill Assessment Complete" : "Skill Assessment Update"
+  const percentageLabel =
+    scorePercentage != null ? `${scorePercentage}%` : "Not assessed"
   const message = passed
-    ? `Your ${skillName} assessment is complete. Verified level: ${level ?? "N/A"}.`
-    : `Your ${skillName} assessment is complete. You can review your result and re-attempt when eligible.`
+    ? `Your ${skillName} assessment is complete. You scored ${percentageLabel}.`
+    : `Your ${skillName} assessment is complete. You scored ${percentageLabel}. Review your result and re-attempt when eligible.`
 
   return await createNotification({
     userId: candidateId,

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Globe, Linkedin, Github, ExternalLink, FileText, Calendar, User, AlertCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 import { Button } from "@/components/ui/button"
 
 interface PublicProfileData {
@@ -33,6 +33,7 @@ interface PublicProfileData {
       id: string
       skillName: string
       verifiedLevel?: string | null
+      skillPercentage?: number | null
     }>
     experiences: Array<{
       id: string
@@ -296,7 +297,7 @@ export default function PublicProfilePage() {
                         <Badge variant="secondary" className="px-3 py-1 text-sm bg-secondary hover:bg-secondary/80 text-secondary-foreground border-0">
                           {skill.skillName}
                         </Badge>
-                        <VerifiedLevelBadge level={skill.verifiedLevel} />
+                        <SkillPercentageBadge percentage={skill.skillPercentage} />
                       </div>
                     ))}
                   </div>

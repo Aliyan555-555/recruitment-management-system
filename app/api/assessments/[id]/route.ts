@@ -6,6 +6,7 @@ import {
   serializeAssessmentQuestion,
   serializeAssessmentSummary,
 } from "@/lib/assessments/serializers"
+import { calculateScorePercentage } from "@/lib/assessments/scoring"
 
 export async function GET(
   _req: NextRequest,
@@ -73,7 +74,10 @@ export async function GET(
     return NextResponse.json({
       assessment: {
         ...serializeAssessmentSummary(assessment),
-        message: getCandidateResultMessage(assessment.status, assessment.level),
+        message: getCandidateResultMessage(
+          assessment.status,
+          calculateScorePercentage(assessment.scoredPoints, assessment.maxPoints)
+        ),
         candidate: {
           id: assessment.user.id.toString(),
           name: `${assessment.user.firstname} ${assessment.user.lastname}`,

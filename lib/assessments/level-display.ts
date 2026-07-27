@@ -38,6 +38,31 @@ export function getVerifiedLevelBadgeClass(level: string | null | undefined): st
   }
 }
 
+export function formatSkillPercentage(percentage: number | null | undefined): string {
+  if (percentage == null) return "Not assessed"
+  return `${percentage}%`
+}
+
+export function getSkillPercentageBadgeClass(
+  percentage: number | null | undefined
+): string {
+  if (percentage == null) {
+    return "bg-muted text-muted-foreground border-border"
+  }
+
+  if (percentage >= 90) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-200 dark:border-emerald-800"
+  }
+  if (percentage >= 70) {
+    return "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-200 dark:border-violet-800"
+  }
+  if (percentage >= 40) {
+    return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800"
+  }
+
+  return "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900/40 dark:text-slate-200 dark:border-slate-700"
+}
+
 export function formatCooldownRemaining(cooldownEndsAt: number | null): string | null {
   if (!cooldownEndsAt) return null
 

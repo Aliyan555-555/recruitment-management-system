@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import type { Prisma, VerifiedSkillLevel } from "@prisma/client"
+import { calculateScorePercentage } from "@/lib/assessments/scoring"
 
 const DEFAULT_PAGE = 1
 const DEFAULT_LIMIT = 20
@@ -102,6 +103,10 @@ export async function GET(req: NextRequest) {
         attemptNumber: assessment.attemptNumber,
         scoredPoints: assessment.scoredPoints,
         maxPoints: assessment.maxPoints,
+        scorePercentage: calculateScorePercentage(
+          assessment.scoredPoints,
+          assessment.maxPoints
+        ),
         level: assessment.level,
         verifiedLevel: assessment.userSkill.verifiedLevel,
         verifiedAt: assessment.userSkill.verifiedAt?.toString() ?? null,

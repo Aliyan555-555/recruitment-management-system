@@ -1,26 +1,24 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
-import { formatVerifiedLevel } from "@/lib/assessments/level-display"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { formatSkillPercentage } from "@/lib/assessments/level-display"
 
 interface AssessmentSummary {
   id: string
   skillName: string
-  status: string
   attemptNumber: number
   scoredPoints: number | null
   totalPoints: number | null
-  level: string | null
-  passed: boolean
+  maxPoints: number | null
+  scorePercentage: number | null
   submittedAt: string | null
 }
 
 interface SkillWithVerification {
   id: string
   skillName: string
-  verifiedLevel: string | null
-  verifiedAt: string | null
+  skillPercentage: number | null
 }
 
 interface CandidateSkillAssessmentsPanelProps {
@@ -39,21 +37,6 @@ function formatAssessmentDate(raw: string | null): string {
     hour: "2-digit",
     minute: "2-digit",
   })
-}
-
-function getStatusBadgeClass(status: string): string {
-  switch (status) {
-    case "PASSED":
-      return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-    case "FAILED":
-      return "bg-destructive/10 text-destructive border-destructive/20"
-    case "IN_PROGRESS":
-      return "bg-blue-500/10 text-blue-600 border-blue-500/20"
-    case "EXPIRED":
-      return "bg-amber-500/10 text-amber-600 border-amber-500/20"
-    default:
-      return "bg-muted text-muted-foreground border-border"
-  }
 }
 
 export function CandidateSkillAssessmentsPanel({
@@ -119,14 +102,14 @@ export function CandidateSkillAssessmentsPanel({
         <div>
           <h3 className="text-lg font-semibold text-foreground">AI Skill Assessments</h3>
           <p className="text-sm text-muted-foreground">
-            Verified skills and assessment attempt history
+            Assessed skills and attempt history
           </p>
         </div>
       </div>
 
       {skills.length > 0 && (
         <div className="mb-6">
-          <h4 className="text-sm font-semibold text-foreground mb-3">Verified Skills</h4>
+          <h4 className="text-sm font-semibold text-foreground mb-3">Skills</h4>
           <div className="flex flex-wrap gap-2">
             {skills.map((skill) => (
               <div
@@ -134,11 +117,7 @@ export function CandidateSkillAssessmentsPanel({
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/30"
               >
                 <span className="text-sm font-medium text-foreground">{skill.skillName}</span>
-                {skill.verifiedLevel ? (
-                  <VerifiedLevelBadge level={skill.verifiedLevel} />
-                ) : (
-                  <span className="text-xs text-muted-foreground">Not verified</span>
-                )}
+                <SkillPercentageBadge percentage={skill.skillPercentage} />
               </div>
             ))}
           </div>
@@ -155,8 +134,7 @@ export function CandidateSkillAssessmentsPanel({
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Skill</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Attempt</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Score</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Level</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Percentage</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Submitted</th>
                 </tr>
               </thead>
@@ -166,19 +144,14 @@ export function CandidateSkillAssessmentsPanel({
                     <td className="px-4 py-3 font-medium text-foreground">{assessment.skillName}</td>
                     <td className="px-4 py-3 text-muted-foreground">#{assessment.attemptNumber}</td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {assessment.scoredPoints != null && assessment.totalPoints != null
-                        ? `${assessment.scoredPoints}/${assessment.totalPoints}`
-                        : "—"}
+                      {assessment.scoredPoints != null && assessment.maxPoints != null
+                        ? `${assessment.scoredPoints}/${assessment.maxPoints}`
+                        : assessment.scoredPoints != null && assessment.totalPoints != null
+                          ? `${assessment.scoredPoints}/${assessment.totalPoints}`
+                          : "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {assessment.level ? formatVerifiedLevel(assessment.level) : "—"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full border ${getStatusBadgeClass(assessment.status)}`}
-                      >
-                        {assessment.status.replace(/_/g, " ")}
-                      </span>
+                      {formatSkillPercentage(assessment.scorePercentage)}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
                       {formatAssessmentDate(assessment.submittedAt)}

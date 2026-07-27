@@ -759,17 +759,20 @@ export async function sendSkillAssessmentResultEmail(
   candidateName: string,
   skillName: string,
   passed: boolean,
-  level: string | null,
+  scorePercentage: number | null,
   scoredPoints: number,
   maxPoints: number
 ): Promise<void> {
+  const percentageLabel =
+    scorePercentage != null ? `${scorePercentage}%` : `${scoredPoints} / ${maxPoints}`
+
   const subject = passed
-    ? `Skill Assessment Verified: ${skillName}`
+    ? `Skill Assessment Complete: ${skillName}`
     : `Skill Assessment Update: ${skillName}`
 
   const resultMessage = passed
-    ? `You verified <strong>${skillName}</strong> at the <strong>${level ?? "verified"}</strong> level.`
-    : `You didn't meet the minimum score for <strong>${skillName}</strong> yet. Review the material and re-attempt when you're ready.`
+    ? `You completed the <strong>${skillName}</strong> assessment with a score of <strong>${percentageLabel}</strong>.`
+    : `You scored <strong>${percentageLabel}</strong> on <strong>${skillName}</strong>, which is below the minimum required. Review the material and re-attempt when you're ready.`
 
   const html = `
     <!DOCTYPE html>
@@ -795,7 +798,7 @@ export async function sendSkillAssessmentResultEmail(
           <div class="info-box">
             <p><strong>Skill:</strong> ${skillName}</p>
             <p><strong>Score:</strong> ${scoredPoints} / ${maxPoints}</p>
-            ${passed && level ? `<p><strong>Verified Level:</strong> ${level}</p>` : ""}
+            <p><strong>Skill Percentage:</strong> ${scorePercentage != null ? `${scorePercentage}%` : "Not assessed"}</p>
           </div>
           <p style="margin-top: 30px; font-size: 12px; color: #666;">
             This is an automated notification from the Recruitment Management System.

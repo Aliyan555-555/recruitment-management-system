@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage";
 
 export async function GET(
   req: NextRequest,
@@ -63,6 +64,24 @@ export async function GET(
       );
     }
 
+    const lastAssessmentIds = user.skills
+      .map((skill) => skill.lastAssessmentId)
+      .filter((id): id is bigint => id != null);
+
+    const lastAssessments =
+      lastAssessmentIds.length > 0
+        ? await prisma.skillAssessment.findMany({
+            where: { id: { in: lastAssessmentIds } },
+            select: {
+              id: true,
+              scoredPoints: true,
+              maxPoints: true,
+            },
+          })
+        : [];
+
+    const percentageByAssessmentId = buildSkillPercentageMap(lastAssessments);
+
     // Return public-safe profile data
     return NextResponse.json({
       user: {
@@ -91,6 +110,9 @@ export async function GET(
           skillName: skill.skillName,
           verifiedLevel: skill.verifiedLevel,
           verifiedAt: skill.verifiedAt?.toString() ?? null,
+          skillPercentage: skill.lastAssessmentId
+            ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
+            : null,
         })),
         experiences: user.experiences.map((exp) => ({
           id: exp.id.toString(),

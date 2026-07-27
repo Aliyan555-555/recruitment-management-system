@@ -4,6 +4,7 @@ import {
   getAttemptEligibilityState,
   isSkillImproved,
 } from "@/lib/assessments/attempt-rules"
+import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 
 export type MandatorySkill = {
   userSkillId: string
@@ -13,6 +14,7 @@ export type MandatorySkill = {
   attemptsUsed: number
   maxAttempts: number
   verifiedLevel: string | null
+  skillPercentage: number | null
   canStart: boolean
   cycleLocked: boolean
   cycleUnlocksAt: string | null
@@ -42,6 +44,24 @@ export async function getMandatoryAssessmentStatus(
     where: { userId },
     orderBy: { createdAt: "asc" },
   })
+
+  const lastAssessmentIds = skills
+    .map((skill) => skill.lastAssessmentId)
+    .filter((id): id is bigint => id != null)
+
+  const lastAssessments =
+    lastAssessmentIds.length > 0
+      ? await prisma.skillAssessment.findMany({
+          where: { id: { in: lastAssessmentIds } },
+          select: {
+            id: true,
+            scoredPoints: true,
+            maxPoints: true,
+          },
+        })
+      : []
+
+  const percentageByAssessmentId = buildSkillPercentageMap(lastAssessments)
 
   if (skills.length === 0) {
     return {
@@ -79,6 +99,9 @@ export async function getMandatoryAssessmentStatus(
       attemptsUsed: state.attemptsInCurrentCycle,
       maxAttempts: config.maxAttempts,
       verifiedLevel: skill.verifiedLevel,
+      skillPercentage: skill.lastAssessmentId
+        ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
+        : null,
       canStart: state.canStart,
       cycleLocked: state.cycleLocked,
       cycleUnlocksAt: state.cycleUnlocksAt?.toString() ?? null,

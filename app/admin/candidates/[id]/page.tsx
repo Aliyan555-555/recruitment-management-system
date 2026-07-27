@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
-import { VerifiedLevelBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 import { CandidateSkillAssessmentsPanel } from "@/components/admin/CandidateSkillAssessmentsPanel"
 
 interface Experience {
@@ -32,6 +32,7 @@ interface Skill {
   id: string
   skillName: string
   verifiedLevel?: string | null
+  skillPercentage?: number | null
   verifiedAt?: string | null
 }
 
@@ -539,7 +540,7 @@ export default function CandidatePipelineDetailPage() {
                       className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/10 text-green-800 dark:text-green-300 rounded-full text-sm font-medium border border-green-200 dark:border-green-800"
                     >
                       {skill.skillName}
-                      <VerifiedLevelBadge level={skill.verifiedLevel} />
+                      <SkillPercentageBadge percentage={skill.skillPercentage} />
                     </span>
                   ))}
                 </div>

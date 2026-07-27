@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react"
-import { SkillVerificationBadge } from "@/components/candidate/VerifiedLevelBadge"
+import { SkillPercentageBadge } from "@/components/candidate/VerifiedLevelBadge"
 import { formatCooldownRemaining } from "@/lib/assessments/level-display"
 
 type MandatorySkill = {
@@ -23,6 +23,7 @@ type MandatorySkill = {
   attemptsUsed: number
   maxAttempts: number
   verifiedLevel: string | null
+  skillPercentage: number | null
   canStart: boolean
   cycleLocked: boolean
   cycleUnlocksAt: string | null
@@ -157,7 +158,7 @@ export default function RequiredAssessmentsPage() {
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-foreground">{skill.skillName}</span>
-                    <SkillVerificationBadge level={skill.verifiedLevel} />
+                    <SkillPercentageBadge percentage={skill.skillPercentage} />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Attempts used: {skill.attemptsUsed}/{skill.maxAttempts}

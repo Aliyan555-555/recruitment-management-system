@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireStaff } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { serializeAssessmentSummary } from "@/lib/assessments/serializers"
+import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 
 export async function GET(
   _req: NextRequest,
@@ -52,6 +53,24 @@ export async function GET(
       },
     })
 
+    const lastAssessmentIds = skills
+      .map((skill) => skill.lastAssessmentId)
+      .filter((id): id is bigint => id != null)
+
+    const lastAssessments =
+      lastAssessmentIds.length > 0
+        ? await prisma.skillAssessment.findMany({
+            where: { id: { in: lastAssessmentIds } },
+            select: {
+              id: true,
+              scoredPoints: true,
+              maxPoints: true,
+            },
+          })
+        : []
+
+    const percentageByAssessmentId = buildSkillPercentageMap(lastAssessments)
+
     return NextResponse.json({
       candidate: {
         id: candidate.id.toString(),
@@ -64,6 +83,9 @@ export async function GET(
         verifiedLevel: skill.verifiedLevel,
         verifiedAt: skill.verifiedAt?.toString() ?? null,
         lastAssessmentId: skill.lastAssessmentId?.toString() ?? null,
+        skillPercentage: skill.lastAssessmentId
+          ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
+          : null,
       })),
       assessments: assessments.map(serializeAssessmentSummary),
     })

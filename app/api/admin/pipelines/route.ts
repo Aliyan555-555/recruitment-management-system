@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
+import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 
 const VERIFIED_LEVEL_ORDER = ["BEGINNER", "INTERMEDIATE", "PROFESSIONAL", "EXPERT"] as const
 
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
     const candidateIds = [...new Set(pipelines.map((p) => p.candidateId))]
     const verifiedSkillsByCandidate = new Map<
       string,
-      Array<{ skillName: string; verifiedLevel: string }>
+      Array<{ skillName: string; verifiedLevel: string; skillPercentage: number | null }>
     >()
 
     if (candidateIds.length > 0) {
@@ -107,9 +108,28 @@ export async function GET(req: NextRequest) {
           userId: true,
           skillName: true,
           verifiedLevel: true,
+          lastAssessmentId: true,
         },
         orderBy: { skillName: "asc" },
       })
+
+      const lastAssessmentIds = verifiedSkills
+        .map((skill) => skill.lastAssessmentId)
+        .filter((id): id is bigint => id != null)
+
+      const lastAssessments =
+        lastAssessmentIds.length > 0
+          ? await prisma.skillAssessment.findMany({
+              where: { id: { in: lastAssessmentIds } },
+              select: {
+                id: true,
+                scoredPoints: true,
+                maxPoints: true,
+              },
+            })
+          : []
+
+      const percentageByAssessmentId = buildSkillPercentageMap(lastAssessments)
 
       for (const skill of verifiedSkills) {
         if (!skill.verifiedLevel) continue
@@ -118,6 +138,9 @@ export async function GET(req: NextRequest) {
         existing.push({
           skillName: skill.skillName,
           verifiedLevel: skill.verifiedLevel,
+          skillPercentage: skill.lastAssessmentId
+            ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
+            : null,
         })
         verifiedSkillsByCandidate.set(key, existing)
       }

@@ -11,6 +11,7 @@ import {
 } from "@/lib/assessments/attempt-rules"
 import { getSkillAssessmentConfig } from "@/lib/assessments/config"
 import {
+  calculateScorePercentage,
   hasPassedAssessment,
   mapScoreToLevel,
   scoreAnswers,
@@ -81,7 +82,10 @@ export async function POST(
       return NextResponse.json({
         success: true,
         assessment: serializeAssessmentSummary(assessment),
-        message: getCandidateResultMessage(assessment.status, assessment.level),
+        message: getCandidateResultMessage(
+          assessment.status,
+          calculateScorePercentage(assessment.scoredPoints, assessment.maxPoints)
+        ),
         canReattempt: false,
       })
     }
@@ -106,7 +110,10 @@ export async function POST(
         return NextResponse.json({
           success: true,
           assessment: serializeAssessmentSummary(finalized),
-          message: getCandidateResultMessage(finalized.status, finalized.level),
+          message: getCandidateResultMessage(
+            finalized.status,
+            calculateScorePercentage(finalized.scoredPoints, finalized.maxPoints)
+          ),
           canReattempt: false,
         })
       }
@@ -223,11 +230,16 @@ export async function POST(
     })
 
     try {
+      const scorePercentage = calculateScorePercentage(
+        scored.scoredPoints,
+        assessment.maxPoints
+      )
+
       await notifySkillAssessmentResult(
         assessment.userId,
         assessment.skillName,
         passed,
-        level,
+        scorePercentage,
         assessmentId
       )
 
@@ -236,7 +248,7 @@ export async function POST(
         `${assessment.user.firstname} ${assessment.user.lastname}`,
         assessment.skillName,
         passed,
-        level,
+        scorePercentage,
         scored.scoredPoints,
         assessment.maxPoints
       )
@@ -272,7 +284,10 @@ export async function POST(
       success: true,
       assessment: serializeAssessmentSummary(updatedAssessment),
       passed,
-      message: getCandidateResultMessage(finalStatus, level),
+      message: getCandidateResultMessage(
+        finalStatus,
+        calculateScorePercentage(scored.scoredPoints, assessment.maxPoints)
+      ),
       canReattempt,
       cooldownEndsAt: eligibility.cooldownActive
         ? eligibility.cooldownEndsAt?.toString() ?? null

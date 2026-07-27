@@ -4,13 +4,9 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Loader2, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import {
-  formatVerifiedLevel,
-  getVerifiedLevelBadgeClass,
-} from "@/lib/assessments/level-display"
+import { formatSkillPercentage } from "@/lib/assessments/level-display"
 
 type AssessmentDetail = {
   id: string
@@ -21,7 +17,7 @@ type AssessmentDetail = {
   scoredPoints: number | null
   maxPoints: number
   minPoints: number
-  level: string | null
+  scorePercentage: number | null
   message: string
   submittedAt: string | null
 }
@@ -54,7 +50,7 @@ export default function SkillAssessmentResultPage({
           scoredPoints: payload.scoredPoints,
           maxPoints: payload.maxPoints,
           minPoints: payload.minPoints,
-          level: payload.level,
+          scorePercentage: payload.scorePercentage,
           message: payload.message,
           submittedAt: payload.submittedAt,
         })
@@ -119,13 +115,13 @@ export default function SkillAssessmentResultPage({
                 {assessment.scoredPoints ?? 0} / {assessment.maxPoints}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Minimum to verify: {assessment.minPoints}
+                Minimum to pass: {assessment.minPoints}
               </p>
             </div>
             <div className="rounded-lg border border-border p-4">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Outcome</p>
-              <p className="mt-1 text-lg font-semibold">
-                {assessment.passed ? "Verified" : "Not yet verified"}
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Skill Percentage</p>
+              <p className="mt-1 text-2xl font-semibold">
+                {formatSkillPercentage(assessment.scorePercentage)}
               </p>
               {assessment.submittedAt && (
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -134,18 +130,6 @@ export default function SkillAssessmentResultPage({
               )}
             </div>
           </div>
-
-          {assessment.passed && assessment.level && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Verified level:</span>
-              <Badge
-                variant="outline"
-                className={getVerifiedLevelBadgeClass(assessment.level)}
-              >
-                {formatVerifiedLevel(assessment.level)}
-              </Badge>
-            </div>
-          )}
 
           <div className="flex flex-wrap gap-3">
             {!assessment.passed && (

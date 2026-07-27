@@ -2,8 +2,8 @@ import type {
   AssessmentQuestion,
   SkillAssessment,
   SkillAssessmentStatus,
-  VerifiedSkillLevel,
 } from "@prisma/client"
+import { calculateScorePercentage } from "@/lib/assessments/scoring"
 
 type QuestionWithOptions = Pick<
   AssessmentQuestion,
@@ -32,6 +32,10 @@ export function serializeAssessmentSummary(assessment: SkillAssessment) {
     maxPoints: assessment.maxPoints,
     totalPoints: assessment.totalPoints,
     scoredPoints: assessment.scoredPoints,
+    scorePercentage: calculateScorePercentage(
+      assessment.scoredPoints,
+      assessment.maxPoints
+    ),
     level: assessment.level,
     passed: assessment.status === "PASSED",
     startedAt: assessment.startedAt.toString(),
@@ -44,17 +48,25 @@ export function serializeAssessmentSummary(assessment: SkillAssessment) {
 
 export function getCandidateResultMessage(
   status: SkillAssessmentStatus,
-  level: VerifiedSkillLevel | null
+  scorePercentage: number | null
 ): string {
-  if (status === "PASSED" && level) {
-    if (level === "BEGINNER") {
-      return "You passed, but your skill is still at Beginner level. Keep practicing and use your remaining attempts to improve."
+  if (status === "PASSED" && scorePercentage != null) {
+    if (scorePercentage >= 40) {
+      return `Great work. You scored ${scorePercentage}% on this skill assessment.`
     }
 
-    return `Great work. You verified this skill at the ${level.toLowerCase()} level.`
+    return `You passed with ${scorePercentage}%. Keep practicing and use your remaining attempts to improve your score.`
+  }
+
+  if (status === "PASSED") {
+    return "Great work. You passed this skill assessment."
   }
 
   if (status === "FAILED") {
+    if (scorePercentage != null) {
+      return `You scored ${scorePercentage}%, which is below the minimum required. Review the material and try again when you're ready.`
+    }
+
     return "You didn't meet the minimum score for this skill yet. Review the material and try again when you're ready."
   }
 
