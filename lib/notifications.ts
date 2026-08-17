@@ -196,3 +196,23 @@ export async function notifySkillAssessmentResult(
   })
 }
 
+/**
+ * Notify admin when an AI shortlisting evaluation run completes
+ */
+export async function notifyAiShortlistComplete(
+  adminId: bigint,
+  jobTitle: string,
+  runSummary: string,
+  jobId: bigint
+) {
+  return await createNotification({
+    userId: adminId,
+    title: "AI Shortlisting Complete",
+    message: `AI shortlisting evaluation completed for ${jobTitle} (${runSummary}).`,
+    type: "SYSTEM",
+    entityType: "job",
+    entityId: jobId,
+  })
+}
+
+

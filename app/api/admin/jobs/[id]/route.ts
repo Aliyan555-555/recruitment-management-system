@@ -60,9 +60,10 @@ interface UpdateJobRequest {
   certification?: string
   minimumSalary?: string
   benefits?: string
+  successCriteria?: string
   organizationAlias?: string
   status?: boolean
-  skills?: string[]
+  skills?: Array<string | { skillName: string; priority?: "REQUIRED" | "PREFERRED" }>
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   workflowSteps?: WorkflowStepInput[]
@@ -89,7 +90,8 @@ export async function GET(
       include: {
         skills: {
           select: {
-            skillName: true
+            skillName: true,
+            priority: true
           }
         },
         locations: {
@@ -110,16 +112,6 @@ export async function GET(
         workflow: {
           include: {
             steps: {
-              include: {
-                interviewer: {
-                  select: {
-                    id: true,
-                    firstname: true,
-                    lastname: true,
-                    email: true
-                  }
-                }
-              },
               orderBy: {
                 stepOrder: 'asc'
               }
@@ -162,6 +154,7 @@ export async function GET(
         certification: job.certification,
         minimumSalary: job.minimumSalary,
         benefits: job.benefits,
+        successCriteria: job.successCriteria || null,
         locations: job.locations.map(loc => ({
           id: loc.id.toString(),
           city: loc.city,
@@ -180,7 +173,7 @@ export async function GET(
         createdAt: job.createdAt.toString(),
         updatedAt: job.updatedAt.toString(),
         deletedAt: job.deletedAt?.toString(),
-        skills: job.skills.map(s => ({ skillName: s.skillName })),
+        skills: job.skills.map(s => ({ skillName: s.skillName, priority: s.priority })),
         workflow: job.workflow ? {
           id: job.workflow.id.toString(),
           jobId: job.workflow.jobId.toString(),
@@ -195,16 +188,10 @@ export async function GET(
               stepOrder: s.stepOrder,
               isRequired: s.isRequired,
               isSkippable: s.isSkippable,
-              interviewerId: s.interviewerId?.toString(),
               status: s.status,
               createdAt: s.createdAt.toString(),
               updatedAt: s.updatedAt.toString(),
-              interviewer: s.interviewer ? {
-                id: s.interviewer.id.toString(),
-                firstname: s.interviewer.firstname,
-                lastname: s.interviewer.lastname,
-                email: s.interviewer.email
-              } : null,
+              interviewer: null,
               // Include stepMetadata fields
               stepType: metadata.stepType,
               skipReason: metadata.skipReason,
@@ -412,16 +399,21 @@ export async function PUT(
       }
     }
 
-    let normalizedJobSkills: string[] | undefined
+    let parsedJobSkills: Array<{ skillName: string; priority: "REQUIRED" | "PREFERRED" }> | undefined
     if (body.skills !== undefined) {
       if (body.skills.length > 0) {
-        const skillsResult = parseAndValidateSkillNames(body.skills)
+        const rawNames = body.skills.map((s) => (typeof s === "string" ? s : s.skillName))
+        const skillsResult = parseAndValidateSkillNames(rawNames)
         if (!skillsResult.valid) {
           return NextResponse.json({ error: skillsResult.error }, { status: 400 })
         }
-        normalizedJobSkills = skillsResult.normalized
+        parsedJobSkills = skillsResult.normalized.map((norm, idx) => {
+          const item = body.skills![idx]
+          const priority = typeof item === "object" && item.priority === "PREFERRED" ? "PREFERRED" : "REQUIRED"
+          return { skillName: norm, priority }
+        })
       } else {
-        normalizedJobSkills = []
+        parsedJobSkills = []
       }
     }
 
@@ -447,6 +439,7 @@ export async function PUT(
       if (body.certification !== undefined) updateData.certification = body.certification
       if (body.minimumSalary !== undefined) updateData.minimumSalary = body.minimumSalary
       if (body.benefits !== undefined) updateData.benefits = body.benefits
+      if (body.successCriteria !== undefined) updateData.successCriteria = body.successCriteria || null
       if (body.organizationAlias !== undefined) updateData.organizationAlias = body.organizationAlias
 
       const job = await tx.job.update({
@@ -476,18 +469,19 @@ export async function PUT(
       }
 
       // Update skills if provided
-      if (normalizedJobSkills !== undefined) {
+      if (parsedJobSkills !== undefined) {
         // Delete existing skills
         await tx.jobSkill.deleteMany({
           where: { jobId: jobId }
         })
 
         // Create new skills
-        if (normalizedJobSkills.length > 0) {
+        if (parsedJobSkills.length > 0) {
           await tx.jobSkill.createMany({
-            data: normalizedJobSkills.map(skill => ({
+            data: parsedJobSkills.map(skill => ({
               jobId: jobId,
-              skillName: skill
+              skillName: skill.skillName,
+              priority: skill.priority as any
             }))
           })
         }
@@ -578,7 +572,6 @@ export async function PUT(
               stepOrder: step.stepOrder,
               isRequired: step.isRequired,
               isSkippable: step.isSkippable,
-              interviewerId: primaryInterviewerId ? BigInt(primaryInterviewerId) : null,
               status: 'ACTIVE',
               stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
               createdAt: now,

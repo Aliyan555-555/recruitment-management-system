@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 
-export type UserRole = "ADMIN" | "INTERVIEWER" | "CANDIDATE"
+export type UserRole = "ADMIN" | "CANDIDATE"
 
 /**
  * Require a specific role(s) for the current user
@@ -31,12 +31,7 @@ export async function requireAdmin() {
   return requireRole(["ADMIN"])
 }
 
-/**
- * Check if user has interviewer role
- */
-export async function requireInterviewer() {
-  return requireRole(["INTERVIEWER"])
-}
+
 
 /**
  * Check if user has candidate role
@@ -49,7 +44,7 @@ export async function requireCandidate() {
  * Check if user has admin or interviewer role
  */
 export async function requireStaff() {
-  return requireRole(["ADMIN", "INTERVIEWER"])
+  return requireRole(["ADMIN"])
 }
 
 /**
@@ -79,12 +74,7 @@ export function isAdmin(userRole: UserRole): boolean {
   return userRole === "ADMIN"
 }
 
-/**
- * Check if user is interviewer
- */
-export function isInterviewer(userRole: UserRole): boolean {
-  return userRole === "INTERVIEWER"
-}
+
 
 /**
  * Check if user is candidate

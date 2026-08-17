@@ -56,14 +56,10 @@ model User {
   jobsBookmarked JobsBookmark[]
 
   // Workflow Relations
-  stepInterviewer         WorkflowStep[]          @relation("StepInterviewer")
-  stepInterviewerInstance CandidatePipelineStep[] @relation("StepInterviewerInstance")
-  interviewerInterviews   Interview[]             @relation("InterviewerInterviews")
   candidateInterviews     Interview[]             @relation("CandidateInterviews")
   candidatePipelines      CandidatePipeline[]     @relation("CandidatePipelines")
   auditLogs               AuditLog[]              @relation("AuditLogs")
   notifications           Notification[]          @relation("UserNotifications")
-  slotInterviewer         InterviewSlot[]         @relation("SlotInterviewer")
   slotBookings            SlotBooking[]
   stageEvaluations        StageEvaluation[]
   lois                    LetterOfIntent[]        @relation("CandidateLOIs")
@@ -78,6 +74,8 @@ model User {
   // Password Reset Relations
   passwordResetTokens PasswordResetToken[]
   skillAssessments    SkillAssessment[]
+  aiShortlistRunsTriggered AiShortlistRun[]            @relation("AiShortlistRunTriggeredBy")
+  aiShortlistResults       AiCandidateShortlistResult[] @relation("AiShortlistCandidateResults")
 
   @@index([role])
   @@index([userStatus])
@@ -336,6 +334,7 @@ model Job {
   certification     String?        @db.Text
   minimumSalary     String?        @db.VarChar(50)
   benefits          String?        @db.Text
+  successCriteria   String?        @db.Text @map("success_criteria")
   createdBy         BigInt         @map("created_by")
   updatedBy         BigInt?        @map("updated_by")
   createdAt         BigInt         @map("created_at")
@@ -355,6 +354,8 @@ model Job {
   batches               Batch[]
   lois                  LetterOfIntent[]
   offerLetters          OfferLetter[]
+  aiShortlistRuns       AiShortlistRun[]
+  aiShortlistResults    AiCandidateShortlistResult[]
 
   @@index([createdBy])
   @@index([updatedBy])
@@ -384,9 +385,10 @@ enum JobStatus {
 }
 
 model JobSkill {
-  id        BigInt @id @default(autoincrement())
-  jobId     BigInt @map("job_id")
-  skillName String @db.VarChar(255)
+  id        BigInt           @id @default(autoincrement())
+  jobId     BigInt           @map("job_id")
+  skillName String           @db.VarChar(255)
+  priority  JobSkillPriority @default(REQUIRED)
 
   // Relations
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -394,6 +396,11 @@ model JobSkill {
   @@index([jobId])
   @@unique([jobId, skillName])
   @@map("job_skills")
+}
+
+enum JobSkillPriority {
+  REQUIRED
+  PREFERRED
 }
 
 model JobLocation {
@@ -506,7 +513,6 @@ model Institute {
 
 enum UserRole {
   ADMIN
-  INTERVIEWER
   CANDIDATE
 }
 
@@ -604,7 +610,6 @@ model WorkflowStep {
   stepOrder        Int        @map("step_order")
   isRequired       Boolean    @default(true) @map("is_required")
   isSkippable      Boolean    @default(false) @map("is_skippable")
-  interviewerId    BigInt?    @map("interviewer_id")
   status           StepStatus @default(ACTIVE)
   createdAt        BigInt     @map("created_at")
   updatedAt        BigInt     @map("updated_at")
@@ -613,13 +618,11 @@ model WorkflowStep {
   stepMetadata     Json?      @map("step_metadata") // Stores durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
 
   workflow      JobWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  interviewer   User?                   @relation("StepInterviewer", fields: [interviewerId], references: [id])
   pipelineSteps CandidatePipelineStep[]
   slots         InterviewSlot[]
   batches       Batch[]
 
   @@index([workflowId])
-  @@index([interviewerId])
   @@map("workflow_step")
 }
 
@@ -627,7 +630,6 @@ model WorkflowStep {
 model InterviewSlot {
   id            BigInt   @id @default(autoincrement())
   stepId        BigInt   @map("step_id")
-  interviewerId BigInt   @map("interviewer_id")
   startsAt      DateTime
   endsAt        DateTime
   capacity      Int      @default(1)
@@ -636,11 +638,9 @@ model InterviewSlot {
   updatedAt     BigInt   @map("updated_at")
 
   step        WorkflowStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  interviewer User          @relation("SlotInterviewer", fields: [interviewerId], references: [id])
   bookings    SlotBooking[]
 
   @@index([stepId])
-  @@index([interviewerId])
   @@map("interview_slot")
 }
 
@@ -670,20 +670,20 @@ enum BookingStatus {
   NO_SHOW
 }
 
-// Per-stage evaluation by interviewer
+// Per-stage evaluation
 model StageEvaluation {
   id             BigInt                   @id @default(autoincrement())
   pipelineStepId BigInt                   @map("pipeline_step_id")
-  interviewerId  BigInt                   @map("interviewer_id")
+  evaluatorId    BigInt                   @map("evaluator_id")
   formData       Json
   score          Float?
   recommendation InterviewRecommendation?
   submittedAt    BigInt?                  @map("submitted_at")
 
   pipelineStep CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
-  interviewer  User                  @relation(fields: [interviewerId], references: [id])
+  evaluator    User                  @relation(fields: [evaluatorId], references: [id])
 
-  @@unique([pipelineStepId, interviewerId])
+  @@unique([pipelineStepId, evaluatorId])
   @@map("stage_evaluation")
 }
 
@@ -744,7 +744,6 @@ model CandidatePipelineStep {
   workflowStepId BigInt             @map("workflow_step_id")
   stepOrder      Int                @map("step_order")
   status         StepInstanceStatus @default(PENDING)
-  interviewerId  BigInt?            @map("interviewer_id")
   feedback       String?            @db.Text
   startedAt      BigInt?            @map("started_at")
   completedAt    BigInt?            @map("completed_at")
@@ -754,7 +753,6 @@ model CandidatePipelineStep {
 
   pipeline         CandidatePipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   workflowStep     WorkflowStep      @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
-  interviewer      User?             @relation("StepInterviewerInstance", fields: [interviewerId], references: [id])
   batch            Batch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
   interviews       Interview[]
   stageEvaluations StageEvaluation[]
@@ -764,7 +762,6 @@ model CandidatePipelineStep {
   @@index([pipelineId])
   @@index([workflowStepId])
   @@index([status])
-  @@index([interviewerId])
   @@index([batchId])
   @@map("candidate_pipeline_step")
 }
@@ -773,7 +770,6 @@ model Interview {
   id             BigInt                   @id @default(autoincrement())
   pipelineId     BigInt                   @map("pipeline_id")
   pipelineStepId BigInt                   @map("pipeline_step_id")
-  interviewerId  BigInt                   @map("interviewer_id")
   candidateId    BigInt                   @map("candidate_id")
   feedback       String?                  @db.Text
   rating         Int?
@@ -784,12 +780,10 @@ model Interview {
 
   pipeline     CandidatePipeline     @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
   pipelineStep CandidatePipelineStep @relation(fields: [pipelineStepId], references: [id], onDelete: Cascade)
-  interviewer  User                  @relation("InterviewerInterviews", fields: [interviewerId], references: [id])
   candidate    User                  @relation("CandidateInterviews", fields: [candidateId], references: [id])
 
   @@index([pipelineId])
   @@index([pipelineStepId])
-  @@index([interviewerId])
   @@index([candidateId])
   @@map("interview")
 }
@@ -903,7 +897,7 @@ enum BatchCandidateStatus {
 model BatchCandidateEvaluation {
   id               BigInt               @id @default(autoincrement())
   batchCandidateId BigInt               @map("batch_candidate_id")
-  interviewerId    BigInt               @map("interviewer_id")
+  evaluatorId      BigInt               @map("evaluator_id")
   status           BatchCandidateStatus
   feedback         String?              @db.Text
   rating           Int?
@@ -911,10 +905,10 @@ model BatchCandidateEvaluation {
 
   // Relations
   batchCandidate BatchCandidate @relation(fields: [batchCandidateId], references: [id], onDelete: Cascade)
-  interviewer    User           @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  evaluator      User           @relation(fields: [evaluatorId], references: [id], onDelete: Cascade)
 
   @@index([batchCandidateId])
-  @@index([interviewerId])
+  @@index([evaluatorId])
   @@map("batch_candidate_evaluation")
 }
 
@@ -996,3 +990,88 @@ model OrganizationSettings {
 
   @@map("organization_settings")
 }
+
+// ============================================
+// AI Shortlisting
+// ============================================
+
+model AiShortlistRun {
+  id               BigInt               @id @default(autoincrement())
+  jobId            BigInt               @map("job_id")
+  triggeredBy      BigInt               @map("triggered_by")
+  status           AiShortlistRunStatus @default(RUNNING)
+  totalCandidates  Int                  @default(0) @map("total_candidates")
+  aiModel          String?              @map("ai_model")
+  startedAt        BigInt               @map("started_at")
+  completedAt      BigInt?              @map("completed_at")
+  createdAt        BigInt               @map("created_at")
+
+  job             Job                          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  triggeredByUser User                         @relation("AiShortlistRunTriggeredBy", fields: [triggeredBy], references: [id])
+  results         AiCandidateShortlistResult[]
+
+  @@index([jobId])
+  @@index([status])
+  @@map("ai_shortlist_run")
+}
+
+enum AiShortlistRunStatus {
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
+model AiCandidateShortlistResult {
+  id            BigInt                  @id @default(autoincrement())
+  runId         BigInt                  @map("run_id")
+  jobId         BigInt                  @map("job_id")
+  candidateId   BigInt                  @map("candidate_id")
+  applicationId BigInt                  @map("application_id")
+
+  status       AiCandidateResultStatus @default(PENDING)
+  errorMessage String?                 @db.Text @map("error_message")
+
+  overallScore             Int?                        @map("overall_score")
+  skillsScore               Int?                        @map("skills_score")
+  educationScore              Int?                        @map("education_score")
+  experienceScore               Int?                        @map("experience_score")
+  successCriteriaScore             Int?                        @map("success_criteria_score")
+  assessmentScore                    Int?                        @map("assessment_score")
+  mandatoryRequirementsMet  Boolean?                    @map("mandatory_requirements_met")
+  aiConfidence              Int?                        @map("ai_confidence")
+  recommendation            AiShortlistRecommendation?
+
+  matchedRequirements Json?   @map("matched_requirements")
+  missingRequirements Json?   @map("missing_requirements")
+  mandatoryChecklist  Json?   @map("mandatory_checklist")
+  strengths           Json?
+  concerns            Json?
+  aiReasoning         String? @db.Text @map("ai_reasoning")
+
+  createdAt BigInt @map("created_at")
+  updatedAt BigInt @map("updated_at")
+
+  run       AiShortlistRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  job       Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  candidate User           @relation("AiShortlistCandidateResults", fields: [candidateId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, candidateId])
+  @@index([runId])
+  @@index([jobId])
+  @@index([candidateId])
+  @@map("ai_candidate_shortlist_result")
+}
+
+enum AiCandidateResultStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum AiShortlistRecommendation {
+  SHORTLIST
+  MAYBE
+  REJECT
+}
+

@@ -100,10 +100,10 @@ export async function GET(
     const evaluation = await prisma.stageEvaluation.findFirst({
       where: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(user.id)
+        evaluatorId: BigInt(user.id)
       },
       include: {
-        interviewer: {
+        evaluator: {
           select: {
             id: true,
             firstname: true,
@@ -132,9 +132,9 @@ export async function GET(
         title: pipeline.job.title,
         company: pipeline.job.company
       } : null,
-      assessor: evaluation?.interviewer ? {
-        id: evaluation.interviewer.id.toString(),
-        name: `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}`
+      assessor: evaluation?.evaluator ? {
+        id: evaluation.evaluator.id.toString(),
+        name: `${evaluation.evaluator.firstname} ${evaluation.evaluator.lastname}`
       } : null,
       assessorName: modeData?.assessorName || null,
       date: modeData?.date || null,
@@ -168,7 +168,7 @@ export async function PUT(
     if (!pipelineStep) return NextResponse.json({ error: "Pipeline step not found" }, { status: 404 })
 
     const existing = await prisma.stageEvaluation.findFirst({
-      where: { pipelineStepId: pipelineStep.id, interviewerId: BigInt(user.id) }
+      where: { pipelineStepId: pipelineStep.id, evaluatorId: BigInt(user.id) }
     })
     const existingForm = (existing?.formData as any) || {}
     const focusGroup = existingForm.focusGroup || {}
@@ -184,14 +184,14 @@ export async function PUT(
 
     await prisma.stageEvaluation.upsert({
       where: {
-        pipelineStepId_interviewerId: {
+        pipelineStepId_evaluatorId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(user.id)
+          evaluatorId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(user.id),
+        evaluatorId: BigInt(user.id),
         formData: { focusGroup },
         score: null,
         recommendation: null,
@@ -239,7 +239,7 @@ export async function POST(
     if (!pipelineStep) return NextResponse.json({ error: "Pipeline step not found" }, { status: 404 })
 
     const existing = await prisma.stageEvaluation.findFirst({
-      where: { pipelineStepId: pipelineStep.id, interviewerId: BigInt(user.id) }
+      where: { pipelineStepId: pipelineStep.id, evaluatorId: BigInt(user.id) }
     })
     const existingForm = (existing?.formData as any) || {}
     const focusGroup = existingForm.focusGroup || {}
@@ -261,14 +261,14 @@ export async function POST(
 
     await prisma.stageEvaluation.upsert({
       where: {
-        pipelineStepId_interviewerId: {
+        pipelineStepId_evaluatorId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(user.id)
+          evaluatorId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(user.id),
+        evaluatorId: BigInt(user.id),
         formData: { focusGroup },
         score: totalScore,
         recommendation: null,

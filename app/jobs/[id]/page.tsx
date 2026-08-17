@@ -43,6 +43,7 @@ interface Application {
   id: string
   status: string
   appliedAt: string
+  pipelineId?: string | null
 }
 
 export default function JobDetailsPage() {

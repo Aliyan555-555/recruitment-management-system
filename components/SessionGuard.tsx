@@ -6,7 +6,7 @@ import { useRouter, usePathname } from "next/navigation"
 
 const SESSION_LOADING_TIMEOUT_MS = 15000 // 15 seconds - if session stays "loading", treat as failed
 
-const PROTECTED_PREFIXES = ["/candidate", "/profile", "/applications", "/admin", "/interviewer"]
+const PROTECTED_PREFIXES = ["/candidate", "/profile", "/applications", "/admin"]
 
 function isProtectedPath(pathname: string | null): boolean {
   if (!pathname) return false
@@ -46,9 +46,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
         const callback = encodeURIComponent(pathname || "/")
         const loginUrl = pathname?.startsWith("/admin")
           ? `/admin/login?error=SessionExpired&callbackUrl=${callback}`
-          : pathname?.startsWith("/interviewer")
-            ? `/interviewer/login?error=SessionExpired&callbackUrl=${callback}`
-            : `/login?error=SessionExpired&callbackUrl=${callback}`
+          : `/login?error=SessionExpired&callbackUrl=${callback}`
         router.replace(loginUrl)
       }
     }, SESSION_LOADING_TIMEOUT_MS)

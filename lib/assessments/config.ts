@@ -41,9 +41,17 @@ function parseLevelThresholds(value: unknown): LevelThresholds {
   }
 }
 
+const configCache = new Map<string, { config: SkillAssessmentConfigValues; expiresAt: number }>()
+
 export async function getSkillAssessmentConfig(
   skillName: string
 ): Promise<SkillAssessmentConfigValues> {
+  const now = Date.now()
+  const cached = configCache.get(skillName)
+  if (cached && cached.expiresAt > now) {
+    return cached.config
+  }
+
   const perSkill = await prisma.skillAssessmentConfig.findFirst({
     where: {
       skillName,
@@ -64,7 +72,7 @@ export async function getSkillAssessmentConfig(
     throw new SkillAssessmentConfigError()
   }
 
-  return {
+  const result: SkillAssessmentConfigValues = {
     id: config.id,
     skillName: config.skillName,
     questionCount: config.questionCount,
@@ -80,4 +88,7 @@ export async function getSkillAssessmentConfig(
     attemptTimeoutMinutes: config.attemptTimeoutMinutes,
     isActive: config.isActive,
   }
+
+  configCache.set(skillName, { config: result, expiresAt: now + 60000 })
+  return result
 }

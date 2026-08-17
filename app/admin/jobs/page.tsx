@@ -36,6 +36,10 @@ interface Job {
       unshortlisted: number
     }
   }
+  shortlistCount?: {
+    shortlisted: number
+    unshortlisted: number
+  }
 }
 
 export default function AdminJobsPage() {
@@ -206,34 +210,30 @@ export default function AdminJobsPage() {
       },
     },
     {
-      id: "test",
-      header: "Test",
+      id: "shortlist",
+      header: "Shortlist",
       enableSorting: false,
       cell: ({ row }) => {
-        const step = getStepByType(row.original, "TEST")
-        const counts = row.original.roundCounts?.["TEST"]
+        const counts = row.original.shortlistCount
+        const total = row.original._count?.applications ?? row.original.applicationCount ?? 0
 
         return (
           <div className="text-center">
-            {step ? (
-              <Link
-                href={`/admin/jobs/${row.original.id}/rounds/${step.id}/applied`}
-                className="text-sm text-primary hover:text-primary/80 font-medium hover:underline"
-                title={step.name}
-              >
-                {counts ? (
-                  <span className="whitespace-nowrap">
-                    <span className="text-emerald-500 font-semibold">{counts.shortlisted}</span>
-                    <span className="text-muted-foreground/50 mx-1">/</span>
-                    <span className="text-muted-foreground">{counts.unshortlisted}</span>
-                  </span>
-                ) : (
-                  step.name
-                )}
-              </Link>
-            ) : (
-              <span className="text-sm text-muted-foreground/50">N/A</span>
-            )}
+            <Link
+              href={`/admin/jobs/${row.original.id}/shortlist`}
+              className="text-sm text-primary hover:text-primary/80 font-medium hover:underline inline-flex items-center gap-1"
+              title="Candidate Shortlisting (Manual & AI)"
+            >
+              {counts ? (
+                <span className="whitespace-nowrap">
+                  <span className="text-emerald-500 font-semibold">{counts.shortlisted}</span>
+                  <span className="text-muted-foreground/50 mx-1">/</span>
+                  <span className="text-muted-foreground">{counts.unshortlisted}</span>
+                </span>
+              ) : (
+                <span className="text-emerald-500 font-semibold">{total}</span>
+              )}
+            </Link>
           </div>
         )
       },
@@ -430,29 +430,37 @@ export default function AdminJobsPage() {
                       </svg>
                       <span className="font-medium">Edit Job</span>
                     </Link>
+                    <Link
+                      href={`/admin/jobs/${job.id}/shortlist`}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                      onClick={() => setOpenMenuId(null)}
+                    >
+                      <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                      </svg>
+                      <span className="font-medium">Manual Shortlist</span>
+                    </Link>
+                    <Link
+                      href={`/admin/jobs/${job.id}/ai-shortlist`}
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                      onClick={() => setOpenMenuId(null)}
+                    >
+                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span className="font-medium">✨ AI Shortlist</span>
+                    </Link>
                     {job.jobType === "BULK" && (
-                      <>
-                        <Link
-                          href={`/admin/jobs/${job.id}/shortlist`}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                          onClick={() => setOpenMenuId(null)}
-                        >
-                          <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                          </svg>
-                          <span className="font-medium">Shortlist</span>
-                        </Link>
-                        <Link
-                          href={`/admin/jobs/${job.id}/batches`}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                          onClick={() => setOpenMenuId(null)}
-                        >
-                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                          </svg>
-                          <span className="font-medium">Manage Batches</span>
-                        </Link>
-                      </>
+                      <Link
+                        href={`/admin/jobs/${job.id}/batches`}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+                        onClick={() => setOpenMenuId(null)}
+                      >
+                        <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        <span className="font-medium">Manage Batches</span>
+                      </Link>
                     )}
                     <div className="border-t border-border my-1"></div>
                     <button

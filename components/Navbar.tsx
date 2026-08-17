@@ -72,8 +72,6 @@ export function Navbar() {
         switch (role) {
             case "CANDIDATE":
                 return "Candidate"
-            case "INTERVIEWER":
-                return "Interviewer"
             case "ADMIN":
                 return "Administrator"
             default:
@@ -185,21 +183,6 @@ export function Navbar() {
                                                 <Link href="/admin" className="flex items-center">
                                                     <Shield className="mr-2 h-4 w-4" />
                                                     <span>Admin Dashboard</span>
-                                                </Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                        </>
-                                    )}
-
-                                    {session.user?.role === "INTERVIEWER" && (
-                                        <>
-                                            <DropdownMenuItem
-                                                asChild
-                                                className="cursor-pointer"
-                                            >
-                                                <Link href="/interviewer" className="flex items-center">
-                                                    <User className="mr-2 h-4 w-4" />
-                                                    <span>Interviewer Dashboard</span>
                                                 </Link>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />

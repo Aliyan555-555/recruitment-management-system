@@ -13,11 +13,7 @@ interface InterviewSlot {
   stepName: string
   startsAt: string
   endsAt: string
-  interviewer: {
-    id: string
-    name: string
-    email: string
-  } | null
+
   job: {
     id: string
     title: string
@@ -173,7 +169,7 @@ export function Calendar() {
                   <div
                     key={slot.id}
                     className="text-xs p-1 bg-primary/10 rounded text-primary cursor-pointer hover:bg-primary/20 transition-colors"
-                    title={`${slot.stepName} - ${slot.interviewer?.name || "No interviewer"} - ${slot.bookings.length} candidates`}
+                    title={`${slot.stepName} - ${slot.bookings.length} candidates`}
                   >
                     <div className="font-medium truncate">{format(parseISO(slot.startsAt), "HH:mm")}</div>
                     <div className="truncate text-[10px]">{slot.stepName}</div>
@@ -244,9 +240,6 @@ export function Calendar() {
                       >
                         <div className="font-medium">{format(parseISO(slot.startsAt), "HH:mm")}</div>
                         <div className="truncate">{slot.stepName}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">
-                          {slot.interviewer?.name || "No interviewer"}
-                        </div>
                       </div>
                     ))}
                   </div>
@@ -294,12 +287,6 @@ export function Calendar() {
                         <div>
                           <p className="text-sm font-medium">{slot.job.title}</p>
                           <p className="text-xs text-muted-foreground">{slot.job.company}</p>
-                        </div>
-                      )}
-                      {slot.interviewer && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{slot.interviewer.name}</span>
                         </div>
                       )}
                       {slot.bookings.length > 0 && (

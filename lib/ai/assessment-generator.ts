@@ -22,8 +22,19 @@ export class AssessmentGenerationError extends Error {
 
 function stripCodeFences(raw: string): string {
   const trimmed = raw.trim()
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  return fenced ? fenced[1].trim() : trimmed
+  if (trimmed.startsWith("```")) {
+    const lines = trimmed.split("\n")
+    if (lines.length >= 2 && lines[lines.length - 1].trim().endsWith("```")) {
+      lines.shift()
+      lines.pop()
+      return lines.join("\n").trim()
+    }
+  }
+  const jsonMatch = trimmed.match(/(\[\s*[\s\S]*\s*\]|\{\s*[\s\S]*\s*\})/)
+  if (jsonMatch) {
+    return jsonMatch[1].trim()
+  }
+  return trimmed
 }
 
 function normalizePoints(
@@ -87,8 +98,8 @@ async function requestQuestions(
     throw new AssessmentGenerationError("AI inference token is not configured")
   }
 
-  const endpoint = process.env.AI_INFERENCE_ENDPOINT ?? "https://models.github.ai/inference"
-  const model = process.env.AI_INFERENCE_MODEL ?? "openai/gpt-5"
+  const endpoint = process.env.AI_INFERENCE_ENDPOINT ?? "https://openrouter.ai/api/v1"
+  const model = process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free"
   const client = ModelClient(endpoint, new AzureKeyCredential(token))
 
   const systemPrompt = strict

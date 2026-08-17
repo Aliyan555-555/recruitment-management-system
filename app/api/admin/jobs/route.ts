@@ -61,9 +61,10 @@ interface CreateJobRequest {
   certification?: string
   minimumSalary?: string
   benefits?: string
+  successCriteria?: string
   organizationAlias?: string
   status?: boolean
-  skills?: string[]
+  skills?: Array<string | { skillName: string; priority?: "REQUIRED" | "PREFERRED" }>
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   workflowSteps: WorkflowStepInput[]
@@ -197,13 +198,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    let normalizedJobSkills: string[] = []
+    let parsedJobSkills: Array<{ skillName: string; priority: "REQUIRED" | "PREFERRED" }> = []
     if (body.skills && body.skills.length > 0) {
-      const skillsResult = parseAndValidateSkillNames(body.skills)
+      const rawNames = body.skills.map((s) => (typeof s === "string" ? s : s.skillName))
+      const skillsResult = parseAndValidateSkillNames(rawNames)
       if (!skillsResult.valid) {
         return NextResponse.json({ error: skillsResult.error }, { status: 400 })
       }
-      normalizedJobSkills = skillsResult.normalized
+      parsedJobSkills = skillsResult.normalized.map((norm, idx) => {
+        const item = body.skills![idx]
+        const priority = typeof item === "object" && item.priority === "PREFERRED" ? "PREFERRED" : "REQUIRED"
+        return { skillName: norm, priority }
+      })
     }
 
     // Create job with workflow
@@ -229,6 +235,7 @@ export async function POST(req: NextRequest) {
           certification: body.certification,
           minimumSalary: body.minimumSalary,
           benefits: body.benefits,
+          successCriteria: body.successCriteria || null,
           createdBy: adminId,
           updatedBy: adminId,
           createdAt: now,
@@ -280,11 +287,12 @@ export async function POST(req: NextRequest) {
       }
 
       // Create job skills if provided
-      if (normalizedJobSkills.length > 0) {
+      if (parsedJobSkills.length > 0) {
         await tx.jobSkill.createMany({
-          data: normalizedJobSkills.map(skill => ({
+          data: parsedJobSkills.map(skill => ({
             jobId: newJob.id,
-            skillName: skill
+            skillName: skill.skillName,
+            priority: skill.priority as any,
           }))
         })
       }
@@ -312,6 +320,7 @@ export async function POST(req: NextRequest) {
               if (step.interviewMode) stepMetadata.interviewMode = step.interviewMode
               if (step.meetingLink) stepMetadata.meetingLink = step.meetingLink
               if (step.interviewerIds && step.interviewerIds.length > 0) stepMetadata.interviewerIds = step.interviewerIds
+              if (primaryInterviewerId) stepMetadata.interviewerId = primaryInterviewerId
 
               // Auto-populate stepName from stepType
               const stepName = getStepNameFromType(step.stepType)
@@ -322,7 +331,6 @@ export async function POST(req: NextRequest) {
                 stepOrder: step.stepOrder,
                 isRequired: true, // Default: all steps are required
                 isSkippable: false, // Default: steps are not skippable
-                interviewerId: primaryInterviewerId ? BigInt(primaryInterviewerId) : null,
                 status: 'ACTIVE',
                 stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
                 createdAt: now,

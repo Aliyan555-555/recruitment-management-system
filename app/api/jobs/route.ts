@@ -87,74 +87,83 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Fetch counts for all rounds for each job in parallel
-    const jobsWithCounts = await Promise.all(
-      jobs.map(async (job) => {
-        const workflow = (job as any).workflow;
-        const steps = workflow?.steps || [];
+    // Get all job IDs
+    const jobIds = jobs.map(j => j.id);
 
-        const roundCounts: Record<
-          string,
-          { shortlisted: number; unshortlisted: number }
-        > = {};
+    // 1. Bulk fetch JobsApplied counts
+    const jobsAppliedCounts = await prisma.jobsApplied.groupBy({
+      by: ['jobId', 'status'],
+      where: { jobId: { in: jobIds } },
+      _count: true,
+    });
 
-        // Calculate counts for each step type
-        const stepTypes = [
-          "TEST",
-          "SCREENING_INTERVIEW",
-          "FOCUS_GROUP",
-          "FINAL_INTERVIEW",
-          "OFFER",
-        ];
-
-        for (const stepType of stepTypes) {
-          const step = steps.find((s: any) => s.stepType === stepType);
-
-          if (step) {
-            // Count shortlisted candidates (in progress or completed in this step)
-            const shortlisted = await prisma.candidatePipelineStep.count({
-              where: {
-                workflowStepId: step.id,
-                pipeline: {
-                  jobId: job.id,
-                  application: {
-                    status: "SHORTLISTED",
-                  },
-                },
-                status: { in: ["IN_PROGRESS", "COMPLETED"] },
-              },
-            });
-
-            // Count unshortlisted candidates (pending, in progress, or rejected in this step)
-            const unshortlisted = await prisma.candidatePipelineStep.count({
-              where: {
-                workflowStepId: step.id,
-                pipeline: {
-                  jobId: job.id,
-                  application: {
-                    status: { not: "SHORTLISTED" },
-                  },
-                },
-                status: { in: ["PENDING", "IN_PROGRESS", "REJECTED"] },
-              },
-            });
-
-            roundCounts[stepType] = {
-              shortlisted,
-              unshortlisted,
-            };
+    // 2. Bulk fetch PipelineSteps for these jobs
+    const pipelineSteps = await prisma.candidatePipelineStep.findMany({
+      where: {
+        pipeline: { jobId: { in: jobIds } },
+      },
+      select: {
+        status: true,
+        workflowStepId: true,
+        pipeline: {
+          select: {
+            jobId: true,
+            application: { select: { status: true } }
           }
         }
+      }
+    });
 
-        return {
-          job,
-          roundCounts,
-        };
-      }),
-    );
+    // Process counts synchronously
+    const jobsWithCounts = jobs.map((job) => {
+      const workflow = (job as any).workflow;
+      const steps = workflow?.steps || [];
+
+      const roundCounts: Record<string, { shortlisted: number; unshortlisted: number }> = {};
+      const stepTypes = ["TEST", "SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW", "OFFER"];
+
+      for (const stepType of stepTypes) {
+        const step = steps.find((s: any) => s.stepType === stepType);
+        if (step) {
+          // Filter in memory
+          const stepRecords = pipelineSteps.filter(ps => 
+            ps.workflowStepId === step.id && ps.pipeline.jobId === job.id
+          );
+
+          const shortlisted = stepRecords.filter(ps => 
+            ps.pipeline.application?.status === "SHORTLISTED" && 
+            (ps.status === "IN_PROGRESS" || ps.status === "COMPLETED")
+          ).length;
+
+          const unshortlisted = stepRecords.filter(ps => 
+            ps.pipeline.application?.status !== "SHORTLISTED" && 
+            (ps.status === "PENDING" || ps.status === "IN_PROGRESS" || ps.status === "REJECTED")
+          ).length;
+
+          roundCounts[stepType] = { shortlisted, unshortlisted };
+        }
+      }
+
+      // Calculate shortlist counts
+      const jobApplications = jobsAppliedCounts.filter(jac => jac.jobId === job.id);
+      
+      const shortlisted = jobApplications
+        .filter(jac => jac.status === "SHORTLISTED" || jac.status === "BATCH_ASSIGNED")
+        .reduce((sum, jac) => sum + jac._count, 0);
+
+      const unshortlisted = jobApplications
+        .filter(jac => jac.status === "APPLIED" || jac.status === "SUBMITTED")
+        .reduce((sum, jac) => sum + jac._count, 0);
+
+      return {
+        job,
+        roundCounts,
+        shortlistCount: { shortlisted, unshortlisted },
+      };
+    });
 
     return NextResponse.json({
-      jobs: jobsWithCounts.map(({ job, roundCounts }) => ({
+      jobs: jobsWithCounts.map(({ job, roundCounts, shortlistCount }) => ({
         id: job.id.toString(),
         title: job.title,
         company: job.company,
@@ -192,6 +201,7 @@ export async function GET(req: NextRequest) {
             }
           : null,
         roundCounts: roundCounts,
+        shortlistCount: shortlistCount,
       })),
     });
   } catch (error: any) {

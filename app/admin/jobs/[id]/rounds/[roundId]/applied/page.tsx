@@ -25,6 +25,11 @@ interface WorkflowStep {
         title: string
         jobCode?: string | null
     }
+    nextStep?: {
+        id: string
+        stepName: string
+        stepOrder: number
+    } | null
 }
 
 export default function AppliedCandidatesPage() {
@@ -497,7 +502,30 @@ export default function AppliedCandidatesPage() {
                 </div>
 
                 {/* Next Button */}
-                <div className="mt-8 flex justify-end">
+                <div className="mt-8 flex flex-wrap justify-between items-center gap-4">
+                    <div className="flex gap-4">
+                        {workflowStep?.nextStep ? (
+                            <Link
+                                href={`/admin/jobs/${jobId}/rounds/${workflowStep.nextStep.id}/applied`}
+                                className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                            >
+                                Next Round: {workflowStep.nextStep.stepName}
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        ) : (
+                            <Link
+                                href={`/admin/jobs/${jobId}`}
+                                className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                            >
+                                Back to Job
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        )}
+                    </div>
                     <Link
                         href={`/admin/jobs/${jobId}/rounds/${roundId}/shortlisted`}
                         className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"

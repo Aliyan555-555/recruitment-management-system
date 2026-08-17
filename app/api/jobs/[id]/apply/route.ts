@@ -232,42 +232,12 @@ export async function POST(
               workflowStepId: firstStep.id,
               stepOrder: 1,
               status: "PENDING",
-              interviewerId: firstStep.interviewerId,
               startedAt: now,
             }
           }
         }
       })
 
-      // Notify interviewer if assigned
-      if (firstStep.interviewerId) {
-        await notifyInterviewerAssignment(
-          firstStep.interviewerId,
-          candidateName,
-          firstStep.stepName,
-          jobTitle
-        )
-
-        const interviewer = await prisma.user.findUnique({
-          where: { id: firstStep.interviewerId },
-          select: {
-            email: true,
-            firstname: true,
-            lastname: true
-          }
-        })
-
-        if (interviewer?.email) {
-          await sendInterviewerAssignmentEmail(
-            interviewer.email,
-            `${interviewer.firstname} ${interviewer.lastname}`,
-            candidateName,
-            firstStep.stepName,
-            jobTitle,
-            jobCompany
-          )
-        }
-      }
     }
 
     // Notify all admins (in-app notification + email)

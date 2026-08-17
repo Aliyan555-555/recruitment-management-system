@@ -31,6 +31,11 @@ interface WorkflowStep {
         title: string
         jobCode?: string | null
     }
+    nextStep?: {
+        id: string
+        stepName: string
+        stepOrder: number
+    } | null
 }
 
 export default function ShortlistedCandidatesPage() {
@@ -260,7 +265,7 @@ export default function ShortlistedCandidatesPage() {
             </div>
 
             {/* Navigation Buttons */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-4">
                 <Link
                     href={`/admin/jobs/${params.id}/rounds/${params.roundId}/applied`}
                     className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-foreground bg-background border border-input rounded-lg hover:bg-accent transition-all shadow-sm hover:shadow-md"
@@ -270,15 +275,38 @@ export default function ShortlistedCandidatesPage() {
                     </svg>
                     Back
                 </Link>
-                <Link
-                    href={workflowStep?.stepType === "OFFER" ? `/admin/jobs/${params.id}/rounds/${params.roundId}/offers` : `/admin/jobs/${params.id}/rounds/${params.roundId}/results`}
-                    className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
-                >
-                    Next
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                </Link>
+                <div className="flex gap-4">
+                    {workflowStep?.nextStep ? (
+                        <Link
+                            href={`/admin/jobs/${params.id}/rounds/${workflowStep.nextStep.id}/applied`}
+                            className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                        >
+                            Next Round: {workflowStep.nextStep.stepName}
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                    ) : (
+                        <Link
+                            href={`/admin/jobs/${params.id}`}
+                            className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                        >
+                            Back to Job
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                    )}
+                    <Link
+                        href={workflowStep?.stepType === "OFFER" ? `/admin/jobs/${params.id}/rounds/${params.roundId}/offers` : `/admin/jobs/${params.id}/rounds/${params.roundId}/results`}
+                        className="inline-flex items-center gap-2 px-6 py-3 text-base font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-all shadow-sm hover:shadow-md"
+                    >
+                        Next
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </Link>
+                </div>
             </div>
         </div>
     )

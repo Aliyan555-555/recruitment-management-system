@@ -90,18 +90,26 @@ export default function EditJobPage() {
     minimumSalary: "",
     certification: "",
     minEducation: "",
+    successCriteria: "",
     benefits: "",
-    skills: [] as string[],
+    skills: [] as Array<{ skillName: string; priority: "REQUIRED" | "PREFERRED" }>,
   })
   const [skillInput, setSkillInput] = useState("")
 
   const handleAddJobSkill = () => {
-    const result = addSkillToList(formData.skills, skillInput)
-    if (result.error) {
-      toast.error(result.error)
+    const rawInput = sanitizeSkillInput(skillInput)
+    if (!rawInput) return
+    const exists = formData.skills.some(
+      (s) => s.skillName.toUpperCase() === rawInput.toUpperCase()
+    )
+    if (exists) {
+      toast.error("Skill already added")
       return
     }
-    setFormData({ ...formData, skills: result.skills })
+    setFormData({
+      ...formData,
+      skills: [...formData.skills, { skillName: rawInput.toUpperCase(), priority: "REQUIRED" }],
+    })
     setSkillInput("")
   }
 
@@ -156,8 +164,13 @@ export default function EditJobPage() {
           minimumSalary: job.minimumSalary ?? "",
           certification: job.certification ?? "",
           minEducation: job.educationRequirements?.[0]?.educationLevel?.name || job.educationRequirements?.[0]?.educationLevel || "",
+          successCriteria: job.successCriteria ?? "",
           benefits: job.benefits ?? "",
-          skills: job.skills?.map((s: any) => s.skillName || s) || [],
+          skills: job.skills?.map((s: any) =>
+            typeof s === "string"
+              ? { skillName: s, priority: "REQUIRED" }
+              : { skillName: s.skillName, priority: s.priority || "REQUIRED" }
+          ) || [],
         })
 
         // Populate locations
@@ -573,8 +586,6 @@ export default function EditJobPage() {
     setSaving(true)
 
     try {
-      const skillsArray = formData.skills.filter(s => s.trim())
-
       const transformedSteps = workflowSteps.map((step, index) => {
         // Create clean step object without temporary UI fields
         // Map simplified step to API structure 
@@ -614,9 +625,10 @@ export default function EditJobPage() {
         minimumExperience: cleanString(formData.minimumExperience),
         certification: cleanString(formData.certification),
         minimumSalary: cleanString(formData.minimumSalary),
+        successCriteria: cleanString(formData.successCriteria),
         benefits: cleanString(formData.benefits),
         status: formData.status,
-        skills: skillsArray,
+        skills: formData.skills,
         workflowSteps: transformedSteps,
         locations: locations,
         educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
@@ -1134,19 +1146,35 @@ export default function EditJobPage() {
                 </div>
                 {formData.skills.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {formData.skills.map((skill, skillIndex) => (
+                    {formData.skills.map((skillItem, skillIndex) => (
                       <span
                         key={skillIndex}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
                       >
-                        {skill}
+                        <span>{skillItem.skillName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...formData.skills]
+                            updated[skillIndex].priority =
+                              updated[skillIndex].priority === "REQUIRED" ? "PREFERRED" : "REQUIRED"
+                            setFormData({ ...formData, skills: updated })
+                          }}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            skillItem.priority === "REQUIRED"
+                              ? "bg-rose-500 text-white"
+                              : "bg-amber-500 text-white"
+                          }`}
+                        >
+                          {skillItem.priority}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
                             const updated = formData.skills.filter((_, i) => i !== skillIndex)
                             setFormData({ ...formData, skills: updated })
                           }}
-                          className="ml-1 text-blue-600 hover:text-blue-800 font-bold"
+                          className="ml-1 text-primary hover:text-primary font-bold"
                         >
                           ×
                         </button>
@@ -1154,6 +1182,19 @@ export default function EditJobPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Success Criteria (Optional)
+                </label>
+                <textarea
+                  value={formData.successCriteria}
+                  onChange={(e) => setFormData({ ...formData, successCriteria: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  placeholder="Describe what makes a strong candidate for this role (e.g. Proven track record of leading cross-functional teams, experience in high-volume microservices architecture)..."
+                />
               </div>
 
               {/* Status */}

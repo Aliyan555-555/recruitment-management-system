@@ -41,15 +41,20 @@ export async function POST(
 
       // Upsert provided steps
       for (const s of steps) {
+        const stepMetadata: any = s.stepMetadata || {}
+        if (s.interviewerId) {
+          stepMetadata.interviewerId = s.interviewerId
+        }
+
         const data: any = {
           workflowId: wf.id,
           stepName: s.stepName,
           stepOrder: s.stepOrder,
           isRequired: s.isRequired ?? true,
           isSkippable: s.isSkippable ?? false,
-          interviewerId: s.interviewerId ? BigInt(s.interviewerId) : null,
           evaluationSchema: s.evaluationSchema ?? null,
           capacityPerSlot: s.capacityPerSlot ?? null,
+          stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
           status: 'ACTIVE',
           updatedAt: now,
         }
@@ -82,14 +87,24 @@ export async function PATCH(
     if (!stepId) return NextResponse.json({ error: "stepId required" }, { status: 400 })
     const now = BigInt(Math.floor(Date.now() / 1000))
 
+    const existing = await (prisma as any).workflowStep.findUnique({
+      where: { id: BigInt(stepId) },
+      select: { stepMetadata: true }
+    })
+
+    const stepMetadata: any = existing?.stepMetadata || {}
+    if (updates.interviewerId !== undefined) {
+      stepMetadata.interviewerId = updates.interviewerId
+    }
+
     await (prisma as any).workflowStep.update({
       where: { id: BigInt(stepId) },
       data: {
         isRequired: updates.isRequired,
         isSkippable: updates.isSkippable,
-        interviewerId: updates.interviewerId ? BigInt(updates.interviewerId) : undefined,
         evaluationSchema: updates.evaluationSchema,
         capacityPerSlot: updates.capacityPerSlot,
+        stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
         updatedAt: now
       }
     })

@@ -139,7 +139,7 @@ export async function GET(
         },
         stageEvaluations: {
           include: {
-            interviewer: {
+            evaluator: {
               select: {
                 firstname: true,
                 lastname: true,
@@ -193,8 +193,8 @@ export async function GET(
       stepInterviewerIds: stepInterviewerIds,
       formData: evaluation?.formData || null,
       submittedAt: evaluation?.submittedAt ? evaluation.submittedAt.toString() : null,
-      interviewer: evaluation?.interviewer ?
-        `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}` : null,
+      interviewer: evaluation?.evaluator ?
+        `${evaluation.evaluator.firstname} ${evaluation.evaluator.lastname}` : null,
       evaluation: evaluation
         ? (() => {
             const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(
@@ -262,14 +262,14 @@ export async function POST(
     // Create or update stage evaluation
     const evaluation = await prisma.stageEvaluation.upsert({
       where: {
-        pipelineStepId_interviewerId: {
+        pipelineStepId_evaluatorId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(user.id)
+          evaluatorId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(user.id),
+        evaluatorId: BigInt(user.id),
         formData: formData,
         score: totalScore,
         recommendation: recommendation as any,
@@ -341,14 +341,14 @@ export async function PUT(
     // Create or update stage evaluation as draft (no submittedAt)
     await prisma.stageEvaluation.upsert({
       where: {
-        pipelineStepId_interviewerId: {
+        pipelineStepId_evaluatorId: {
           pipelineStepId: pipelineStep.id,
-          interviewerId: BigInt(user.id)
+          evaluatorId: BigInt(user.id)
         }
       },
       create: {
         pipelineStepId: pipelineStep.id,
-        interviewerId: BigInt(user.id),
+        evaluatorId: BigInt(user.id),
         formData: formData,
         score: null,
         recommendation: null,

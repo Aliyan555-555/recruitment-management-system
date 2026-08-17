@@ -41,7 +41,12 @@ export async function GET(
           }
         },
         applications: {
-          where: { userId: BigInt(session.user.id) }
+          where: { userId: BigInt(session.user.id) },
+          include: {
+            pipeline: {
+              select: { id: true }
+            }
+          }
         }
       }
     })
@@ -87,7 +92,8 @@ export async function GET(
       application: userApplication ? {
         id: userApplication.id.toString(),
         status: userApplication.status,
-        appliedAt: new Date(Number(userApplication.appliedAt) * 1000).toISOString()
+        appliedAt: new Date(Number(userApplication.appliedAt) * 1000).toISOString(),
+        pipelineId: userApplication.pipeline?.id ? userApplication.pipeline.id.toString() : null
       } : null
     })
   } catch (error: any) {

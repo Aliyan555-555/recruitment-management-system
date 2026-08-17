@@ -9,7 +9,6 @@ interface InterviewTimerProps {
   slotEndTime?: Date | string
   stepName?: string
   candidateName?: string // For interviewer view
-  interviewerName?: string // For candidate view
   meetingLink?: string
   className?: string
 }
@@ -19,7 +18,6 @@ export function InterviewTimer({
   slotEndTime,
   stepName,
   candidateName,
-  interviewerName,
   meetingLink,
   className = ""
 }: InterviewTimerProps) {
@@ -115,12 +113,6 @@ export function InterviewTimer({
         {candidateName && (
           <div className="mt-2 text-sm">
             Candidate: {candidateName}
-          </div>
-        )}
-
-        {interviewerName && (
-          <div className="mt-2 text-sm">
-            Interviewer: {interviewerName}
           </div>
         )}
 

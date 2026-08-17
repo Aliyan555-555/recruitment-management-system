@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react"
 import Link from "next/link"
 import { InterviewTimer } from "@/components/InterviewTimer"
 import { Navbar } from "@/components/Navbar"
+import DOMPurify from "isomorphic-dompurify"
 
 interface PipelineDetail {
   id: string
@@ -416,7 +417,7 @@ export default function ApplicationDetailPage() {
                 listStyleType: "initial",
                 paddingLeft: "1.5em",
               }}
-              dangerouslySetInnerHTML={{ __html: pipeline.job.description }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pipeline.job.description) }}
             />
           </div>
         )}
@@ -673,7 +674,6 @@ export default function ApplicationDetailPage() {
               slotStartTime={bookedSlot.startsAt}
               slotEndTime={bookedSlot.endsAt}
               stepName={bookedSlot.stepName}
-              interviewerName={bookedSlot.interviewerName}
               meetingLink={bookedSlot.meetingLink}
             />
           </div>

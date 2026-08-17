@@ -4,7 +4,6 @@ import { getToken } from "next-auth/jwt"
 // Define user roles
 enum UserRole {
   ADMIN = "ADMIN",
-  INTERVIEWER = "INTERVIEWER",
   CANDIDATE = "CANDIDATE"
 }
 
@@ -69,13 +68,6 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     requireAuth: true,
     redirectTo: '/admin/login'
   },
-  // Admin Interviewers Management
-  {
-    pattern: /^\/admin\/interviewers/,
-    allowedRoles: [UserRole.ADMIN],
-    requireAuth: true,
-    redirectTo: '/admin/login'
-  },
   // Admin Workflows Management
   {
     pattern: /^\/admin\/workflows/,
@@ -93,7 +85,7 @@ const PROTECTED_ROUTES: RouteConfig[] = [
   // Admin Login Page (public for admins)
   {
     pattern: /^\/admin\/login/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER, UserRole.CANDIDATE],
+    allowedRoles: [UserRole.ADMIN, UserRole.CANDIDATE],
     requireAuth: false
   },
   // Any other admin routes
@@ -102,48 +94,6 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     allowedRoles: [UserRole.ADMIN],
     requireAuth: true,
     redirectTo: '/admin/login'
-  },
-  
-  // Interviewer Dashboard
-  {
-    pattern: /^\/interviewer\/dashboard/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER],
-    requireAuth: true,
-    redirectTo: '/interviewer/login'
-  },
-  // Interviewer Assignments
-  {
-    pattern: /^\/interviewer\/assignments/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER],
-    requireAuth: true,
-    redirectTo: '/interviewer/login'
-  },
-  // Interviewer Batches
-  {
-    pattern: /^\/interviewer\/batches/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER],
-    requireAuth: true,
-    redirectTo: '/interviewer/login'
-  },
-  // Interviewer Calendar
-  {
-    pattern: /^\/interviewer\/calendar/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER],
-    requireAuth: true,
-    redirectTo: '/interviewer/login'
-  },
-  // Interviewer Login Page (public for interviewers)
-  {
-    pattern: /^\/interviewer\/login/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER, UserRole.CANDIDATE],
-    requireAuth: false
-  },
-  // Any other interviewer routes
-  {
-    pattern: /^\/interviewer/,
-    allowedRoles: [UserRole.ADMIN, UserRole.INTERVIEWER],
-    requireAuth: true,
-    redirectTo: '/interviewer/login'
   },
   
   // Candidate Profile
@@ -422,8 +372,6 @@ export async function middleware(request: NextRequest) {
       
       if (userRole === UserRole.ADMIN) {
         redirectUrl = '/admin/dashboard'
-      } else if (userRole === UserRole.INTERVIEWER) {
-        redirectUrl = '/interviewer/dashboard'
       } else if (userRole === UserRole.CANDIDATE) {
         redirectUrl = '/candidate/profile'
       }

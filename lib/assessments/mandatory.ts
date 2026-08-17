@@ -73,45 +73,67 @@ export async function getMandatoryAssessmentStatus(
     }
   }
 
-  const pendingSkills: MandatorySkill[] = []
   let completedCount = 0
 
-  for (const skill of skills) {
-    const config = await getSkillAssessmentConfig(skill.skillName)
-
-    const state = await getAttemptEligibilityState(
-      skill.id,
-      config,
-      now,
-      skill.verifiedLevel
-    )
-
-    if (isSkillAssessmentFulfilled(skill.verifiedLevel, state.completedAttempts)) {
+  // Filter out skills that are already verified/improved without fetching eligibility state
+  const unverifiedSkills = skills.filter((skill) => {
+    if (isSkillImproved(skill.verifiedLevel)) {
       completedCount += 1
-      continue
+      return false
     }
+    return true
+  })
 
-    pendingSkills.push({
-      userSkillId: skill.id.toString(),
-      skillName: skill.skillName,
-      inProgressAssessmentId: state.inProgress?.id.toString() ?? null,
-      completedAttempts: state.completedAttempts,
-      attemptsUsed: state.attemptsInCurrentCycle,
-      maxAttempts: config.maxAttempts,
-      verifiedLevel: skill.verifiedLevel,
-      skillPercentage: skill.lastAssessmentId
-        ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
-        : null,
-      canStart: state.canStart,
-      cycleLocked: state.cycleLocked,
-      cycleUnlocksAt: state.cycleUnlocksAt?.toString() ?? null,
+  // Evaluate remaining skills in parallel
+  const evalResults = await Promise.all(
+    unverifiedSkills.map(async (skill) => {
+      const config = await getSkillAssessmentConfig(skill.skillName)
+
+      const state = await getAttemptEligibilityState(
+        skill.id,
+        config,
+        now,
+        skill.verifiedLevel
+      )
+
+      if (state.completedAttempts >= 1) {
+        return { isCompleted: true, pendingSkill: null }
+      }
+
+      return {
+        isCompleted: false,
+        pendingSkill: {
+          userSkillId: skill.id.toString(),
+          skillName: skill.skillName,
+          inProgressAssessmentId: state.inProgress?.id.toString() ?? null,
+          completedAttempts: state.completedAttempts,
+          attemptsUsed: state.attemptsInCurrentCycle,
+          maxAttempts: config.maxAttempts,
+          verifiedLevel: skill.verifiedLevel,
+          skillPercentage: skill.lastAssessmentId
+            ? percentageByAssessmentId.get(skill.lastAssessmentId.toString()) ?? null
+            : null,
+          canStart: state.canStart,
+          cycleLocked: state.cycleLocked,
+          cycleUnlocksAt: state.cycleUnlocksAt?.toString() ?? null,
+        } as MandatorySkill,
+      }
     })
+  )
+
+  const pendingSkills: MandatorySkill[] = []
+
+  for (const res of evalResults) {
+    if (res.isCompleted) {
+      completedCount += 1
+    } else if (res.pendingSkill) {
+      pendingSkills.push(res.pendingSkill)
+    }
   }
 
   return {
     required: pendingSkills.length > 0,
-    reason:
-      pendingSkills.length > 0 ? "pending_assessments" : "complete",
+    reason: pendingSkills.length > 0 ? "pending_assessments" : "complete",
     pendingSkills,
     completedCount,
     totalSkills: skills.length,

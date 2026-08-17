@@ -71,7 +71,7 @@ export async function GET(
         },
         stageEvaluations: {
           include: {
-            interviewer: {
+            evaluator: {
               select: {
                 firstname: true,
                 lastname: true,
@@ -103,8 +103,8 @@ export async function GET(
             : "pending",
         assessmentScore: evaluation?.score,
         recommendation: evaluation?.recommendation,
-        interviewer: evaluation?.interviewer
-          ? `${evaluation.interviewer.firstname} ${evaluation.interviewer.lastname}`
+        interviewer: evaluation?.evaluator
+          ? `${evaluation.evaluator.firstname} ${evaluation.evaluator.lastname}`
           : undefined,
         assessedAt: evaluation?.submittedAt?.toString(),
       };

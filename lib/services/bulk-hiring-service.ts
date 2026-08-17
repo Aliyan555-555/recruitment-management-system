@@ -80,7 +80,9 @@ export async function shortlistCandidates(
       userId: {
         in: candidateIds
       },
-      status: "APPLIED"
+      status: {
+        in: action === "select" ? ["APPLIED", "SUBMITTED", "REMOVED"] : ["APPLIED", "SUBMITTED", "SHORTLISTED"]
+      }
     },
     data: {
       status: newStatus,
@@ -169,7 +171,7 @@ export async function processBatchEvaluation(
   await prisma.$transaction(async (tx) => {
     for (const evalData of evaluations) {
       // Find batch candidate
-      const batchCandidate = await (tx as any).batchCandidate.findFirst({
+      const batchCandidate = await tx.batchCandidate.findFirst({
         where: {
           batchId,
           candidateId: evalData.candidateId
@@ -181,21 +183,20 @@ export async function processBatchEvaluation(
       }
 
       // Update batch candidate status
-      await (tx as any).batchCandidate.update({
+      await tx.batchCandidate.update({
         where: { id: batchCandidate.id },
         data: {
           currentStatus: evalData.status,
           evaluatedAt: now,
-          evaluatedBy: interviewerId,
-          updatedAt: now
+          evaluatedBy: interviewerId
         }
       })
 
       // Create evaluation record
-      await (tx as any).batchCandidateEvaluation.create({
+      await tx.batchCandidateEvaluation.create({
         data: {
           batchCandidateId: batchCandidate.id,
-          interviewerId: interviewerId,
+          evaluatorId: interviewerId,
           status: evalData.status,
           feedback: evalData.feedback || null,
           rating: evalData.rating || null,
@@ -205,7 +206,7 @@ export async function processBatchEvaluation(
     }
 
     // Check if all candidates are evaluated
-    const batch = await (tx as any).batch.findUnique({
+    const batch = await tx.batch.findUnique({
       where: { id: batchId },
       include: {
         _count: {
@@ -220,6 +221,9 @@ export async function processBatchEvaluation(
         }
       }
     })
+    if (!batch) {
+      throw new Error(`Batch not found: ${batchId}`)
+    }
 
     const totalCandidates = batch._count.batchCandidates
     const evaluatedCount = batch.batchCandidates.filter(
@@ -228,7 +232,7 @@ export async function processBatchEvaluation(
 
     // If all evaluated, update batch status to PENDING_ADMIN
     if (evaluatedCount === totalCandidates) {
-      await (tx as any).batch.update({
+      await tx.batch.update({
         where: { id: batchId },
         data: {
           status: "PENDING_ADMIN",
@@ -292,7 +296,7 @@ export async function getFinalSelectedCandidates(jobId: bigint): Promise<Array<{
   const lastStep = job.workflow.steps[0]
 
   // Get all batches for last step
-  const batches = await (prisma as any).batch.findMany({
+  const batches = await prisma.batch.findMany({
     where: {
       jobId,
       workflowStepId: lastStep.id,

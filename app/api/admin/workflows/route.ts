@@ -23,16 +23,6 @@ export async function GET(req: NextRequest) {
           }
         },
         steps: {
-          include: {
-            interviewer: {
-              select: {
-                id: true,
-                firstname: true,
-                lastname: true,
-                email: true
-              }
-            }
-          },
           orderBy: {
             stepOrder: 'asc'
           }
@@ -60,12 +50,7 @@ export async function GET(req: NextRequest) {
           stepName: step.stepName,
           stepOrder: step.stepOrder,
           isRequired: step.isRequired,
-          isSkippable: step.isSkippable,
-          interviewer: step.interviewer ? {
-            id: step.interviewer.id.toString(),
-            name: `${step.interviewer.firstname} ${step.interviewer.lastname}`,
-            email: step.interviewer.email
-          } : null
+          isSkippable: step.isSkippable
         })),
         createdAt: workflow.createdAt.toString()
       }))

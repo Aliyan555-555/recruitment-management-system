@@ -52,7 +52,7 @@ export async function advanceToNextStep(
 
     // For BATCH mode, check if batch is completed
     if (pipeline.pipelineMode === "BATCH" && currentStep.batchId) {
-      const batch = await (prisma as any).batch.findUnique({
+      const batch = await prisma.batch.findUnique({
         where: { id: currentStep.batchId },
         select: { status: true }
       })
@@ -123,7 +123,7 @@ export async function advanceToNextStep(
     let batchId: bigint | null = null
     if (pipeline.pipelineMode === "BATCH" && currentStep.batchId) {
       // Try to find batch for next step
-      const nextBatch = await (prisma as any).batch.findFirst({
+      const nextBatch = await prisma.batch.findFirst({
         where: {
           jobId: pipeline.jobId,
           workflowStepId: nextWorkflowStep.id,
@@ -149,7 +149,6 @@ export async function advanceToNextStep(
         workflowStepId: nextWorkflowStep.id,
         stepOrder: nextStepOrder,
         status: "PENDING",
-        interviewerId: nextWorkflowStep.interviewerId,
         batchId: batchId,
         startedAt: now,
       }
@@ -162,34 +161,6 @@ export async function advanceToNextStep(
         currentStepOrder: nextStepOrder
       }
     })
-
-    // Notify interviewer if assigned (only for INDIVIDUAL mode or if batch not assigned)
-    if (pipeline.pipelineMode === "INDIVIDUAL" && nextWorkflowStep.interviewerId) {
-      const candidateName = `${pipeline.candidate.firstname} ${pipeline.candidate.lastname}`
-      await notifyInterviewerAssignment(
-        nextWorkflowStep.interviewerId,
-        candidateName,
-        nextWorkflowStep.stepName,
-        pipeline.job.title
-      )
-
-      // Send email to interviewer
-      const interviewer = await prisma.user.findUnique({
-        where: { id: nextWorkflowStep.interviewerId },
-        select: { email: true, firstname: true, lastname: true }
-      })
-
-      if (interviewer?.email) {
-        await sendInterviewerAssignmentEmail(
-          interviewer.email,
-          `${interviewer.firstname} ${interviewer.lastname}`,
-          candidateName,
-          nextWorkflowStep.stepName,
-          pipeline.job.title,
-          pipeline.job.company || "Company"
-        )
-      }
-    }
 
     // Notify admins
     const admins = await prisma.user.findMany({

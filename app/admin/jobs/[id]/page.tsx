@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import DOMPurify from "isomorphic-dompurify"
 
 interface JobDetails {
   id: string
@@ -168,7 +169,7 @@ export default function JobDetailPage() {
         </div>
 
         {job.description && (
-          <div className="prose-lg mt-4" dangerouslySetInnerHTML={{ __html: job.description }}></div>
+          <div className="prose-lg mt-4" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}></div>
         )}
 
         {job.skills.length > 0 && (
@@ -230,6 +231,12 @@ export default function JobDetailPage() {
           className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
         >
           View Candidates ({job._count.applications})
+        </Link>
+        <Link
+          href={`/admin/jobs/${job.id}/ai-shortlist`}
+          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors"
+        >
+          ✨ Run AI Shortlisting
         </Link>
       </div>
     </div>

@@ -132,14 +132,12 @@ export default function AssessmentPage() {
   const params = useParams()
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(true)
   const [candidate, setCandidate] = useState<CandidateInfo | null>(null)
   const [jobTitle, setJobTitle] = useState("")
   const [saving, setSaving] = useState(false)
   const [isReadOnly, setIsReadOnly] = useState(false)
   const [submittedInfo, setSubmittedInfo] = useState<{ submittedAt?: string | null; interviewer?: string | null; evaluation?: { score: number; maxScore: number; scorePercentage: number; recommendation: string } | null }>({ submittedAt: null, interviewer: null, evaluation: null })
-  const [interviewers, setInterviewers] = useState<Interviewer[]>([])
-  const [loadingInterviewers, setLoadingInterviewers] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState<FormData>({
     skills: {
       appearance: { rating: 0, max: 10 },
@@ -161,28 +159,10 @@ export default function AssessmentPage() {
     interviewerIds: ["", "", ""]
   })
 
-  // Fetch interviewers
-  useEffect(() => {
-    const fetchInterviewers = async () => {
-      try {
-        setLoadingInterviewers(true)
-        const res = await fetch('/api/admin/interviewers')
-        if (res.ok) {
-          const data = await res.json()
-          setInterviewers(data.interviewers || [])
-        }
-      } catch (error) {
-        console.error("Error fetching interviewers:", error)
-      } finally {
-        setLoadingInterviewers(false)
-      }
-    }
-    fetchInterviewers()
-  }, [])
-
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true)
         const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates/${params.candidateId}/assessment`)
         if (res.ok) {
           const data = await res.json()
@@ -787,58 +767,6 @@ export default function AssessmentPage() {
                 </div>
               </div>
 
-              {/* Interviewer Details */}
-              <div>
-                <label className="block text-sm font-semibold text-foreground mb-3">
-                  Interviewer Panel
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[0, 1, 2].map((idx) => {
-                    // Get the IDs of interviewers selected in OTHER dropdowns
-                    const selectedInOtherDropdowns = formData.interviewerIds
-                      .filter((_, i) => i !== idx)
-                      .filter(id => id !== "")
-
-                    // Filter out interviewers already selected elsewhere
-                    const availableInterviewers = interviewers.filter(
-                      interviewer => !selectedInOtherDropdowns.includes(interviewer.id)
-                    )
-
-                    // Find the interviewer by ID
-                    const interviewerId = formData.interviewerIds[idx]
-                    const interviewer = interviewers.find(i => i.id === interviewerId)
-
-                    return (
-                      <div key={idx} className="bg-muted/30 border-2 border-border rounded-lg p-4">
-                        <div className="text-xs font-medium text-muted-foreground mb-2">
-                          Interviewer {idx + 1}
-                        </div>
-                        {interviewer ? (
-                          <div>
-                            <div className="text-sm font-semibold text-foreground">
-                              {interviewer.firstname} {interviewer.lastname}
-                            </div>
-                            {interviewer.department && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {interviewer.department}
-                              </div>
-                            )}
-                            {interviewer.email && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {interviewer.email}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-sm text-muted-foreground italic">
-                            Not assigned
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
             </div>
 
             {/* Action Buttons */}

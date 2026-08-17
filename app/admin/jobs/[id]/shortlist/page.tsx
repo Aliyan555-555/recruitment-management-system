@@ -27,6 +27,30 @@ export default function ShortlistPage() {
   const [selectedCandidates, setSelectedCandidates] = useState<Set<string>>(new Set())
   const [statusFilter, setStatusFilter] = useState<string>("")
   const [actionLoading, setActionLoading] = useState(false)
+  const [firstRound, setFirstRound] = useState<{ id: string; stepName: string } | null>(null)
+
+  useEffect(() => {
+    async function fetchWorkflow() {
+      try {
+        const res = await fetch(`/api/admin/jobs/${jobId}/workflow`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.workflow?.rounds?.length > 0) {
+            setFirstRound({
+              id: data.workflow.rounds[0].id,
+              stepName: data.workflow.rounds[0].stepName
+            })
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching workflow:", error)
+      }
+    }
+    if (jobId) {
+      fetchWorkflow()
+    }
+  }, [jobId])
+
   const fetchCandidates = useCallback(async () => {
     try {
       setLoading(true)
@@ -110,14 +134,40 @@ export default function ShortlistPage() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Shortlist Candidates</h1>
-            <p className="text-muted-foreground mt-1">Review and shortlist candidates for bulk hiring</p>
+            <h1 className="text-2xl font-bold text-foreground">Candidate Shortlisting</h1>
+            <p className="text-muted-foreground mt-1">Review and shortlist candidates manually or with AI</p>
           </div>
+          <div className="flex items-center gap-3">
+            {firstRound && (
+              <Link
+                href={`/admin/jobs/${jobId}/rounds/${firstRound.id}/applied`}
+                className="px-4 py-2 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+              >
+                Next Round ({firstRound.stepName}) →
+              </Link>
+            )}
+            <Link
+              href={`/admin/jobs/${jobId}`}
+              className="px-4 py-2 text-foreground bg-background border border-input rounded-lg hover:bg-accent"
+            >
+              Back to Job Details
+            </Link>
+          </div>
+        </div>
+
+        {/* Shortlist Mode Navigation Tabs */}
+        <div className="flex border-b border-border mb-6">
           <Link
-            href={`/admin/jobs/${jobId}`}
-            className="px-4 py-2 text-foreground bg-background border border-input rounded-lg hover:bg-accent"
+            href={`/admin/jobs/${jobId}/shortlist`}
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-primary text-primary flex items-center gap-2"
           >
-            Back to Job
+            📋 Manual Shortlist
+          </Link>
+          <Link
+            href={`/admin/jobs/${jobId}/ai-shortlist`}
+            className="px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-muted-foreground hover:text-foreground flex items-center gap-2 transition-colors"
+          >
+            ✨ AI Shortlist
           </Link>
         </div>
 
@@ -240,26 +290,7 @@ export default function ShortlistPage() {
         </div>
       )}
 
-      {shortlistedCount > 0 && (
-        <div className="mt-6 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-emerald-600">
-                {shortlistedCount} candidate(s) shortlisted
-              </p>
-              <p className="text-sm text-emerald-600/80 mt-1">
-                You can now create Batch 1 from shortlisted candidates
-              </p>
-            </div>
-            <Link
-              href={`/admin/jobs/${jobId}/batches`}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-            >
-              Create Batch 1
-            </Link>
-          </div>
-        </div>
-      )}
+
     </div>
 
   )

@@ -26,7 +26,7 @@ export async function GET(
 
     const where: any = {
       jobId,
-      status: status === "applied" ? "APPLIED" :
+      status: status === "applied" ? { in: ["APPLIED", "SUBMITTED"] } :
               status === "shortlisted" ? "SHORTLISTED" :
               status === "rejected" ? "REMOVED" :
               undefined
@@ -35,7 +35,7 @@ export async function GET(
     // If no status filter, show all non-removed applications
     if (!status) {
       where.status = {
-        in: ["APPLIED", "SHORTLISTED", "BATCH_ASSIGNED"]
+        in: ["APPLIED", "SUBMITTED", "SHORTLISTED", "BATCH_ASSIGNED"]
       }
     }
 

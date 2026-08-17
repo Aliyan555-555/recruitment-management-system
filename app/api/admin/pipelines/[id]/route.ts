@@ -87,24 +87,7 @@ export async function GET(
                 isSkippable: true
               }
             },
-            interviewer: {
-              select: {
-                id: true,
-                firstname: true,
-                lastname: true,
-                email: true
-              }
-            },
-            interviews: {
-              include: {
-                interviewer: {
-                  select: {
-                    firstname: true,
-                    lastname: true
-                  }
-                }
-              }
-            }
+            interviews: true
           },
           orderBy: {
             stepOrder: 'asc'
@@ -120,9 +103,9 @@ export async function GET(
       )
     }
 
-    const lastAssessmentIds = pipeline.candidate.skills
-      .map((skill) => skill.lastAssessmentId)
-      .filter((id): id is bigint => id != null)
+    const lastAssessmentIds = (pipeline as any).candidate.skills
+      .map((skill: any) => skill.lastAssessmentId)
+      .filter((id: any): id is bigint => id != null)
 
     const lastAssessments =
       lastAssessmentIds.length > 0
@@ -138,24 +121,26 @@ export async function GET(
 
     const percentageByAssessmentId = buildSkillPercentageMap(lastAssessments)
 
+    const p = pipeline as any;
+
     return NextResponse.json({
       pipeline: {
-        id: pipeline.id.toString(),
+        id: p.id.toString(),
         candidate: {
-          id: pipeline.candidate.id.toString(),
-          name: `${pipeline.candidate.firstname} ${pipeline.candidate.lastname}`,
-          firstname: pipeline.candidate.firstname,
-          lastname: pipeline.candidate.lastname,
-          email: pipeline.candidate.email,
-          phone: pipeline.candidate.phone1,
-          phone2: pipeline.candidate.phone2,
-          address: pipeline.candidate.address,
-          city: pipeline.candidate.city,
-          country: pipeline.candidate.country,
-          location: `${pipeline.candidate.city || ''}, ${pipeline.candidate.country || ''}`.trim(),
-          institution: pipeline.candidate.institution,
-          department: pipeline.candidate.department,
-          experiences: pipeline.candidate.experiences.map(exp => ({
+          id: p.candidate.id.toString(),
+          name: `${p.candidate.firstname} ${p.candidate.lastname}`,
+          firstname: p.candidate.firstname,
+          lastname: p.candidate.lastname,
+          email: p.candidate.email,
+          phone: p.candidate.phone1,
+          phone2: p.candidate.phone2,
+          address: p.candidate.address,
+          city: p.candidate.city,
+          country: p.candidate.country,
+          location: `${p.candidate.city || ''}, ${p.candidate.country || ''}`.trim(),
+          institution: p.candidate.institution,
+          department: p.candidate.department,
+          experiences: p.candidate.experiences.map((exp: any) => ({
             id: exp.id.toString(),
             jobTitle: exp.jobTitle,
             company: exp.company,
@@ -165,7 +150,7 @@ export async function GET(
             isCurrent: exp.isCurrent,
             createdAt: exp.createdAt.toString()
           })),
-          educations: pipeline.candidate.educations.map(edu => ({
+          educations: p.candidate.educations.map((edu: any) => ({
             id: edu.id.toString(),
             educationLevel: edu.educationLevel.name,
             degreeTitle: edu.degreeTitle,
@@ -177,7 +162,7 @@ export async function GET(
             country: edu.country,
             createdAt: edu.createdAt.toString()
           })),
-          skills: pipeline.candidate.skills.map(skill => ({
+          skills: p.candidate.skills.map((skill: any) => ({
             id: skill.id.toString(),
             skillName: skill.skillName,
             verifiedLevel: skill.verifiedLevel,
@@ -188,73 +173,70 @@ export async function GET(
             lastAssessmentId: skill.lastAssessmentId?.toString() ?? null,
             createdAt: skill.createdAt.toString()
           })),
-          profileDetails: pipeline.candidate.profileDetails ? {
-            title: pipeline.candidate.profileDetails.title,
-            fatherName: pipeline.candidate.profileDetails.fatherName,
-            religion: pipeline.candidate.profileDetails.religion,
-            nationality: pipeline.candidate.profileDetails.nationality,
-            dateOfBirth: pipeline.candidate.profileDetails.dateOfBirth,
-            cnic: pipeline.candidate.profileDetails.cnic,
-            gender: pipeline.candidate.profileDetails.gender,
-            maritalStatus: pipeline.candidate.profileDetails.maritalStatus,
-            preferredCity: pipeline.candidate.profileDetails.preferredCity,
-            postalCode: pipeline.candidate.profileDetails.postalCode,
-            professionalGrade: pipeline.candidate.profileDetails.professionalGrade,
-            linkedinUrl: pipeline.candidate.profileDetails.linkedinUrl,
-            portfolioUrl: pipeline.candidate.profileDetails.portfolioUrl,
-            githubUrl: pipeline.candidate.profileDetails.githubUrl,
-            websiteUrl: pipeline.candidate.profileDetails.websiteUrl,
-            bio: pipeline.candidate.profileDetails.bio,
-            availability: pipeline.candidate.profileDetails.availability,
-            expectedSalary: pipeline.candidate.profileDetails.expectedSalary,
-            noticePeriod: pipeline.candidate.profileDetails.noticePeriod,
-            languages: pipeline.candidate.profileDetails.languages,
-            certifications: pipeline.candidate.profileDetails.certifications,
-            achievements: pipeline.candidate.profileDetails.achievements,
-            references: pipeline.candidate.profileDetails.references
+          profileDetails: p.candidate.profileDetails ? {
+            title: p.candidate.profileDetails.title,
+            fatherName: p.candidate.profileDetails.fatherName,
+            religion: p.candidate.profileDetails.religion,
+            nationality: p.candidate.profileDetails.nationality,
+            dateOfBirth: p.candidate.profileDetails.dateOfBirth,
+            cnic: p.candidate.profileDetails.cnic,
+            gender: p.candidate.profileDetails.gender,
+            maritalStatus: p.candidate.profileDetails.maritalStatus,
+            preferredCity: p.candidate.profileDetails.preferredCity,
+            postalCode: p.candidate.profileDetails.postalCode,
+            professionalGrade: p.candidate.profileDetails.professionalGrade,
+            linkedinUrl: p.candidate.profileDetails.linkedinUrl,
+            portfolioUrl: p.candidate.profileDetails.portfolioUrl,
+            githubUrl: p.candidate.profileDetails.githubUrl,
+            websiteUrl: p.candidate.profileDetails.websiteUrl,
+            bio: p.candidate.profileDetails.bio,
+            availability: p.candidate.profileDetails.availability,
+            expectedSalary: p.candidate.profileDetails.expectedSalary,
+            noticePeriod: p.candidate.profileDetails.noticePeriod,
+            languages: p.candidate.profileDetails.languages,
+            certifications: p.candidate.profileDetails.certifications,
+            achievements: p.candidate.profileDetails.achievements,
+            references: p.candidate.profileDetails.references
           } : null,
-          jobPreference: pipeline.candidate.jobPreference ? {
-            firstPriority: pipeline.candidate.jobPreference.firstPriority,
-            secondPriority: pipeline.candidate.jobPreference.secondPriority,
-            thirdPriority: pipeline.candidate.jobPreference.thirdPriority,
-            summary: pipeline.candidate.jobPreference.summary
+          jobPreference: p.candidate.jobPreference ? {
+            firstPriority: p.candidate.jobPreference.firstPriority,
+            secondPriority: p.candidate.jobPreference.secondPriority,
+            thirdPriority: p.candidate.jobPreference.thirdPriority,
+            summary: p.candidate.jobPreference.summary
           } : null
         },
         job: {
-          id: pipeline.job.id.toString(),
-          title: pipeline.job.title,
-          company: pipeline.job.company,
-          description: pipeline.job.description,
-          industry: pipeline.job.industry,
-          employmentType: pipeline.job.employmentType,
-          minimumExperience: pipeline.job.minimumExperience,
-          minimumSalary: pipeline.job.minimumSalary
+          id: p.job.id.toString(),
+          title: p.job.title,
+          company: p.job.company,
+          description: p.job.description,
+          industry: p.job.industry,
+          employmentType: p.job.employmentType,
+          minimumExperience: p.job.minimumExperience,
+          minimumSalary: p.job.minimumSalary
         },
         application: {
-          status: pipeline.application.status,
-          appliedAt: pipeline.application.appliedAt.toString()
+          id: p.application?.id.toString(),
+          status: p.application?.status,
+          appliedAt: p.application?.appliedAt.toString()
         },
-        status: pipeline.overallStatus,
-        lockState: (pipeline as any).lockState || 'NONE',
-        currentStep: pipeline.currentStepOrder,
-        startedAt: pipeline.startedAt.toString(),
-        completedAt: pipeline.completedAt?.toString(),
-        steps: pipeline.steps.map(s => ({
+        status: p.overallStatus,
+        lockState: p.lockState || 'NONE',
+        currentStep: p.currentStepOrder,
+        startedAt: p.startedAt.toString(),
+        completedAt: p.completedAt?.toString(),
+        steps: p.steps.map((s: any) => ({
           id: s.id.toString(),
           stepName: s.workflowStep.stepName,
           stepOrder: s.stepOrder,
           status: s.status,
           isRequired: s.workflowStep.isRequired,
           isSkippable: s.workflowStep.isSkippable,
-          interviewer: s.interviewer ? {
-            name: `${s.interviewer.firstname} ${s.interviewer.lastname}`,
-            email: s.interviewer.email
-          } : null,
+          interviewer: null,
           feedback: s.feedback,
           startedAt: s.startedAt?.toString(),
           completedAt: s.completedAt?.toString(),
-          interviews: s.interviews.map(i => ({
-            interviewerName: `${i.interviewer.firstname} ${i.interviewer.lastname}`,
+          interviews: s.interviews.map((i: any) => ({
             feedback: i.feedback,
             rating: i.rating,
             recommendation: i.recommendation,

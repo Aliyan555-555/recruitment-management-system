@@ -23,6 +23,7 @@ import {
   Bookmark
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import DOMPurify from "isomorphic-dompurify"
 import { fetchMandatoryRedirectPath } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface JobLocation {
@@ -59,6 +60,7 @@ interface Application {
   id: string
   status: string
   appliedAt: string
+  pipelineId?: string | null
 }
 
 export function JobDetails({
@@ -192,16 +194,25 @@ export function JobDetails({
           {hasApplied && application && (
             <Card className="border-green-200 bg-green-50/50 dark:bg-green-900/10 dark:border-green-900/20 shadow-none">
               <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full flex-shrink-0">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-green-900 dark:text-green-300">Application Submitted</h3>
+                      <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+                        Applied on {formatDate(new Date(application.appliedAt))} • Status: <span className="font-medium">{application.status}</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-green-900 dark:text-green-300">Application Submitted</h3>
-                    <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                      Applied on {formatDate(new Date(application.appliedAt))} • Status: <span className="font-medium">{application.status}</span>
-                    </p>
-                  </div>
+                  <Button
+                    variant="outline"
+                    className="bg-white hover:bg-slate-50 dark:bg-slate-900 border-green-300 dark:border-green-800 text-green-700 dark:text-green-300 whitespace-nowrap"
+                    onClick={() => router.push(application.pipelineId ? `/applications/${application.pipelineId}` : "/applications")}
+                  >
+                    View Application
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -240,7 +251,7 @@ export function JobDetails({
                 {job.description ? (
                   <div
                     className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-primary"
-                    dangerouslySetInnerHTML={{ __html: job.description }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(job.description) }}
                   />
                 ) : (
                   <p className="text-muted-foreground italic">No description provided</p>
@@ -365,9 +376,17 @@ export function JobDetails({
                       You have already submitted an application for this position.
                     </p>
                   </div>
-                  <Button variant="outline" className="w-full" onClick={() => router.push('/jobs')}>
-                    Browse Other Jobs
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full font-semibold"
+                      onClick={() => router.push(application?.pipelineId ? `/applications/${application.pipelineId}` : "/applications")}
+                    >
+                      View Application
+                    </Button>
+                    <Button variant="outline" className="w-full" onClick={() => router.push('/jobs')}>
+                      Browse Other Jobs
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ) : (

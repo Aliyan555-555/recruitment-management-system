@@ -52,7 +52,7 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
 
   const batch = await prisma.$transaction(async (tx) => {
     // Create batch
-    const newBatch = await (tx as any).batch.create({
+    const newBatch = await tx.batch.create({
       data: {
         jobId: params.jobId,
         workflowStepId: params.workflowStepId,
@@ -92,7 +92,7 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
         // Use provided status or default to PENDING
         const initialStatus = statusMap.get(candidateId) || "PENDING"
 
-        return (tx as any).batchCandidate.create({
+        return tx.batchCandidate.create({
           data: {
             batchId: newBatch.id,
             applicationId: application.id,
@@ -156,8 +156,7 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
       const step = await prisma.workflowStep.findUnique({
         where: { id: batchData.workflowStepId },
         select: {
-          stepName: true,
-          interviewerId: true
+          stepName: true
         }
       })
 
@@ -169,43 +168,7 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
         }
       })
 
-      if (step && step.interviewerId && job) {
-        const interviewer = await prisma.user.findUnique({
-          where: { id: step.interviewerId },
-          select: {
-            id: true,
-            email: true,
-            firstname: true,
-            lastname: true
-          }
-        })
 
-        if (interviewer) {
-          // Notify interviewer
-          await notifyInterviewerBatchCreated(
-            interviewer.id,
-            batchData.batchName || `Batch ${batchData.batchNumber}`,
-            step.stepName,
-            job.title,
-            batchData.candidates.length,
-            batch
-          )
-
-          // Send email if available
-          if (interviewer.email) {
-            await sendInterviewerBatchCreatedEmail(
-              interviewer.email,
-              `${interviewer.firstname} ${interviewer.lastname}`,
-              batchData.batchName || `Batch ${batchData.batchNumber}`,
-              step.stepName,
-              job.title,
-              job.company || "Company",
-              batchData.candidates.length,
-              batch.toString()
-            )
-          }
-        }
-      }
     }
   } catch (error) {
     console.error("Error notifying interviewer after batch creation:", error)
@@ -219,7 +182,7 @@ export async function createBatch(params: CreateBatchParams): Promise<bigint> {
  * Get batch by ID with candidates
  */
 export async function getBatchById(batchId: bigint): Promise<BatchWithCandidates | null> {
-  const batch = await (prisma as any).batch.findUnique({
+  const batch = await prisma.batch.findUnique({
     where: { id: batchId },
     include: {
       batchCandidates: {
@@ -233,14 +196,8 @@ export async function getBatchById(batchId: bigint): Promise<BatchWithCandidates
             }
           },
           application: {
-            include: {
-              cv: {
-                select: {
-                  id: true,
-                  filename: true,
-                  filepath: true
-                }
-              }
+            select: {
+              id: true
             }
           }
         }
@@ -271,12 +228,7 @@ export async function getBatchById(batchId: bigint): Promise<BatchWithCandidates
         email: bc.candidate.email
       },
       application: {
-        id: bc.application.id,
-        cv: bc.application.cv ? {
-          id: bc.application.cv.id,
-          filename: bc.application.cv.filename,
-          filepath: bc.application.cv.filepath
-        } : null
+        id: bc.application.id
       }
     }))
   }
@@ -295,7 +247,7 @@ export async function getBatchesForStep(
   status: string
   candidateCount: number
 }>> {
-  const batches = await (prisma as any).batch.findMany({
+  const batches = await prisma.batch.findMany({
     where: {
       jobId,
       workflowStepId: stepId
@@ -328,7 +280,7 @@ export async function updateBatchStatus(
   batchId: bigint,
   status: "PENDING_ADMIN" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
 ): Promise<void> {
-  await (prisma as any).batch.update({
+  await prisma.batch.update({
     where: { id: batchId },
     data: {
       status,
@@ -341,7 +293,7 @@ export async function updateBatchStatus(
  * Get all SELECTED candidates from a batch
  */
 export async function getSelectedCandidatesFromBatch(batchId: bigint): Promise<bigint[]> {
-  const batchCandidates = await (prisma as any).batchCandidate.findMany({
+  const batchCandidates = await prisma.batchCandidate.findMany({
     where: {
       batchId,
       currentStatus: "SELECTED"
@@ -374,7 +326,7 @@ export async function createNextBatchFromPrevious(
   }
 
   // Get next batch number
-  const existingBatches = await (prisma as any).batch.findMany({
+  const existingBatches = await prisma.batch.findMany({
     where: {
       jobId,
       workflowStepId: nextStepId

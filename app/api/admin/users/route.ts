@@ -28,8 +28,6 @@ export async function GET(req: NextRequest) {
         _count: {
           select: {
             candidatePipelines: true,
-            stepInterviewer: true,
-            stepInterviewerInstance: true
           }
         }
       },
@@ -54,8 +52,6 @@ export async function GET(req: NextRequest) {
         country: u.country,
         stats: {
           pipelines: u._count.candidatePipelines,
-          assignedSteps: u._count.stepInterviewer,
-          activeAssignments: u._count.stepInterviewerInstance
         },
         createdAt: u.createdAt.toString()
       }))

@@ -91,18 +91,26 @@ export default function CreateJobPage() {
     minimumSalary: "",
     certification: "",
     minEducation: "",
+    successCriteria: "",
     benefits: "",
-    skills: [] as string[],
+    skills: [] as Array<{ skillName: string; priority: "REQUIRED" | "PREFERRED" }>,
   })
   const [skillInput, setSkillInput] = useState("")
 
   const handleAddJobSkill = () => {
-    const result = addSkillToList(formData.skills, skillInput)
-    if (result.error) {
-      toast.error(result.error)
+    const rawInput = sanitizeSkillInput(skillInput)
+    if (!rawInput) return
+    const exists = formData.skills.some(
+      (s) => s.skillName.toUpperCase() === rawInput.toUpperCase()
+    )
+    if (exists) {
+      toast.error("Skill already added")
       return
     }
-    setFormData({ ...formData, skills: result.skills })
+    setFormData({
+      ...formData,
+      skills: [...formData.skills, { skillName: rawInput.toUpperCase(), priority: "REQUIRED" }],
+    })
     setSkillInput("")
   }
 
@@ -612,8 +620,6 @@ export default function CreateJobPage() {
     })
 
     try {
-      const skillsArray = formData.skills.filter(s => s.trim()) // Already an array, just filter empty values
-
       // Transform workflow steps
       const transformedSteps = workflowSteps.map((step) => {
         // Remove any client-only fields from payload
@@ -641,9 +647,10 @@ export default function CreateJobPage() {
           minimumExperience: formData.minimumExperience || undefined,
           certification: formData.certification || undefined,
           minimumSalary: formData.minimumSalary || undefined,
+          successCriteria: formData.successCriteria || undefined,
           benefits: formData.benefits || undefined,
           status: formData.status,
-          skills: skillsArray,
+          skills: formData.skills,
           workflowSteps: transformedSteps,
           locations,
           educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
@@ -1195,12 +1202,28 @@ export default function CreateJobPage() {
                 </div>
                 {formData.skills.length > 0 && (
                   <div className="flex flex-wrap gap-2">
-                    {formData.skills.map((skill, skillIndex) => (
+                    {formData.skills.map((skillItem, skillIndex) => (
                       <span
                         key={skillIndex}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
                       >
-                        {skill}
+                        <span>{skillItem.skillName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...formData.skills]
+                            updated[skillIndex].priority =
+                              updated[skillIndex].priority === "REQUIRED" ? "PREFERRED" : "REQUIRED"
+                            setFormData({ ...formData, skills: updated })
+                          }}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                            skillItem.priority === "REQUIRED"
+                              ? "bg-rose-500 text-white"
+                              : "bg-amber-500 text-white"
+                          }`}
+                        >
+                          {skillItem.priority}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -1215,6 +1238,19 @@ export default function CreateJobPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Success Criteria (Optional)
+                </label>
+                <textarea
+                  value={formData.successCriteria}
+                  onChange={(e) => setFormData({ ...formData, successCriteria: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                  placeholder="Describe what makes a strong candidate for this role (e.g. Proven track record of leading cross-functional teams, experience in high-volume microservices architecture)..."
+                />
               </div>
 
               <div className="col-span-2">
