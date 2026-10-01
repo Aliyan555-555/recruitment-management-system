@@ -24,6 +24,141 @@ export function normalizeSkillName(raw: string): string {
   return raw.trim().replace(/\s+/g, "").toUpperCase()
 }
 
+/**
+ * Common skill aliases mapping normalized raw keys to canonical skill names.
+ * Keys are uppercase alphanumeric only (no dots, dashes, or spaces).
+ */
+export const CANONICAL_SKILL_ALIASES: Record<string, string> = {
+  // JavaScript / TypeScript ecosystem
+  JS: "JAVASCRIPT",
+  JAVASCRIPT: "JAVASCRIPT",
+  TS: "TYPESCRIPT",
+  TYPESCRIPT: "TYPESCRIPT",
+  REACT: "REACT",
+  REACTJS: "REACT",
+  NODE: "NODE.JS",
+  NODEJS: "NODE.JS",
+  NEXT: "NEXT.JS",
+  NEXTJS: "NEXT.JS",
+  VUE: "VUE.JS",
+  VUEJS: "VUE.JS",
+  VUE2: "VUE.JS",
+  VUE3: "VUE.JS",
+  ANGULAR: "ANGULAR",
+  ANGULARJS: "ANGULAR",
+  EXPRESS: "EXPRESS.JS",
+  EXPRESSJS: "EXPRESS.JS",
+  NEST: "NEST.JS",
+  NESTJS: "NEST.JS",
+  REDUX: "REDUX",
+  REDUXTOOLKIT: "REDUX",
+  TAILWIND: "TAILWINDCSS",
+  TAILWINDCSS: "TAILWINDCSS",
+  HTML: "HTML5",
+  HTML5: "HTML5",
+  CSS: "CSS3",
+  CSS3: "CSS3",
+  SASS: "SASS",
+  SCSS: "SASS",
+
+  // Python & Data Science
+  PY: "PYTHON",
+  PYTHON: "PYTHON",
+  PYTHON3: "PYTHON",
+  FASTAPI: "FASTAPI",
+  DJANGO: "DJANGO",
+  FLASK: "FLASK",
+  PYTORCH: "PYTORCH",
+  TORCH: "PYTORCH",
+  TENSORFLOW: "TENSORFLOW",
+  TF: "TENSORFLOW",
+  KERAS: "KERAS",
+  PANDAS: "PANDAS",
+  NUMPY: "NUMPY",
+  SCIKITLEARN: "SCIKIT-LEARN",
+  SKLEARN: "SCIKIT-LEARN",
+
+  // Backend / Systems / Other Languages
+  JAVA: "JAVA",
+  SPRING: "SPRING BOOT",
+  SPRINGBOOT: "SPRING BOOT",
+  GO: "GOLANG",
+  GOLANG: "GOLANG",
+  RUST: "RUST",
+  RUSTLANG: "RUST",
+  CPP: "C++",
+  CSHARP: "C#",
+  PHP: "PHP",
+  LARAVEL: "LARAVEL",
+  RUBY: "RUBY",
+  RAILS: "RUBY ON RAILS",
+  RUBYONRAILS: "RUBY ON RAILS",
+  DOTNET: ".NET",
+  ASPNET: ".NET",
+  NETCORE: ".NET",
+
+  // Databases & Storage
+  SQL: "SQL",
+  PSQL: "POSTGRESQL",
+  POSTGRES: "POSTGRESQL",
+  POSTGRESQL: "POSTGRESQL",
+  MYSQL: "MYSQL",
+  MONGO: "MONGODB",
+  MONGODB: "MONGODB",
+  REDIS: "REDIS",
+  SQLITE: "SQLITE",
+  ELASTICSEARCH: "ELASTICSEARCH",
+  PRISMA: "PRISMA",
+  TYPEORM: "TYPEORM",
+  SEQUELIZE: "SEQUELIZE",
+
+  // DevOps & Cloud
+  DOCKER: "DOCKER",
+  K8S: "KUBERNETES",
+  KUBERNETES: "KUBERNETES",
+  AWS: "AWS",
+  AMAZONWEBSERVICES: "AWS",
+  GCP: "GCP",
+  GOOGLECLOUD: "GCP",
+  AZURE: "AZURE",
+  MICROSOFTAZURE: "AZURE",
+  TERRAFORM: "TERRAFORM",
+  ANSIBLE: "ANSIBLE",
+  JENKINS: "JENKINS",
+  GITHUB: "GIT",
+  GITLAB: "GIT",
+  GIT: "GIT",
+  CI: "CI/CD",
+  CICD: "CI/CD",
+
+  // Architecture & Protocols
+  REST: "REST API",
+  RESTFUL: "REST API",
+  RESTAPI: "REST API",
+  RESTFULAPI: "REST API",
+  GRAPHQL: "GRAPHQL",
+  GQL: "GRAPHQL",
+  GRPC: "GRPC",
+  WEBSOCKET: "WEBSOCKETS",
+  WEBSOCKETS: "WEBSOCKETS",
+  KAFKA: "APACHE KAFKA",
+  RABBITMQ: "RABBITMQ",
+  MICROSERVICES: "MICROSERVICES",
+}
+
+/**
+ * Returns canonical standardized skill name for reliable alias resolution.
+ */
+export function getCanonicalSkill(raw: string): string {
+  if (!raw || !raw.trim()) return ""
+  // Strip all non-alphanumeric chars except + and #
+  const key = raw.trim().toUpperCase().replace(/[^A-Z0-9+#]/g, "")
+  if (CANONICAL_SKILL_ALIASES[key]) {
+    return CANONICAL_SKILL_ALIASES[key]
+  }
+  return normalizeSkillName(raw)
+}
+
 export function isValidSkillName(normalized: string): boolean {
   if (!normalized) return false
   if (

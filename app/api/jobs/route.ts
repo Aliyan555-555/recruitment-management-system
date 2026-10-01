@@ -130,14 +130,12 @@ export async function GET(req: NextRequest) {
             ps.workflowStepId === step.id && ps.pipeline.jobId === job.id
           );
 
-          const shortlisted = stepRecords.filter(ps => 
-            ps.pipeline.application?.status === "SHORTLISTED" && 
-            (ps.status === "IN_PROGRESS" || ps.status === "COMPLETED")
+          const shortlisted = stepRecords.filter(ps =>
+            ps.status === "IN_PROGRESS" || ps.status === "COMPLETED"
           ).length;
 
-          const unshortlisted = stepRecords.filter(ps => 
-            ps.pipeline.application?.status !== "SHORTLISTED" && 
-            (ps.status === "PENDING" || ps.status === "IN_PROGRESS" || ps.status === "REJECTED")
+          const unshortlisted = stepRecords.filter(ps =>
+            ps.status === "PENDING"
           ).length;
 
           roundCounts[stepType] = { shortlisted, unshortlisted };

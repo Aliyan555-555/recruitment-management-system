@@ -6,6 +6,10 @@ import {
   serializeShortlistResult,
   serializeShortlistRun,
 } from "@/lib/ai-shortlist/serializers"
+import {
+  eligibilityFromApplication,
+  SHORTLIST_PIPELINE_SELECT,
+} from "@/lib/admin/shortlist-eligibility"
 
 export async function GET(
   req: NextRequest,
@@ -89,6 +93,34 @@ export async function GET(
       },
     })
 
+    const applications = await prisma.jobsApplied.findMany({
+      where: {
+        jobId,
+        userId: { in: results.map((r) => r.candidateId) },
+      },
+      include: {
+        pipeline: {
+          select: SHORTLIST_PIPELINE_SELECT,
+        },
+      },
+    })
+
+    const eligibilityByCandidateId = new Map(
+      applications.map((app) => {
+        const eligibility = eligibilityFromApplication(app)
+        return [
+          app.userId.toString(),
+          {
+            actionable: eligibility.actionable,
+            actionBlockedReason: eligibility.actionBlockedReason,
+            statusLabel: eligibility.statusLabel,
+            applicationStatus: app.status,
+            pipelineStatus: app.pipeline?.overallStatus ?? null,
+          },
+        ] as const
+      })
+    )
+
     // Sort results descending by overallScore, nulls last
     const sortedResults = results.sort((a, b) => {
       if (a.overallScore === null && b.overallScore === null) return 0
@@ -107,7 +139,12 @@ export async function GET(
         rejectCount,
         isStale,
       },
-      results: sortedResults.map(serializeShortlistResult),
+      results: sortedResults.map((result) =>
+        serializeShortlistResult(
+          result,
+          eligibilityByCandidateId.get(result.candidateId.toString())
+        )
+      ),
     })
   } catch (error: any) {
     console.error("Error fetching AI shortlisting run detail:", error)

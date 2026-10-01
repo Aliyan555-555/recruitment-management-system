@@ -8,12 +8,14 @@ export const AI_SHORTLIST_WEIGHTS = {
 } as const
 
 export const AI_SHORTLIST_THRESHOLDS = {
-  shortlistMinScore: 70,
-  maybeMinScore: 50,
-  minConfidenceForShortlist: 60,
+  shortlistMinScore: 50,
+  maybeMinScore: 35,
+  minConfidenceForShortlist: 45,
 } as const
 
-export const AI_SHORTLIST_CONCURRENCY = 3
+// Kept modest since free-tier LLM providers (e.g. OpenRouter's ":free" model
+// pool) rate-limit bursts of concurrent requests and return transient errors.
+export const AI_SHORTLIST_CONCURRENCY = 2
 
 export const AI_SHORTLIST_RUN_RATE_LIMIT = {
   maxRequests: 5,

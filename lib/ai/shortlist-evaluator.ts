@@ -1,13 +1,20 @@
-import ModelClient, { isUnexpected } from "@azure-rest/ai-inference"
-import { AzureKeyCredential } from "@azure/core-auth"
 import { z } from "zod"
 import { ShortlistAiPromptPayload } from "@/lib/ai-shortlist/deterministic"
+import { callAiChat, AiClientError } from "@/lib/ai/ai-client"
 
 export class ShortlistEvaluationError extends Error {
-  constructor(message: string) {
+  /** True for transient failures (rate limits, upstream provider errors) worth retrying. */
+  retryable: boolean
+
+  constructor(message: string, retryable = false) {
     super(message)
     this.name = "ShortlistEvaluationError"
+    this.retryable = retryable
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 const mandatoryChecklistItemSchema = z.object({
@@ -38,14 +45,14 @@ function stripCodeFences(raw: string): string {
   const trimmed = raw.trim()
   if (trimmed.startsWith("```")) {
     const lines = trimmed.split("\n")
-    if (lines.length >= 2 && lines[lines.length - 1].trim().endsWith("```")) {
+    if (lines.length >= 2 && lines[lines.length - 1]?.trim().endsWith("```")) {
       lines.shift()
       lines.pop()
       return lines.join("\n").trim()
     }
   }
   const jsonMatch = trimmed.match(/(\[\s*[\s\S]*\s*\]|\{\s*[\s\S]*\s*\})/)
-  if (jsonMatch) {
+  if (jsonMatch && jsonMatch[1]) {
     return jsonMatch[1].trim()
   }
   return trimmed
@@ -53,25 +60,17 @@ function stripCodeFences(raw: string): string {
 
 async function requestEvaluation(
   payload: ShortlistAiPromptPayload,
-  strict: boolean
+  strict: boolean,
+  omitResponseFormat = false
 ): Promise<string> {
-  const token = process.env.AI_INFERENCE_TOKEN ?? process.env.GITHUB_TOKEN
-  if (!token) {
-    throw new ShortlistEvaluationError("AI inference token is not configured")
-  }
+  const systemInstruction = `You are an expert HR evaluation assistant. Evaluate the candidate against the specified job requirements based on the provided JSON payload.
 
-  const endpoint = process.env.AI_INFERENCE_ENDPOINT ?? "https://openrouter.ai/api/v1"
-  const model = process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free"
-  const client = ModelClient(endpoint, new AzureKeyCredential(token))
-
-  const systemInstruction = `You are an expert HR evaluation assistant. Evaluate the candidate against the specified job requirements based ONLY on the provided JSON payload.
-
-CRITICAL RULES:
-1. Only reason about data explicitly provided in the payload. Any field marked "Not Provided" must be treated as unknown, never assumed present.
-2. A job requirement with no corresponding candidate data must be marked as unmet (met: false).
-3. Do not fabricate or assume company names, dates, or credentials.
-4. Evaluate skills, education, experience, and success criteria on a scale of 0-100.
-5. Provide confidence (0-100) in your evaluation based on how complete the candidate profile data is.
+CRITICAL EVALUATION GUIDELINES:
+1. Reason holistically about candidate qualifications from their explicit skills, work experience titles/descriptions, education degrees/majors, bio, and achievements.
+2. In evaluating skillsScore (0-100), consider both explicit skill matches AND practical skills demonstrated across their work experience history and bio. For example, if a candidate has worked as a "Senior React & Node Developer", recognize their React and Node competencies even if not separately tagged in their skills list.
+3. Do not fabricate facts or assume qualifications not supported by the candidate profile. Any field marked "Not Provided" or empty must be treated as unknown.
+4. Evaluate skillsScore, educationScore, experienceScore, and successCriteriaScore on a scale of 0-100.
+5. Provide confidence (0-100) based on how complete and detailed the candidate profile data is.
 6. Provide a mandatoryChecklist item for each key requirement (skills, education, minimum experience, success criteria).
 7. Return ONLY valid JSON format. ${strict ? "Do NOT include markdown fences, comments, or extra text." : ""}`
 
@@ -96,29 +95,18 @@ Return a JSON object adhering to this exact schema:
   "reasoning": string (max 2000 chars)
 }`
 
-  const response = await client.path("/chat/completions").post({
-    body: {
-      model,
-      messages: [
-        { role: "system", content: systemInstruction },
-        { role: "user", content: userPrompt },
-      ],
-    },
-  })
-
-  if (isUnexpected(response)) {
-    const errorBody = response.body as { error?: { message?: string } }
-    throw new ShortlistEvaluationError(
-      errorBody?.error?.message ?? "AI candidate evaluation failed"
-    )
+  try {
+    return await callAiChat({
+      systemPrompt: systemInstruction,
+      userPrompt,
+      jsonMode: !omitResponseFormat,
+    })
+  } catch (err: any) {
+    const statusCode = err instanceof AiClientError ? err.statusCode : undefined
+    const retryable = err instanceof AiClientError ? (err.retryable ?? false) : false
+    console.error("[Shortlist Evaluator] AI call failed:", err?.message)
+    throw new ShortlistEvaluationError(err?.message ?? "AI candidate evaluation failed", retryable)
   }
-
-  const raw = response.body.choices?.[0]?.message?.content
-  if (!raw || typeof raw !== "string") {
-    throw new ShortlistEvaluationError("AI returned an empty response")
-  }
-
-  return raw
 }
 
 function parseAndValidateEvaluation(raw: string): ShortlistEvaluation {
@@ -140,21 +128,40 @@ function parseAndValidateEvaluation(raw: string): ShortlistEvaluation {
   }
 }
 
+const MAX_EVALUATION_ATTEMPTS = 3
+const RETRY_BASE_DELAY_MS = 1000
+
 export async function evaluateCandidateForJob(
   payload: ShortlistAiPromptPayload
 ): Promise<ShortlistEvaluation> {
-  try {
-    const raw = await requestEvaluation(payload, false)
-    return parseAndValidateEvaluation(raw)
-  } catch (firstError) {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= MAX_EVALUATION_ATTEMPTS; attempt++) {
+    // From the 2nd attempt onward, drop response_format (in case a provider rejects it)
+    // and ask the model more explicitly for bare JSON.
+    const strict = attempt > 1
+    const omitResponseFormat = attempt > 1
+
     try {
-      const raw = await requestEvaluation(payload, true)
+      const raw = await requestEvaluation(payload, strict, omitResponseFormat)
       return parseAndValidateEvaluation(raw)
-    } catch {
-      if (firstError instanceof ShortlistEvaluationError) {
-        throw firstError
+    } catch (err) {
+      lastError = err
+      const retryable = err instanceof ShortlistEvaluationError ? err.retryable : true
+      const isLastAttempt = attempt === MAX_EVALUATION_ATTEMPTS
+
+      if (isLastAttempt) break
+
+      // Only back off for transient provider/rate-limit errors; retry parse/validation
+      // failures immediately since the model may simply produce different output.
+      if (retryable) {
+        await sleep(RETRY_BASE_DELAY_MS * attempt)
       }
-      throw new ShortlistEvaluationError("AI shortlisting evaluation failed validation")
     }
   }
+
+  if (lastError instanceof ShortlistEvaluationError) {
+    throw lastError
+  }
+  throw new ShortlistEvaluationError("AI shortlisting evaluation failed validation")
 }

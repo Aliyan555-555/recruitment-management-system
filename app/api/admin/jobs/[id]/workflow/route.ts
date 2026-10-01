@@ -20,7 +20,9 @@ export async function GET(
     // Get job with workflow
     const job = await prisma.job.findUnique({
       where: { id: BigInt(params.id) },
-      include: {
+      select: {
+        id: true,
+        title: true,
         workflow: {
           include: {
             steps: {
@@ -47,6 +49,21 @@ export async function GET(
       return NextResponse.json({ error: "Job or workflow not found" }, { status: 404 })
     }
 
+    const applicationCounts = await prisma.jobsApplied.groupBy({
+      by: ["status"],
+      where: { jobId: job.id },
+      _count: true,
+    })
+
+    const appCountFor = (...statuses: string[]) =>
+      applicationCounts
+        .filter((g) => statuses.includes(g.status))
+        .reduce((sum, g) => sum + g._count, 0)
+
+    const needsReview = appCountFor("APPLIED", "SUBMITTED")
+    const shortlistedApps = appCountFor("SHORTLISTED", "BATCH_ASSIGNED")
+    const rejectedApps = appCountFor("REMOVED")
+
     // Calculate statistics for each round
     const roundsWithStats = job.workflow.steps.map(step => {
       const allCandidates = step.pipelineSteps
@@ -70,6 +87,13 @@ export async function GET(
       workflow: {
         id: job.workflow.id.toString(),
         jobId: job.id.toString(),
+        jobTitle: job.title,
+        shortlistCounts: {
+          needsReview,
+          shortlisted: shortlistedApps,
+          rejected: rejectedApps,
+          total: needsReview + shortlistedApps + rejectedApps,
+        },
         rounds: roundsWithStats
       }
     })

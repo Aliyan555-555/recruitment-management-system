@@ -9,7 +9,7 @@ npm run dev            # Start dev server (http://localhost:3001 per README; por
 npm run build           # Production build (Next.js 14 App Router, output: 'standalone')
 npm start                # Run production build
 npm run lint             # next lint (NOTE: build ignores lint errors — next.config.js sets eslint.ignoreDuringBuilds: true)
-npm test                  # Runs tsx --test lib/assessments/*.test.ts (only assessments module has tests)
+npm test                  # Runs tsx --test lib/**/*.test.ts (covers lib/assessments/* and lib/ai-shortlist/*)
 npx tsx --test lib/assessments/scoring.test.ts   # Run a single test file directly
 npm run seed               # Seed the database via prisma/seed.ts
 npx prisma studio           # Browse the database
@@ -55,7 +55,7 @@ Three broad domains:
 
 ### AI skill assessments
 
-`lib/ai/assessment-generator.ts` calls GitHub Models / Azure AI Inference (`AI_INFERENCE_TOKEN`, configurable endpoint/model) to generate assessment questions. Attempt/cooldown rules live in `lib/assessments/attempt-rules.ts`, scoring in `lib/assessments/scoring.ts` — both have unit tests (`*.test.ts`) and are the only tested part of the codebase; extend those tests when changing assessment logic.
+`lib/ai/assessment-generator.ts` calls GitHub Models / Azure AI Inference (`AI_INFERENCE_TOKEN`, configurable endpoint/model) to generate assessment questions. Attempt/cooldown rules live in `lib/assessments/attempt-rules.ts`, scoring in `lib/assessments/scoring.ts` — both have unit tests (`*.test.ts`); extend those tests when changing assessment logic. `lib/ai-shortlist/scoring.ts` and `lib/ai-shortlist/deterministic.ts` are also covered by unit tests — extend those when changing shortlisting logic.
 
 ## Environment
 

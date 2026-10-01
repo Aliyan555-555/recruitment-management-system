@@ -4,6 +4,9 @@ import { useState, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card } from "@/components/ui/card"
+import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
+import { RoundSubNav } from "@/components/admin/RoundSubNav"
+import { QueueEmptyState } from "@/components/admin/QueueEmptyState"
 
 interface ResultsStats {
   total: number
@@ -58,7 +61,27 @@ export default function ResultsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [recFilter, setRecFilter] = useState<string>("all")
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [roundCounts, setRoundCounts] = useState({ pending: 0, shortlisted: 0 })
+
   const [bulkLoading, setBulkLoading] = useState(false)
+
+  useEffect(() => {
+    async function loadCounts() {
+      const res = await fetch(
+        `/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates?status=pending`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        if (data.counts) {
+          setRoundCounts({
+            pending: data.counts.pending,
+            shortlisted: data.counts.shortlisted,
+          })
+        }
+      }
+    }
+    loadCounts()
+  }, [params.id, params.roundId])
 
   useEffect(() => {
     fetchResults()
@@ -216,7 +239,17 @@ export default function ResultsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
+      <JobPipelineHeaderLoader jobId={params.id as string} currentStageId={params.roundId as string} />
+
+      <RoundSubNav
+        jobId={params.id as string}
+        roundId={params.roundId as string}
+        stepType={workflowStep?.stepType}
+        activeView="results"
+        counts={roundCounts}
+      />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/admin/jobs" className="hover:text-foreground transition-colors">Jobs</Link>
@@ -344,7 +377,45 @@ export default function ResultsPage() {
               </tr>
             </thead>
             <tbody className="bg-card divide-y divide-border">
-              {filteredCandidates.map((candidate) => (
+              {filteredCandidates.length === 0 ? (
+                <tr>
+                  <td colSpan={8}>
+                    {candidates.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <p className="text-lg font-medium text-foreground">
+                          No assessments in this round yet
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Complete assessments on the In Round page first.
+                        </p>
+                        <Link
+                          href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
+                          className="inline-block mt-4 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg"
+                        >
+                          Go to In Round
+                        </Link>
+                      </div>
+                    ) : (
+                      <QueueEmptyState
+                        variant="search-miss"
+                        searchTerm={search || `${statusFilter !== "all" ? statusFilter : recFilter !== "all" ? recFilter : "filters"}`}
+                        queueLabel="Results"
+                        actions={[
+                          {
+                            label: "Clear filters",
+                            onClick: () => {
+                              setSearch("")
+                              setStatusFilter("all")
+                              setRecFilter("all")
+                            },
+                          },
+                        ]}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ) : (
+              filteredCandidates.map((candidate) => (
                 <tr
                   key={candidate.id}
                   className={`hover:bg-muted/50 ${!isSelectable(candidate) ? 'bg-muted/30 opacity-60' : ''}`}
@@ -382,12 +453,10 @@ export default function ResultsPage() {
                     {candidate.assessedAt ? new Date(Number(candidate.assessedAt) * 1000).toLocaleString() : "-"}
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
-          {candidates.length === 0 && (
-            <div className="py-6 text-center text-sm text-muted-foreground">No candidates assessed yet.</div>
-          )}
         </div>
       </Card>
 

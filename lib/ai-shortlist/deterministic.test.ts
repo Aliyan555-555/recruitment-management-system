@@ -53,6 +53,71 @@ describe("computeDeterministicMatch", () => {
     assert.equal(match.preferredSkillCoverage, 0)
   })
 
+  it("resolves skill aliases correctly (e.g. React.js <-> REACT, NodeJS <-> NODE.JS, K8s <-> KUBERNETES)", () => {
+    const aliasJob: JobRequirementBundle = {
+      id: "2",
+      title: "Backend Engineer",
+      company: "Tech Corp",
+      skills: [
+        { skillName: "Node.js", priority: "REQUIRED" },
+        { skillName: "Postgres", priority: "REQUIRED" },
+        { skillName: "Kubernetes", priority: "PREFERRED" },
+      ],
+      educationRequirements: [],
+    }
+    const aliasCandidate: CandidateProfileBundle = {
+      id: "101",
+      firstname: "Bob",
+      lastname: "Smith",
+      email: "bob@example.com",
+      skills: [
+        { skillName: "NodeJS", level: 3 },
+        { skillName: "PostgreSQL", level: 4 },
+        { skillName: "K8s", level: 2 },
+      ],
+      educations: [],
+      experiences: [],
+    }
+    const match = computeDeterministicMatch(aliasJob, aliasCandidate)
+    assert.deepEqual(match.matchedRequiredSkills, ["Node.js", "Postgres"])
+    assert.deepEqual(match.missingRequiredSkills, [])
+    assert.deepEqual(match.matchedPreferredSkills, ["Kubernetes"])
+    assert.deepEqual(match.missingPreferredSkills, [])
+    assert.equal(match.requiredSkillCoverage, 1.0)
+    assert.equal(match.preferredSkillCoverage, 1.0)
+  })
+
+  it("infers skills from candidate work experience and bio when explicit skills tags are missing", () => {
+    const candidateWithoutSkills: CandidateProfileBundle = {
+      id: "102",
+      firstname: "Alice",
+      lastname: "Walker",
+      email: "alice@example.com",
+      skills: [], // No explicit skills in profile
+      educations: [
+        { degreeTitle: "BS Computer Science", institute: "Stanford" },
+      ],
+      experiences: [
+        {
+          jobTitle: "Senior React & TypeScript Developer",
+          company: "Acme Inc",
+          startDate: "2020",
+          isCurrent: true,
+        },
+      ],
+      profileDetail: {
+        bio: "Specializing in React, TypeScript, and modern Tailwind CSS UI development.",
+      },
+    }
+    const match = computeDeterministicMatch(sampleJob, candidateWithoutSkills)
+    assert.deepEqual(match.matchedRequiredSkills, ["REACT", "TYPESCRIPT"])
+    assert.deepEqual(match.missingRequiredSkills, [])
+    assert.deepEqual(match.matchedPreferredSkills, ["TAILWIND"])
+    assert.deepEqual(match.missingPreferredSkills, [])
+    assert.equal(match.requiredSkillCoverage, 1.0)
+    assert.equal(match.preferredSkillCoverage, 1.0)
+  })
+
   it("defaults coverage to 1.0 when requirement set is empty", () => {
     const emptySkillsJob: JobRequirementBundle = {
       ...sampleJob,

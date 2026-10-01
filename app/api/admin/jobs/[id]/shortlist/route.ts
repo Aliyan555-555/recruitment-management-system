@@ -3,6 +3,12 @@ import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { shortlistCandidates } from "@/lib/services/bulk-hiring-service"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
+import {
+  eligibilityFromApplication,
+  ShortlistIneligibleError,
+  SHORTLIST_PIPELINE_SELECT,
+  type ShortlistQueueTab,
+} from "@/lib/admin/shortlist-eligibility"
 
 export async function GET(
   req: NextRequest,
@@ -22,25 +28,15 @@ export async function GET(
     await ensureJobStatusCurrent(jobId)
 
     const { searchParams } = new URL(req.url)
-    const status = searchParams.get("status") // "applied" | "shortlisted" | "rejected" | null (all)
-
-    const where: any = {
-      jobId,
-      status: status === "applied" ? { in: ["APPLIED", "SUBMITTED"] } :
-              status === "shortlisted" ? "SHORTLISTED" :
-              status === "rejected" ? "REMOVED" :
-              undefined
-    }
-
-    // If no status filter, show all non-removed applications
-    if (!status) {
-      where.status = {
-        in: ["APPLIED", "SUBMITTED", "SHORTLISTED", "BATCH_ASSIGNED"]
-      }
-    }
+    const status = searchParams.get("status") as ShortlistQueueTab | null
 
     const applications = await prisma.jobsApplied.findMany({
-      where,
+      where: {
+        jobId,
+        status: {
+          in: ["APPLIED", "SUBMITTED", "SHORTLISTED", "BATCH_ASSIGNED", "REMOVED"],
+        },
+      },
       include: {
         user: {
           select: {
@@ -50,32 +46,61 @@ export async function GET(
             email: true,
             phone1: true,
             city: true,
-            country: true
-          }
-        }
+            country: true,
+          },
+        },
+        pipeline: {
+          select: SHORTLIST_PIPELINE_SELECT,
+        },
       },
       orderBy: {
-        appliedAt: "desc"
-      }
+        appliedAt: "desc",
+      },
     })
 
+    const classified = applications.map((app) => {
+      const eligibility = eligibilityFromApplication(app)
+      return { app, eligibility }
+    })
+
+    const needsReview = classified.filter((c) => c.eligibility.queueTab === "applied").length
+    const shortlisted = classified.filter((c) => c.eligibility.queueTab === "shortlisted").length
+    const rejected = classified.filter((c) => c.eligibility.queueTab === "rejected").length
+    const counts = {
+      needsReview,
+      shortlisted,
+      rejected,
+      total: needsReview + shortlisted + rejected,
+    }
+
+    const filtered =
+      status === "applied" || status === "shortlisted" || status === "rejected"
+        ? classified.filter((c) => c.eligibility.queueTab === status)
+        : classified.filter((c) => c.eligibility.queueTab !== "rejected")
+
     return NextResponse.json({
-      applications: applications.map(app => ({
+      counts,
+      applications: filtered.map(({ app, eligibility }) => ({
         id: app.id.toString(),
         candidateId: app.userId.toString(),
         candidate: {
           name: `${app.user.firstname} ${app.user.lastname}`,
           email: app.user.email,
           phone: app.user.phone1,
-          location: `${app.user.city || ''}, ${app.user.country || ''}`.trim()
+          location: `${app.user.city || ""}, ${app.user.country || ""}`.trim(),
         },
         status: app.status,
         appliedAt: app.appliedAt.toString(),
+        pipelineStatus: app.pipeline?.overallStatus ?? null,
+        lockState: app.pipeline?.lockState ?? null,
+        actionable: eligibility.actionable,
+        actionBlockedReason: eligibility.actionBlockedReason,
+        statusLabel: eligibility.statusLabel,
         profile: {
           name: `${app.user.firstname} ${app.user.lastname}`,
-          email: app.user.email
-        }
-      }))
+          email: app.user.email,
+        },
+      })),
     })
   } catch (error: any) {
     console.error("Error fetching shortlist candidates:", error)
@@ -129,6 +154,16 @@ export async function POST(
       message: `Candidates ${action === "select" ? "shortlisted" : "rejected"} successfully`
     })
   } catch (error: any) {
+    if (error instanceof ShortlistIneligibleError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          ineligibleIds: error.ineligibleIds,
+        },
+        { status: 400 }
+      )
+    }
+
     console.error("Error shortlisting candidates:", error)
     return NextResponse.json(
       { error: error.message || "Failed to shortlist candidates" },
@@ -136,4 +171,3 @@ export async function POST(
     )
   }
 }
-

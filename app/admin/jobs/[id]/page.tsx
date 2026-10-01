@@ -27,6 +27,7 @@ interface JobDetails {
       id: string
       stepName: string
       stepOrder: number
+      stepType?: string
       isRequired: boolean
       isSkippable: boolean
       interviewer: {
@@ -197,9 +198,10 @@ export default function JobDetailPage() {
           </h3>
           <div className="space-y-3">
             {job.workflow.steps.map((step) => (
-              <div
+              <Link
                 key={step.id}
-                className="border border-border rounded-lg p-4"
+                href={`/admin/jobs/${job.id}/rounds/${step.id}/applied`}
+                className="block border border-border rounded-lg p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -217,15 +219,16 @@ export default function JobDetailPage() {
                       </p>
                     )}
                   </div>
+                  <span className="text-sm text-primary font-medium">Open Needs Review →</span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Link
           href={`/admin/candidates?jobId=${job.id}`}
           className="px-6 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -233,10 +236,16 @@ export default function JobDetailPage() {
           View Candidates ({job._count.applications})
         </Link>
         <Link
+          href={`/admin/jobs/${job.id}/shortlist`}
+          className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors"
+        >
+          Manual Shortlist
+        </Link>
+        <Link
           href={`/admin/jobs/${job.id}/ai-shortlist`}
           className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors"
         >
-          ✨ Run AI Shortlisting
+          Run AI Shortlisting
         </Link>
       </div>
     </div>

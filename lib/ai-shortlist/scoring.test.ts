@@ -63,37 +63,54 @@ describe("combineShortlistScore", () => {
     assert.equal(result.recommendation, "REJECT")
   })
 
-  it("recommends REJECT when a REQUIRED skill is missing regardless of overall numeric score", () => {
-    const missingReqDeterministic: DeterministicMatch = {
-      ...mockBaseDeterministic,
-      matchedRequiredSkills: ["REACT"],
-      missingRequiredSkills: ["TYPESCRIPT"],
-      requiredSkillCoverage: 0.5,
+  it("recommends SHORTLIST for candidates scoring 50% or above", () => {
+    const avgScoreAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 60,
+      educationScore: 60,
+      experienceScore: 55,
+      successCriteriaScore: 50,
+      confidence: 80,
     }
-    const result = combineShortlistScore(missingReqDeterministic, mockBaseAiEvaluation)
+    const avgDeterministic: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      requiredSkillCoverage: 0.6,
+      preferredSkillCoverage: 0.5,
+      assessmentAggregate: { averagePercentage: 60, assessedSkillCount: 1, totalRelevantSkillCount: 3 },
+    }
+    const result = combineShortlistScore(avgDeterministic, avgScoreAi)
+    assert.equal(result.recommendation, "SHORTLIST")
+    assert.ok(result.overallScore >= 50)
+  })
+
+  it("recommends MAYBE for candidates scoring between 35% and 49%", () => {
+    const maybeAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 40,
+      educationScore: 45,
+      experienceScore: 40,
+      successCriteriaScore: 35,
+      confidence: 90,
+    }
+    const maybeDeterministic: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      requiredSkillCoverage: 0.4,
+      preferredSkillCoverage: 0.2,
+      assessmentAggregate: { averagePercentage: 40, assessedSkillCount: 1, totalRelevantSkillCount: 3 },
+    }
+    const result = combineShortlistScore(maybeDeterministic, maybeAi)
+    assert.equal(result.recommendation, "MAYBE")
+    assert.ok(result.overallScore >= 35 && result.overallScore < 50)
+  })
+
+  it("recommends REJECT when education requirement is explicitly unsatisfied", () => {
+    const failedEduAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      educationSatisfied: false,
+    }
+    const result = combineShortlistScore(mockBaseDeterministic, failedEduAi)
     assert.equal(result.mandatoryRequirementsMet, false)
     assert.equal(result.recommendation, "REJECT")
-  })
-
-  it("allows PREFERRED skill missing without failing mandatory requirements", () => {
-    const missingPrefDeterministic: DeterministicMatch = {
-      ...mockBaseDeterministic,
-      matchedPreferredSkills: [],
-      missingPreferredSkills: ["NEXT.JS"],
-      preferredSkillCoverage: 0,
-    }
-    const result = combineShortlistScore(missingPrefDeterministic, mockBaseAiEvaluation)
-    assert.equal(result.mandatoryRequirementsMet, true)
-    assert.ok(result.recommendation === "SHORTLIST" || result.recommendation === "MAYBE")
-  })
-
-  it("downgrades recommendation to MAYBE when AI confidence is below minConfidenceForShortlist", () => {
-    const lowConfAi: ShortlistEvaluation = {
-      ...mockBaseAiEvaluation,
-      confidence: 50, // Below minConfidenceForShortlist threshold (60)
-    }
-    const result = combineShortlistScore(mockBaseDeterministic, lowConfAi)
-    assert.equal(result.recommendation, "MAYBE")
   })
 
   it("redistributes assessment weight when zero assessments are completed without NaN", () => {
@@ -109,5 +126,54 @@ describe("combineShortlistScore", () => {
     assert.equal(result.assessmentScore, null)
     assert.ok(!isNaN(result.overallScore))
     assert.equal(result.recommendation, "SHORTLIST")
+  })
+
+  it("calculates positive blended skill score when AI verifies candidate skill from background", () => {
+    const zeroExplicitDeterministic: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      requiredSkillCoverage: 0,
+      matchedRequiredSkills: [],
+      missingRequiredSkills: ["REACT", "TYPESCRIPT"],
+    }
+    const positiveAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 80,
+    }
+    const result = combineShortlistScore(zeroExplicitDeterministic, positiveAi)
+    assert.ok(result.skillsScore > 50, `Expected skillsScore > 50, got ${result.skillsScore}`)
+  })
+
+  it("does not recommend SHORTLIST when confidence is below minConfidenceForShortlist even with a high score", () => {
+    const lowConfidenceAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      confidence: 30,
+    }
+    const result = combineShortlistScore(mockBaseDeterministic, lowConfidenceAi)
+    assert.ok(result.overallScore >= 50, `Expected overallScore >= 50, got ${result.overallScore}`)
+    assert.notEqual(result.recommendation, "SHORTLIST")
+    assert.equal(result.recommendation, "MAYBE")
+  })
+
+  it("applies the confidence-dampening multiplier floor of 0.5 and ceiling of 1.0", () => {
+    const maxDeterministic: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      requiredSkillCoverage: 1.0,
+      preferredSkillCoverage: 1.0,
+      missingRequiredSkills: [],
+      assessmentAggregate: { averagePercentage: 100, assessedSkillCount: 1, totalRelevantSkillCount: 1 },
+    }
+    const maxAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 100,
+      educationScore: 100,
+      experienceScore: 100,
+      successCriteriaScore: 100,
+    }
+
+    const zeroConfidenceResult = combineShortlistScore(maxDeterministic, { ...maxAi, confidence: 0 })
+    assert.equal(zeroConfidenceResult.overallScore, 50)
+
+    const fullConfidenceResult = combineShortlistScore(maxDeterministic, { ...maxAi, confidence: 100 })
+    assert.equal(fullConfidenceResult.overallScore, 100)
   })
 })

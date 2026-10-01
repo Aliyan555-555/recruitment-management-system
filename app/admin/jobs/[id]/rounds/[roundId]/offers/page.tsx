@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { Card } from "@/components/ui/card"
+import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
+import { RoundSubNav } from "@/components/admin/RoundSubNav"
+import { QueueEmptyState } from "@/components/admin/QueueEmptyState"
 
 interface Candidate {
     id: string
@@ -38,6 +40,7 @@ export default function OffersPage() {
     const router = useRouter()
     const [candidates, setCandidates] = useState<Candidate[]>([])
     const [workflowStep, setWorkflowStep] = useState<WorkflowStep | null>(null)
+    const [roundCounts, setRoundCounts] = useState({ pending: 0, shortlisted: 0 })
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -62,6 +65,12 @@ export default function OffersPage() {
             const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates?status=shortlisted`)
             if (res.ok) {
                 const data = await res.json()
+                if (data.counts) {
+                    setRoundCounts({
+                        pending: data.counts.pending,
+                        shortlisted: data.counts.shortlisted,
+                    })
+                }
                 let candidatesData = data.candidates || []
 
                 // Fetch LOI and Offer Letter status for each candidate
@@ -101,7 +110,17 @@ export default function OffersPage() {
     if (loading) return <div className="p-8 text-center">Loading candidates...</div>
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 p-6">
+            <JobPipelineHeaderLoader jobId={params.id as string} currentStageId={params.roundId as string} />
+
+            <RoundSubNav
+                jobId={params.id as string}
+                roundId={params.roundId as string}
+                stepType="OFFER"
+                activeView="offers"
+                counts={roundCounts}
+            />
+
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Link
@@ -153,9 +172,20 @@ export default function OffersPage() {
                     <tbody className="bg-card divide-y divide-border">
                         {candidates.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-6 py-12 text-center">
-                                    <p className="text-muted-foreground text-lg font-medium">No candidates found</p>
-                                    <p className="text-muted-foreground/70 text-sm">Ensure candidates have been shortlisted for this round.</p>
+                                <td colSpan={4}>
+                                    <QueueEmptyState
+                                        variant="round-empty"
+                                        actions={[
+                                            {
+                                                label: "Back to Needs Review",
+                                                href: `/admin/jobs/${params.id}/rounds/${params.roundId}/applied`,
+                                            },
+                                            {
+                                                label: "Go to In Round",
+                                                href: `/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`,
+                                            },
+                                        ]}
+                                    />
                                 </td>
                             </tr>
                         ) : (

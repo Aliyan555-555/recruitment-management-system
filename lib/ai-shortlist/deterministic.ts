@@ -1,4 +1,4 @@
-import { normalizeSkillName } from "@/lib/skills"
+import { getCanonicalSkill, normalizeSkillName } from "@/lib/skills"
 
 export type JobSkillPriorityType = "REQUIRED" | "PREFERRED"
 
@@ -119,17 +119,68 @@ export interface ShortlistAiPromptPayload {
   }
 }
 
+/**
+ * Checks if a candidate's background text (experiences, bio, certifications)
+ * mentions a required or preferred job skill.
+ */
+function textContainsSkill(corpus: string, rawSkillName: string): boolean {
+  if (!corpus || !rawSkillName) return false
+  const canon = getCanonicalSkill(rawSkillName)
+  const norm = normalizeSkillName(rawSkillName)
+
+  // Test raw name
+  const rawEscaped = rawSkillName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  if (rawEscaped.length >= 2) {
+    const rawRegex = new RegExp(`(^|[^A-Za-z0-9+#])${rawEscaped}([^A-Za-z0-9+#]|$)`, "i")
+    if (rawRegex.test(corpus)) return true
+  }
+
+  // Test canonical name
+  if (canon && canon !== rawSkillName) {
+    const canonEscaped = canon.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const canonRegex = new RegExp(`(^|[^A-Za-z0-9+#])${canonEscaped}([^A-Za-z0-9+#]|$)`, "i")
+    if (canonRegex.test(corpus)) return true
+  }
+
+  // Test normalized name
+  if (norm && norm !== rawSkillName && norm !== canon) {
+    const normEscaped = norm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const normRegex = new RegExp(`(^|[^A-Za-z0-9+#])${normEscaped}([^A-Za-z0-9+#]|$)`, "i")
+    if (normRegex.test(corpus)) return true
+  }
+
+  return false
+}
+
 export function computeDeterministicMatch(
   job: JobRequirementBundle,
   candidate: CandidateProfileBundle
 ): DeterministicMatch {
+  // Build lookup sets for candidate skills (raw normalized + canonical aliases)
   const candidateSkillsSet = new Map<string, CandidateSkillItem>()
+  const candidateCanonicalSkills = new Set<string>()
+
   for (const cs of candidate.skills) {
     const norm = normalizeSkillName(cs.skillName)
+    const canon = getCanonicalSkill(cs.skillName)
     if (norm) {
       candidateSkillsSet.set(norm, cs)
     }
+    if (canon) {
+      candidateSkillsSet.set(canon, cs)
+      candidateCanonicalSkills.add(canon)
+    }
   }
+
+  // Build searchable text corpus from candidate experiences, bio, certifications
+  const expText = candidate.experiences
+    .map((e) => `${e.jobTitle} ${e.company ?? ""} ${e.location ?? ""}`)
+    .join(" ")
+  const eduText = candidate.educations
+    .map((e) => `${e.degreeTitle} ${e.majorSubject ?? ""}`)
+    .join(" ")
+  const detailText = `${candidate.profileDetail?.bio ?? ""} ${candidate.profileDetail?.certifications ?? ""} ${candidate.profileDetail?.achievements ?? ""}`
+  const candidateCorpus = `${expText} ${eduText} ${detailText}`.trim()
 
   const requiredSkills = job.skills.filter((s) => s.priority === "REQUIRED")
   const preferredSkills = job.skills.filter((s) => s.priority === "PREFERRED")
@@ -138,7 +189,14 @@ export function computeDeterministicMatch(
   const missingRequiredSkills: string[] = []
   for (const s of requiredSkills) {
     const norm = normalizeSkillName(s.skillName)
-    if (candidateSkillsSet.has(norm)) {
+    const canon = getCanonicalSkill(s.skillName)
+
+    if (
+      candidateSkillsSet.has(norm) ||
+      candidateSkillsSet.has(canon) ||
+      candidateCanonicalSkills.has(canon) ||
+      textContainsSkill(candidateCorpus, s.skillName)
+    ) {
       matchedRequiredSkills.push(s.skillName)
     } else {
       missingRequiredSkills.push(s.skillName)
@@ -149,7 +207,14 @@ export function computeDeterministicMatch(
   const missingPreferredSkills: string[] = []
   for (const s of preferredSkills) {
     const norm = normalizeSkillName(s.skillName)
-    if (candidateSkillsSet.has(norm)) {
+    const canon = getCanonicalSkill(s.skillName)
+
+    if (
+      candidateSkillsSet.has(norm) ||
+      candidateSkillsSet.has(canon) ||
+      candidateCanonicalSkills.has(canon) ||
+      textContainsSkill(candidateCorpus, s.skillName)
+    ) {
       matchedPreferredSkills.push(s.skillName)
     } else {
       missingPreferredSkills.push(s.skillName)
@@ -162,14 +227,14 @@ export function computeDeterministicMatch(
     preferredSkills.length === 0 ? 1.0 : matchedPreferredSkills.length / preferredSkills.length
 
   // Assessment Aggregate calculation
-  const jobSkillNorms = new Set(job.skills.map((s) => normalizeSkillName(s.skillName)))
   let totalScoreSum = 0
   let assessedCount = 0
 
-  if (candidate.assessmentPercentageMap && jobSkillNorms.size > 0) {
+  if (candidate.assessmentPercentageMap && job.skills.length > 0) {
     for (const s of job.skills) {
       const norm = normalizeSkillName(s.skillName)
-      const cs = candidateSkillsSet.get(norm)
+      const canon = getCanonicalSkill(s.skillName)
+      const cs = candidateSkillsSet.get(norm) ?? candidateSkillsSet.get(canon)
       if (cs && cs.lastAssessmentId) {
         const score = candidate.assessmentPercentageMap.get(cs.lastAssessmentId.toString())
         if (score !== undefined && score !== null) {

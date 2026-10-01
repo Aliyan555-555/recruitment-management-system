@@ -29,8 +29,13 @@ export function combineShortlistScore(
   const succScore = ai.successCriteriaScore
   const assessScore = deterministic.assessmentAggregate.averagePercentage
 
-  // Blended skills score reported to UI
-  const blendedSkillsScore = Math.round(0.75 * reqSkillsScore + 0.25 * ai.skillsScore)
+  // Blended skills score reported to UI with resilience against missing explicit profile tags
+  const effectiveReqSkillsScore =
+    reqSkillsScore > 0 ? reqSkillsScore : Math.round(ai.skillsScore * 0.8)
+  const blendedSkillsScore = Math.min(
+    100,
+    Math.round(0.75 * effectiveReqSkillsScore + 0.25 * ai.skillsScore)
+  )
 
   // Weight redistribution if assessment score is null/unassessed
   let wReq: number = weights.requiredSkills
@@ -52,14 +57,14 @@ export function combineShortlistScore(
     wSucc = wSucc / sumActiveWeights
 
     overallScoreRaw =
-      reqSkillsScore * wReq +
+      effectiveReqSkillsScore * wReq +
       prefSkillsScore * wPref +
       eduScore * wEdu +
       expScore * wExp +
       succScore * wSucc
   } else {
     overallScoreRaw =
-      reqSkillsScore * wReq +
+      effectiveReqSkillsScore * wReq +
       prefSkillsScore * wPref +
       assessScore * wAssess +
       eduScore * wEdu +
@@ -67,31 +72,42 @@ export function combineShortlistScore(
       succScore * wSucc
   }
 
-  // Confidence dampening: score * (0.5 + 0.5 * (confidence / 100))
-  const dampenedScore = Math.round(
-    overallScoreRaw * (0.5 + 0.5 * (ai.confidence / 100))
-  )
+  // Confidence dampening (calibration based on profile data completeness)
+  const confidenceMultiplier = 0.5 + 0.5 * (ai.confidence / 100)
+  const dampenedScore = Math.round(overallScoreRaw * confidenceMultiplier)
   const finalOverallScore = Math.min(100, Math.max(0, dampenedScore))
 
-  // Mandatory requirements check
-  const hasNoMissingReqSkills = deterministic.missingRequiredSkills.length === 0
-  const isEduSatisfied = ai.educationSatisfied === true || ai.educationSatisfied === null
+  // Mandatory requirements check (flexible & realistic criteria)
+  const hasAdequateReqSkills =
+    deterministic.missingRequiredSkills.length === 0 ||
+    deterministic.requiredSkillCoverage >= 0.35 ||
+    blendedSkillsScore >= 40
+
+  const isEduSatisfied = ai.educationSatisfied !== false
 
   const requiredChecklistItems = ai.mandatoryChecklist.filter(
     (item) => item.priority === "REQUIRED"
   )
-  const allRequiredChecklistMet = requiredChecklistItems.every(
+  const metRequiredChecklistCount = requiredChecklistItems.filter(
     (item) => item.met === true
-  )
+  ).length
+  const isChecklistAdequate =
+    requiredChecklistItems.length === 0 ||
+    metRequiredChecklistCount / requiredChecklistItems.length >= 0.4
 
   const mandatoryRequirementsMet =
-    hasNoMissingReqSkills && isEduSatisfied && allRequiredChecklistMet
+    hasAdequateReqSkills && isEduSatisfied && isChecklistAdequate
 
-  // Recommendation decision
+  // Recommendation decision: SHORTLIST requires overall score >= shortlistMinScore,
+  // AI confidence >= minConfidenceForShortlist, and mandatory requirements met
+  // (see docs/AI_SHORTLISTING_CALCULATION_GUIDE.md §3B).
   let recommendation: RecommendationType
-  if (
+  if (!isEduSatisfied) {
+    recommendation = "REJECT"
+  } else if (
     finalOverallScore >= thresholds.shortlistMinScore &&
-    ai.confidence >= thresholds.minConfidenceForShortlist
+    ai.confidence >= thresholds.minConfidenceForShortlist &&
+    mandatoryRequirementsMet
   ) {
     recommendation = "SHORTLIST"
   } else if (finalOverallScore >= thresholds.maybeMinScore) {

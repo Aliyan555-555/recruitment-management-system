@@ -1,4 +1,5 @@
 import { AiShortlistRun, AiCandidateShortlistResult, User } from "@prisma/client"
+import type { ShortlistBlockedReason } from "@/lib/admin/shortlist-eligibility"
 
 export type SerializedAiShortlistRun = {
   id: string
@@ -50,6 +51,11 @@ export type SerializedAiCandidateShortlistResult = {
     email: string
     avatar: string | null
   }
+  actionable?: boolean
+  actionBlockedReason?: ShortlistBlockedReason | null
+  applicationStatus?: string | null
+  pipelineStatus?: string | null
+  statusLabel?: string | null
 }
 
 export function serializeShortlistRun(
@@ -83,6 +89,13 @@ export function serializeShortlistRun(
 export function serializeShortlistResult(
   result: AiCandidateShortlistResult & {
     candidate?: Partial<User> | null
+  },
+  eligibility?: {
+    actionable: boolean
+    actionBlockedReason: ShortlistBlockedReason | null
+    statusLabel: string
+    applicationStatus?: string | null
+    pipelineStatus?: string | null
   }
 ): SerializedAiCandidateShortlistResult {
   return {
@@ -119,6 +132,15 @@ export function serializeShortlistResult(
             email: result.candidate.email ?? "",
             avatar: result.candidate.avatar ?? null,
           },
+        }
+      : {}),
+    ...(eligibility
+      ? {
+          actionable: eligibility.actionable,
+          actionBlockedReason: eligibility.actionBlockedReason,
+          applicationStatus: eligibility.applicationStatus ?? null,
+          pipelineStatus: eligibility.pipelineStatus ?? null,
+          statusLabel: eligibility.statusLabel,
         }
       : {}),
   }

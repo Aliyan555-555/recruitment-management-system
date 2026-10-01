@@ -176,6 +176,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (error instanceof AssessmentGenerationError) {
+      console.error("[Assessments Start] Assessment generation failed:", error.message)
       return NextResponse.json(
         { error: "Unable to generate assessment questions right now. Please try again later." },
         { status: 502 }

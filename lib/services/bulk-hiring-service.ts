@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma"
+import {
+  eligibilityFromApplication,
+  ShortlistIneligibleError,
+  SHORTLIST_PIPELINE_SELECT,
+} from "@/lib/admin/shortlist-eligibility"
 import { createBatch } from "./batch-service"
 
 /**
@@ -64,7 +69,8 @@ export async function handleBulkApplication(
 }
 
 /**
- * Admin shortlisting - select or reject candidates
+ * Admin shortlisting - select or reject candidates still waiting at the shortlist gate.
+ * Hired, rejected, on-hold, and in-round candidates are rejected with ShortlistIneligibleError.
  */
 export async function shortlistCandidates(
   jobId: bigint,
@@ -74,20 +80,42 @@ export async function shortlistCandidates(
   const now = BigInt(Math.floor(Date.now() / 1000))
   const newStatus = action === "select" ? "SHORTLISTED" : "REMOVED"
 
+  const applications = await prisma.jobsApplied.findMany({
+    where: {
+      jobId,
+      userId: { in: candidateIds },
+    },
+    include: {
+      pipeline: {
+        select: SHORTLIST_PIPELINE_SELECT,
+      },
+    },
+  })
+
+  const foundIds = new Set(applications.map((app) => app.userId.toString()))
+  const ineligibleIds = [
+    ...candidateIds
+      .filter((id) => !foundIds.has(id.toString()))
+      .map((id) => id.toString()),
+    ...applications
+      .filter((app) => !eligibilityFromApplication(app).actionable)
+      .map((app) => app.userId.toString()),
+  ]
+
+  if (ineligibleIds.length > 0) {
+    throw new ShortlistIneligibleError(ineligibleIds)
+  }
+
   await prisma.jobsApplied.updateMany({
     where: {
       jobId,
-      userId: {
-        in: candidateIds
-      },
-      status: {
-        in: action === "select" ? ["APPLIED", "SUBMITTED", "REMOVED"] : ["APPLIED", "SUBMITTED", "SHORTLISTED"]
-      }
+      userId: { in: candidateIds },
+      status: { in: ["APPLIED", "SUBMITTED"] },
     },
     data: {
       status: newStatus,
-      statusUpdatedAt: now
-    }
+      statusUpdatedAt: now,
+    },
   })
 }
 

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma"
 import { checkRateLimit } from "@/lib/rate-limit"
 import {
+  eligibilityFromApplication,
+  SHORTLIST_PIPELINE_SELECT,
+} from "@/lib/admin/shortlist-eligibility"
+import {
   AI_SHORTLIST_CONCURRENCY,
   AI_SHORTLIST_RUN_RATE_LIMIT,
   AI_SHORTLIST_STALE_RUN_SECONDS,
@@ -17,12 +21,31 @@ import { evaluateCandidateForJob } from "@/lib/ai/shortlist-evaluator"
 import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 import { notifyAiShortlistComplete } from "@/lib/notifications"
 
+async function loadActionableShortlistApplications(jobId: bigint) {
+  const applications = await prisma.jobsApplied.findMany({
+    where: {
+      jobId,
+      status: { in: ["APPLIED", "SUBMITTED"] },
+    },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      pipeline: {
+        select: SHORTLIST_PIPELINE_SELECT,
+      },
+    },
+  })
+
+  return applications.filter((app) => eligibilityFromApplication(app).actionable)
+}
+
 export async function startShortlistRun(
   jobId: bigint,
   adminUserId: bigint
 ): Promise<
   | { success: true; run: any }
-  | { success: false; error: string; code: string }
+  | { success: false; error: string; code: string; retryAfterSeconds?: number }
 > {
   const rateLimitKey = `ai-shortlist:${jobId.toString()}`
   const rateCheck = checkRateLimit(
@@ -36,6 +59,7 @@ export async function startShortlistRun(
       success: false,
       error: "Rate limit exceeded. Too many shortlisting runs triggered for this job.",
       code: "RATE_LIMITED",
+      retryAfterSeconds: Math.max(0, Math.ceil((rateCheck.resetTime - Date.now()) / 1000)),
     }
   }
 
@@ -61,6 +85,8 @@ export async function startShortlistRun(
     orderBy: { startedAt: "desc" },
   })
 
+  let resumeFromRunId: bigint | null = null
+
   if (activeRun) {
     const elapsedSeconds = nowSec - Number(activeRun.startedAt)
     if (elapsedSeconds < AI_SHORTLIST_STALE_RUN_SECONDS) {
@@ -68,17 +94,20 @@ export async function startShortlistRun(
         success: false,
         error: "An AI shortlisting run is currently in progress for this job.",
         code: "RUN_IN_PROGRESS",
+        retryAfterSeconds: AI_SHORTLIST_STALE_RUN_SECONDS - elapsedSeconds,
       }
     }
+    // Stale RUNNING row from a crashed/restarted process — mark it FAILED so it
+    // stops showing as "in progress"; the new run below resumes from it in place,
+    // keeping already-evaluated candidates instead of re-processing everyone.
+    await prisma.aiShortlistRun.update({
+      where: { id: activeRun.id },
+      data: { status: "FAILED", completedAt: BigInt(nowSec) },
+    })
+    resumeFromRunId = activeRun.id
   }
 
-  const candidateApps = await prisma.jobsApplied.findMany({
-    where: {
-      jobId,
-      status: { in: ["APPLIED", "SUBMITTED", "SHORTLISTED", "BATCH_ASSIGNED"] },
-    },
-    select: { id: true, userId: true },
-  })
+  const candidateApps = await loadActionableShortlistApplications(jobId)
 
   if (candidateApps.length === 0) {
     return {
@@ -89,20 +118,31 @@ export async function startShortlistRun(
   }
 
   const nowBigInt = BigInt(nowSec)
-  const run = await prisma.aiShortlistRun.create({
-    data: {
-      jobId,
-      triggeredBy: adminUserId,
-      status: "RUNNING",
-      totalCandidates: candidateApps.length,
-      aiModel: process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free",
-      startedAt: nowBigInt,
-      createdAt: nowBigInt,
-    },
-  })
+  const run = resumeFromRunId
+    ? await prisma.aiShortlistRun.update({
+        where: { id: resumeFromRunId },
+        data: {
+          status: "RUNNING",
+          totalCandidates: candidateApps.length,
+          startedAt: nowBigInt,
+          completedAt: null,
+        },
+      })
+    : await prisma.aiShortlistRun.create({
+        data: {
+          jobId,
+          triggeredBy: adminUserId,
+          status: "RUNNING",
+          totalCandidates: candidateApps.length,
+          aiModel: process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free",
+          startedAt: nowBigInt,
+          createdAt: nowBigInt,
+        },
+      })
 
-  // Note: This application runs under a long-lived Node process (PM2/Docker)
-  // so background execution proceeds safely after response return.
+  // Fire-and-forget: safe under PM2/Docker's long-lived process, and resumable
+  // across restarts — a stale RUNNING run is resumed in place above, and
+  // processShortlistRun skips candidates already COMPLETED for this run.
   void processShortlistRun(run.id).catch((err) => {
     console.error(`Error in processShortlistRun background task (runId: ${run.id}):`, err)
   })
@@ -131,16 +171,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
     return
   }
 
-  const applications = await prisma.jobsApplied.findMany({
-    where: {
-      jobId: run.jobId,
-      status: { in: ["APPLIED", "SUBMITTED", "SHORTLISTED", "BATCH_ASSIGNED"] },
-    },
-    select: {
-      id: true,
-      userId: true,
-    },
-  })
+  const applications = await loadActionableShortlistApplications(run.jobId)
 
   const candidateIds = Array.from(new Set(applications.map((a) => a.userId)))
 
@@ -272,8 +303,19 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
     })),
   }
 
+  // Skip candidates already COMPLETED for this run (resumed runs only re-evaluate
+  // the pending/previously-failed candidates, not everyone from scratch).
+  const alreadyCompleted = await prisma.aiCandidateShortlistResult.findMany({
+    where: { runId: run.id, status: "COMPLETED" },
+    select: { candidateId: true },
+  })
+  const completedIdSet = new Set(alreadyCompleted.map((r) => r.candidateId.toString()))
+  const pendingApplications = applications.filter(
+    (app) => !completedIdSet.has(app.userId.toString())
+  )
+
   // Run evaluation with concurrency limit
-  await runWithConcurrency(applications, AI_SHORTLIST_CONCURRENCY, async (app) => {
+  await runWithConcurrency(pendingApplications, AI_SHORTLIST_CONCURRENCY, async (app) => {
     const userIdStr = app.userId.toString()
     const u = usersMap.get(userIdStr)
     if (!u) return

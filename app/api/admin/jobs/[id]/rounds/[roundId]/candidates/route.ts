@@ -18,19 +18,47 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status"); // 'applied', 'shortlisted', etc.
+    const status = searchParams.get("status"); // 'pending', 'rejected', 'shortlisted', 'applied' (legacy)
+
+    const jobId = BigInt(params.id);
+    const roundId = BigInt(params.roundId);
+
+    const allPipelineSteps = await prisma.candidatePipelineStep.findMany({
+      where: {
+        workflowStepId: roundId,
+        pipeline: { jobId },
+      },
+      select: { status: true },
+    });
+
+    const pending = allPipelineSteps.filter((ps) => ps.status === "PENDING").length;
+    const inProgress = allPipelineSteps.filter((ps) => ps.status === "IN_PROGRESS").length;
+    const completed = allPipelineSteps.filter((ps) => ps.status === "COMPLETED").length;
+    const rejected = allPipelineSteps.filter((ps) => ps.status === "REJECTED").length;
+    const counts = {
+      pending,
+      inProgress,
+      completed,
+      rejected,
+      shortlisted: inProgress + completed,
+      total: allPipelineSteps.length,
+    };
+
+    const stepStatusFilter =
+      status === "shortlisted"
+        ? { in: ["IN_PROGRESS", "COMPLETED"] as ("IN_PROGRESS" | "COMPLETED")[] }
+        : status === "rejected"
+          ? ("REJECTED" as const)
+          : status === "pending" || status === "applied"
+            ? ("PENDING" as const)
+            : undefined;
 
     // Get all pipeline steps for this workflow step
     const pipelineSteps = await prisma.candidatePipelineStep.findMany({
       where: {
-        workflowStepId: BigInt(params.roundId),
+        workflowStepId: roundId,
         pipeline: {
-          jobId: BigInt(params.id),
-          // Filter out shortlisted applications when status="applied"
-          // When status="applied", we want all candidates in this step regardless of global status
-          // EXCEPT those who have already completed this step (moved to next) or are rejected in this step
-          // But actually, the status filter on the step itself handles most of this.
-          // The global application status filter was hiding candidates who were shortlisted in previous rounds.
+          jobId,
           ...(status === "shortlisted"
             ? {
                 application: {
@@ -39,15 +67,11 @@ export async function GET(
               }
             : {}),
         },
-        ...(status === "shortlisted"
-          ? {
-              status: { in: ["IN_PROGRESS", "COMPLETED"] },
-            }
-          : status === "applied"
-            ? {
-                status: { in: ["PENDING", "REJECTED"] },
-              }
-            : {}),
+        ...(stepStatusFilter
+          ? typeof stepStatusFilter === "object"
+            ? { status: stepStatusFilter }
+            : { status: stepStatusFilter }
+          : {}),
       },
       include: {
         pipeline: {
@@ -110,7 +134,7 @@ export async function GET(
       };
     });
 
-    return NextResponse.json({ candidates });
+    return NextResponse.json({ counts, candidates });
   } catch (error) {
     console.error("Error fetching candidates:", error);
     return NextResponse.json(

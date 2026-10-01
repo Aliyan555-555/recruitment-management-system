@@ -225,10 +225,10 @@ export default function AdminJobsPage() {
               title="Candidate Shortlisting (Manual & AI)"
             >
               {counts ? (
-                <span className="whitespace-nowrap">
+                <span className="whitespace-nowrap" title="Shortlisted / Needs review">
                   <span className="text-emerald-500 font-semibold">{counts.shortlisted}</span>
-                  <span className="text-muted-foreground/50 mx-1">/</span>
-                  <span className="text-muted-foreground">{counts.unshortlisted}</span>
+                  <span className="text-muted-foreground/50 mx-1">·</span>
+                  <span className="text-muted-foreground">{counts.unshortlisted} to review</span>
                 </span>
               ) : (
                 <span className="text-emerald-500 font-semibold">{total}</span>
@@ -255,10 +255,10 @@ export default function AdminJobsPage() {
                 title={step.name}
               >
                 {counts ? (
-                  <span className="whitespace-nowrap">
+                  <span className="whitespace-nowrap" title="In round / To review">
                     <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
-                    <span className="text-gray-400 mx-1">/</span>
-                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    <span className="text-gray-600">{counts.unshortlisted} to review</span>
                   </span>
                 ) : (
                   step.name
@@ -288,10 +288,10 @@ export default function AdminJobsPage() {
                 title={step.name}
               >
                 {counts ? (
-                  <span className="whitespace-nowrap">
+                  <span className="whitespace-nowrap" title="In round / To review">
                     <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
-                    <span className="text-gray-400 mx-1">/</span>
-                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    <span className="text-gray-600">{counts.unshortlisted} to review</span>
                   </span>
                 ) : (
                   step.name
@@ -321,10 +321,10 @@ export default function AdminJobsPage() {
                 title={step.name}
               >
                 {counts ? (
-                  <span className="whitespace-nowrap">
+                  <span className="whitespace-nowrap" title="In round / To review">
                     <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
-                    <span className="text-gray-400 mx-1">/</span>
-                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    <span className="text-gray-600">{counts.unshortlisted} to review</span>
                   </span>
                 ) : (
                   step.name
@@ -354,10 +354,10 @@ export default function AdminJobsPage() {
                 title={step.name}
               >
                 {counts ? (
-                  <span className="whitespace-nowrap">
+                  <span className="whitespace-nowrap" title="In round / To review">
                     <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
-                    <span className="text-gray-400 mx-1">/</span>
-                    <span className="text-gray-600">{counts.unshortlisted}</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    <span className="text-gray-600">{counts.unshortlisted} to review</span>
                   </span>
                 ) : (
                   step.name
@@ -570,6 +570,15 @@ export default function AdminJobsPage() {
         </div>
       ) : (
         <div className="bg-card rounded-xl shadow-lg border border-border p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground border-b border-border pb-4">
+            <span className="font-medium text-foreground">Count legend:</span>
+            <span>
+              <span className="text-emerald-600 font-semibold">Green</span> = shortlisted / in round
+            </span>
+            <span>
+              <span className="text-muted-foreground font-semibold">Gray</span> = needs review
+            </span>
+          </div>
           <DataTable
             columns={columns}
             data={jobs}

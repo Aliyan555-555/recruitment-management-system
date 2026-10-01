@@ -90,9 +90,10 @@ async function main() {
     console.log(`✅ Admin user found: ${admin.email}`)
   }
 
-  // 4. Define Demo Jobs Data
+  // 4. Define Demo Jobs Data (4 jobs spanning full-stack, AI/ML, DevOps, and frontend)
   const demoJobsData = [
     {
+      code: "FS",
       title: "Senior Full Stack Engineer (Next.js & Node.js)",
       jobCode: "JOB-FS-001",
       company: "TechPulse Solutions",
@@ -117,6 +118,7 @@ async function main() {
       requiredEdu: "Bachelor's Degree",
     },
     {
+      code: "AI",
       title: "AI / Machine Learning Engineer",
       jobCode: "JOB-AI-002",
       company: "Aether AI Labs",
@@ -140,6 +142,7 @@ async function main() {
       requiredEdu: "Master's Degree",
     },
     {
+      code: "DO",
       title: "DevOps & Cloud Infrastructure Specialist",
       jobCode: "JOB-DO-003",
       company: "CloudMatrix Infrastructure",
@@ -162,30 +165,35 @@ async function main() {
       ],
       requiredEdu: "Bachelor's Degree",
     },
+    {
+      code: "FE",
+      title: "Frontend Engineer (React & Design Systems)",
+      jobCode: "JOB-FE-004",
+      company: "Northgate Digital",
+      description:
+        "<p>We're hiring a Frontend Engineer to build accessible, high-performance UI using React, TypeScript, and a shared design system consumed across multiple products.</p>",
+      successCriteria:
+        "2+ years shipping production React/TypeScript interfaces, strong CSS/design-system fluency, and experience integrating GraphQL APIs.",
+      minimumExperience: "2+ years",
+      certification: "None required",
+      minimumSalary: "$75,000 - $105,000",
+      postFrom: new Date(),
+      postTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      employmentType: "Permanent" as const,
+      industry: "Software Development",
+      skills: [
+        { skillName: "REACT", priority: "REQUIRED" as const },
+        { skillName: "TYPESCRIPT", priority: "REQUIRED" as const },
+        { skillName: "TAILWINDCSS", priority: "PREFERRED" as const },
+        { skillName: "GRAPHQL", priority: "PREFERRED" as const },
+      ],
+      requiredEdu: "Bachelor's Degree",
+    },
   ]
 
-  const candidatePoolData = [
-    { firstname: "Alex", lastname: "Mercer", emailPrefix: "alex.mercer" },
-    { firstname: "Sophia", lastname: "Chen", emailPrefix: "sophia.chen" },
-    { firstname: "Marcus", lastname: "Vance", emailPrefix: "marcus.vance" },
-    { firstname: "Elena", lastname: "Rostova", emailPrefix: "elena.rostova" },
-    { firstname: "David", lastname: "Kim", emailPrefix: "david.kim" },
-    { firstname: "Sarah", lastname: "Jenkins", emailPrefix: "sarah.jenkins" },
-    { firstname: "Tariq", lastname: "Mahmood", emailPrefix: "tariq.mahmood" },
-    { firstname: "Jessica", lastname: "Taylor", emailPrefix: "jessica.taylor" },
-    { firstname: "Omar", lastname: "Farooq", emailPrefix: "omar.farooq" },
-    { firstname: "Hannah", lastname: "Abbott", emailPrefix: "hannah.abbott" },
-    { firstname: "Liam", lastname: "O'Connor", emailPrefix: "liam.oconnor" },
-    { firstname: "Amara", lastname: "Okafor", emailPrefix: "amara.okafor" },
-  ]
+  const jobCodeById = new Map<string, bigint>()
 
-  const hashedCandPassword = await bcrypt.hash("Candidate123!", 10)
-
-  // 5. Create Jobs and Candidate Applications (min 10 candidates per job)
-  for (let jobIdx = 0; jobIdx < demoJobsData.length; jobIdx++) {
-    const jobData = demoJobsData[jobIdx]
-
-    // Create or update job
+  for (const jobData of demoJobsData) {
     let job = await prisma.job.findUnique({ where: { jobCode: jobData.jobCode } })
     if (!job) {
       job = await prisma.job.create({
@@ -258,162 +266,533 @@ async function main() {
     } else {
       console.log(`ℹ️ Job already exists: "${job.title}" (${job.jobCode})`)
     }
+    jobCodeById.set(jobData.code, job.id)
+  }
 
-    // Generate 12 applicants for this job
-    for (let candIdx = 0; candIdx < candidatePoolData.length; candIdx++) {
-      const candInfo = candidatePoolData[candIdx]
-      const email = `${candInfo.emailPrefix}.j${jobIdx + 1}@example.com`
-      const username = `${candInfo.emailPrefix}_j${jobIdx + 1}`
+  // 5. Define 10 distinct demo candidates with proper, differentiated profiles.
+  // Skill scores/coverage are deliberately varied per candidate so AI shortlisting
+  // runs produce a realistic spread of SHORTLIST / MAYBE / REJECT outcomes.
+  type CandidateSkill = { skillName: string; scorePercent: number }
+  type CandidateSpec = {
+    firstname: string
+    lastname: string
+    emailPrefix: string
+    city: string
+    country: string
+    bio: string
+    certifications: string
+    achievements: string
+    noticePeriod: string
+    availability: string
+    educationLevel: string
+    degreeTitle: string
+    institute: string
+    majorSubject: string
+    grade: string
+    passingYear: string
+    experience: {
+      jobTitle: string
+      company: string
+      location: string
+      startDate: string
+      endDate: string | null
+      isCurrent: boolean
+    }
+    skills: CandidateSkill[]
+    applyTo: string[] // job "code" values from demoJobsData
+  }
 
-      let candidate = await prisma.user.findUnique({ where: { email } })
-      if (!candidate) {
-        candidate = await prisma.user.create({
-          data: {
-            role: "CANDIDATE",
-            userStatus: "ACTIVE",
-            username,
-            email,
-            password: hashedCandPassword,
-            firstname: candInfo.firstname,
-            lastname: candInfo.lastname,
-            city: "Lahore",
-            country: "PK",
-            createdAt: now,
-            updatedAt: now,
-            profileDetails: {
-              create: {
-                bio: `Experienced software professional specializing in ${jobData.skills[0].skillName} and cloud systems. Driven by software quality and clean code.`,
-                certifications: jobData.certification,
-                achievements: "Built multi-tenant microservices architecture serving 500k monthly active users.",
-                noticePeriod: "1 month",
-                availability: "Immediate",
+  const candidates: CandidateSpec[] = [
+    {
+      firstname: "Alex",
+      lastname: "Mercer",
+      emailPrefix: "alex.mercer",
+      city: "Lahore",
+      country: "PK",
+      bio: "Full stack engineer with 5 years building production Next.js and Node.js applications, from API design through deployment.",
+      certifications: "AWS Certified Developer Associate",
+      achievements: "Led migration of a monolithic Express API to a Next.js/Node.js microservices architecture serving 500k MAU.",
+      noticePeriod: "1 month",
+      availability: "Immediate",
+      educationLevel: "Bachelor's Degree",
+      degreeTitle: "Bachelor of Science in Software Engineering",
+      institute: "National University of Sciences and Technology",
+      majorSubject: "Software Engineering",
+      grade: "3.7 / 4.0",
+      passingYear: "2019",
+      experience: {
+        jobTitle: "Senior Full Stack Developer",
+        company: "Global Tech Solutions",
+        location: "Lahore, PK",
+        startDate: "2021-01-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "JAVASCRIPT", scorePercent: 92 },
+        { skillName: "REACT", scorePercent: 88 },
+        { skillName: "NODE.JS", scorePercent: 90 },
+        { skillName: "TYPESCRIPT", scorePercent: 80 },
+        { skillName: "DOCKER", scorePercent: 65 },
+      ],
+      applyTo: ["FS", "FE"],
+    },
+    {
+      firstname: "Sophia",
+      lastname: "Chen",
+      emailPrefix: "sophia.chen",
+      city: "Karachi",
+      country: "PK",
+      bio: "Machine learning engineer focused on NLP and retrieval-augmented generation, with production experience fine-tuning transformer models and shipping FastAPI inference services.",
+      certifications: "TensorFlow Developer Certificate",
+      achievements: "Built a RAG pipeline reducing customer support response latency by 40% for a SaaS product with 2M documents indexed.",
+      noticePeriod: "2 weeks",
+      availability: "Immediate",
+      educationLevel: "Master's Degree",
+      degreeTitle: "Master of Science in Computer Science",
+      institute: "Lahore University of Management Sciences",
+      majorSubject: "Artificial Intelligence",
+      grade: "3.9 / 4.0",
+      passingYear: "2021",
+      experience: {
+        jobTitle: "Machine Learning Engineer",
+        company: "Aether Data Systems",
+        location: "Karachi, PK",
+        startDate: "2021-08-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "PYTHON", scorePercent: 95 },
+        { skillName: "PYTORCH", scorePercent: 89 },
+        { skillName: "FASTAPI", scorePercent: 83 },
+        { skillName: "DOCKER", scorePercent: 60 },
+      ],
+      applyTo: ["AI"],
+    },
+    {
+      firstname: "Marcus",
+      lastname: "Vance",
+      emailPrefix: "marcus.vance",
+      city: "Islamabad",
+      country: "PK",
+      bio: "Cloud infrastructure engineer specializing in Kubernetes administration, Terraform-driven IaC, and zero-downtime deployment pipelines across AWS.",
+      certifications: "Certified Kubernetes Administrator (CKA), AWS SysOps Administrator",
+      achievements: "Migrated a 40-service platform from EC2 to EKS, cutting infrastructure costs by 30% and deployment time by 70%.",
+      noticePeriod: "1 month",
+      availability: "1 month",
+      educationLevel: "Bachelor's Degree",
+      degreeTitle: "Bachelor of Science in Computer Science",
+      institute: "FAST National University",
+      majorSubject: "Computer Science",
+      grade: "3.5 / 4.0",
+      passingYear: "2018",
+      experience: {
+        jobTitle: "DevOps Engineer",
+        company: "CloudMatrix Infrastructure",
+        location: "Islamabad, PK",
+        startDate: "2020-03-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "DOCKER", scorePercent: 93 },
+        { skillName: "KUBERNETES", scorePercent: 91 },
+        { skillName: "AWS", scorePercent: 87 },
+        { skillName: "PYTHON", scorePercent: 55 },
+      ],
+      applyTo: ["DO"],
+    },
+    {
+      firstname: "Elena",
+      lastname: "Rostova",
+      emailPrefix: "elena.rostova",
+      city: "Lahore",
+      country: "PK",
+      bio: "Frontend engineer building accessible, design-system-driven React and TypeScript interfaces, with a strong eye for performance and UI consistency.",
+      certifications: "Meta Front-End Developer Professional Certificate",
+      achievements: "Built and maintained a shared component library adopted across 6 product teams, cutting UI development time by 35%.",
+      noticePeriod: "2 weeks",
+      availability: "Immediate",
+      educationLevel: "Bachelor's Degree",
+      degreeTitle: "Bachelor of Science in Software Engineering",
+      institute: "University of Engineering and Technology",
+      majorSubject: "Software Engineering",
+      grade: "3.6 / 4.0",
+      passingYear: "2020",
+      experience: {
+        jobTitle: "Frontend Engineer",
+        company: "Northgate Digital",
+        location: "Lahore, PK",
+        startDate: "2021-06-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "REACT", scorePercent: 90 },
+        { skillName: "TYPESCRIPT", scorePercent: 85 },
+        { skillName: "JAVASCRIPT", scorePercent: 88 },
+        { skillName: "TAILWINDCSS", scorePercent: 78 },
+      ],
+      applyTo: ["FE", "FS"],
+    },
+    {
+      firstname: "David",
+      lastname: "Kim",
+      emailPrefix: "david.kim",
+      city: "Karachi",
+      country: "PK",
+      bio: "Full stack developer with growing machine learning experience, comfortable shipping both Node.js/React features and Python data pipelines.",
+      certifications: "None",
+      achievements: "Shipped a recommendation feature combining a Node.js API with a Python scoring service, increasing engagement 12%.",
+      noticePeriod: "1 month",
+      availability: "2 weeks",
+      educationLevel: "Master's Degree",
+      degreeTitle: "Master of Science in Computer Science",
+      institute: "Institute of Business Administration",
+      majorSubject: "Computer Science",
+      grade: "3.4 / 4.0",
+      passingYear: "2022",
+      experience: {
+        jobTitle: "Software Engineer",
+        company: "Vertex Software House",
+        location: "Karachi, PK",
+        startDate: "2022-02-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "JAVASCRIPT", scorePercent: 75 },
+        { skillName: "REACT", scorePercent: 68 },
+        { skillName: "NODE.JS", scorePercent: 70 },
+        { skillName: "PYTHON", scorePercent: 58 },
+      ],
+      applyTo: ["FS", "AI"],
+    },
+    {
+      firstname: "Sarah",
+      lastname: "Jenkins",
+      emailPrefix: "sarah.jenkins",
+      city: "Islamabad",
+      country: "PK",
+      bio: "PhD researcher turned applied ML engineer, specializing in deep learning model architecture, training pipelines, and TensorFlow production deployment.",
+      certifications: "Deep Learning Specialization (deeplearning.ai)",
+      achievements: "Published 3 peer-reviewed papers on transformer efficiency; deployed a production model serving 1M+ daily inference requests.",
+      noticePeriod: "1 month",
+      availability: "1 month",
+      educationLevel: "Doctorate / PhD",
+      degreeTitle: "PhD in Computer Science (Machine Learning)",
+      institute: "National University of Sciences and Technology",
+      majorSubject: "Machine Learning",
+      grade: "N/A",
+      passingYear: "2023",
+      experience: {
+        jobTitle: "Applied Research Scientist",
+        company: "Aether AI Labs",
+        location: "Islamabad, PK",
+        startDate: "2023-09-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "PYTHON", scorePercent: 96 },
+        { skillName: "PYTORCH", scorePercent: 92 },
+        { skillName: "TENSORFLOW", scorePercent: 85 },
+      ],
+      applyTo: ["AI"],
+    },
+    {
+      firstname: "Tariq",
+      lastname: "Mahmood",
+      emailPrefix: "tariq.mahmood",
+      city: "Faisalabad",
+      country: "PK",
+      bio: "Backend-leaning DevOps engineer with hands-on Docker and AWS experience, plus working Python scripting for infrastructure automation.",
+      certifications: "AWS Certified Cloud Practitioner",
+      achievements: "Automated deployment pipelines for a 15-service backend, reducing manual release effort from 2 days to 2 hours.",
+      noticePeriod: "1 month",
+      availability: "1 month",
+      educationLevel: "Bachelor's Degree",
+      degreeTitle: "Bachelor of Science in Information Technology",
+      institute: "University of Agriculture Faisalabad",
+      majorSubject: "Information Technology",
+      grade: "3.2 / 4.0",
+      passingYear: "2019",
+      experience: {
+        jobTitle: "Infrastructure Engineer",
+        company: "PixelForge Systems",
+        location: "Faisalabad, PK",
+        startDate: "2019-11-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "DOCKER", scorePercent: 72 },
+        { skillName: "AWS", scorePercent: 68 },
+        { skillName: "PYTHON", scorePercent: 62 },
+      ],
+      applyTo: ["DO", "AI"],
+    },
+    {
+      firstname: "Jessica",
+      lastname: "Taylor",
+      emailPrefix: "jessica.taylor",
+      city: "Lahore",
+      country: "PK",
+      bio: "Junior web developer with one year of professional experience building React components under senior guidance; still building depth in TypeScript and testing.",
+      certifications: "None",
+      achievements: "Delivered several UI features and bug fixes as part of a 4-person agile team.",
+      noticePeriod: "2 weeks",
+      availability: "Immediate",
+      educationLevel: "Bachelor's Degree",
+      degreeTitle: "Bachelor of Science in Computer Science",
+      institute: "Punjab University",
+      majorSubject: "Computer Science",
+      grade: "3.0 / 4.0",
+      passingYear: "2023",
+      experience: {
+        jobTitle: "Junior Frontend Developer",
+        company: "Bright Web Studio",
+        location: "Lahore, PK",
+        startDate: "2023-06-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "JAVASCRIPT", scorePercent: 55 },
+        { skillName: "REACT", scorePercent: 48 },
+      ],
+      applyTo: ["FS", "FE"],
+    },
+    {
+      firstname: "Omar",
+      lastname: "Farooq",
+      emailPrefix: "omar.farooq",
+      city: "Rawalpindi",
+      country: "PK",
+      bio: "Senior cloud infrastructure engineer with deep Kubernetes and Terraform expertise, having designed multi-region AWS architectures for high-availability platforms.",
+      certifications: "CKA, AWS Solutions Architect Professional",
+      achievements: "Designed a multi-region active-active AWS/Kubernetes architecture achieving 99.99% uptime for a fintech platform.",
+      noticePeriod: "1 month",
+      availability: "1 month",
+      educationLevel: "Master's Degree",
+      degreeTitle: "Master of Science in Computer Engineering",
+      institute: "National University of Sciences and Technology",
+      majorSubject: "Computer Engineering",
+      grade: "3.8 / 4.0",
+      passingYear: "2017",
+      experience: {
+        jobTitle: "Senior DevOps Engineer",
+        company: "CloudMatrix Infrastructure",
+        location: "Rawalpindi, PK",
+        startDate: "2018-04-01",
+        endDate: null,
+        isCurrent: true,
+      },
+      skills: [
+        { skillName: "KUBERNETES", scorePercent: 96 },
+        { skillName: "AWS", scorePercent: 94 },
+        { skillName: "DOCKER", scorePercent: 90 },
+        { skillName: "PYTHON", scorePercent: 66 },
+      ],
+      applyTo: ["DO"],
+    },
+    {
+      firstname: "Hannah",
+      lastname: "Abbott",
+      emailPrefix: "hannah.abbott",
+      city: "Multan",
+      country: "PK",
+      bio: "Early-career backend developer with Node.js exposure from bootcamp projects and a short internship; still developing React and TypeScript proficiency.",
+      certifications: "None",
+      achievements: "Completed a 3-month backend development bootcamp and built two portfolio REST API projects.",
+      noticePeriod: "Immediate",
+      availability: "Immediate",
+      educationLevel: "Associate Degree",
+      degreeTitle: "Associate Degree in Information Technology",
+      institute: "Virtual University of Pakistan",
+      majorSubject: "Information Technology",
+      grade: "2.9 / 4.0",
+      passingYear: "2024",
+      experience: {
+        jobTitle: "Backend Development Intern",
+        company: "StartHub Technologies",
+        location: "Multan, PK",
+        startDate: "2024-01-01",
+        endDate: "2024-06-30",
+        isCurrent: false,
+      },
+      skills: [{ skillName: "NODE.JS", scorePercent: 45 }],
+      applyTo: ["FS", "FE"],
+    },
+  ]
+
+  const hashedCandPassword = await bcrypt.hash("Candidate123!", 10)
+  const credentialRows: { name: string; email: string; specialty: string }[] = []
+
+  for (const spec of candidates) {
+    const email = `${spec.emailPrefix}@example.com`
+    const username = spec.emailPrefix.replace(/\./g, "_")
+
+    let candidate = await prisma.user.findUnique({ where: { email } })
+    if (!candidate) {
+      candidate = await prisma.user.create({
+        data: {
+          role: "CANDIDATE",
+          userStatus: "ACTIVE",
+          username,
+          email,
+          password: hashedCandPassword,
+          firstname: spec.firstname,
+          lastname: spec.lastname,
+          city: spec.city,
+          country: spec.country,
+          createdAt: now,
+          updatedAt: now,
+          profileDetails: {
+            create: {
+              bio: spec.bio,
+              certifications: spec.certifications,
+              achievements: spec.achievements,
+              noticePeriod: spec.noticePeriod,
+              availability: spec.availability,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+          educations: {
+            create: [
+              {
+                educationLevelId: eduLevelMap.get(spec.educationLevel)!,
+                degreeTitle: spec.degreeTitle,
+                institute: spec.institute,
+                majorSubject: spec.majorSubject,
+                grade: spec.grade,
+                passingYear: spec.passingYear,
                 createdAt: now,
                 updatedAt: now,
               },
-            },
-            educations: {
-              create: [
-                {
-                  educationLevelId: eduLevelMap.get(
-                    candIdx % 3 === 0 ? "Master's Degree" : "Bachelor's Degree"
-                  )!,
-                  degreeTitle:
-                    candIdx % 3 === 0
-                      ? "Master of Science in Computer Science"
-                      : "Bachelor of Science in Software Engineering",
-                  institute: "National University of Sciences and Technology",
-                  majorSubject: "Computer Science",
-                  grade: "3.7 / 4.0",
-                  passingYear: "2020",
-                  createdAt: now,
-                  updatedAt: now,
-                },
-              ],
-            },
-            experiences: {
-              create: [
-                {
-                  jobTitle: `Software Developer (${jobData.skills[0].skillName})`,
-                  company: "Global Tech Solutions",
-                  location: "Islamabad, PK",
-                  startDate: "2021-01-01",
-                  endDate: "2024-06-30",
-                  isCurrent: true,
-                  createdAt: now,
-                  updatedAt: now,
-                },
-              ],
-            },
+            ],
+          },
+          experiences: {
+            create: [
+              {
+                jobTitle: spec.experience.jobTitle,
+                company: spec.experience.company,
+                location: spec.experience.location,
+                startDate: spec.experience.startDate,
+                endDate: spec.experience.endDate,
+                isCurrent: spec.experience.isCurrent,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          },
+        },
+      })
+      console.log(`✅ Candidate Created: ${spec.firstname} ${spec.lastname} (${email})`)
+    } else {
+      console.log(`ℹ️ Candidate already exists: ${email}`)
+    }
+
+    // Seed skills + assessment scores
+    for (const skill of spec.skills) {
+      let userSkill = await prisma.userSkills.findFirst({
+        where: { userId: candidate.id, skillName: skill.skillName },
+      })
+
+      if (!userSkill) {
+        const verifiedLevel: VerifiedSkillLevel =
+          skill.scorePercent >= 90
+            ? "EXPERT"
+            : skill.scorePercent >= 70
+            ? "PROFESSIONAL"
+            : skill.scorePercent >= 40
+            ? "INTERMEDIATE"
+            : "BEGINNER"
+
+        userSkill = await prisma.userSkills.create({
+          data: {
+            userId: candidate.id,
+            skillName: skill.skillName,
+            level: 3,
+            verifiedLevel,
+            verifiedAt: now,
+            createdAt: now,
+            updatedAt: now,
           },
         })
-      }
 
-      // Add skills and assessment scores to candidate profile
-      for (let sIdx = 0; sIdx < jobData.skills.length; sIdx++) {
-        const skill = jobData.skills[sIdx]
-
-        // Vary candidate skill matches: strongest candidates get higher match/assessments
-        const isMatchedCandidate = candIdx < 8 || sIdx === 0
-        if (!isMatchedCandidate && sIdx > 0) continue // Some candidates lack certain skills
-
-        let userSkill = await prisma.userSkills.findFirst({
-          where: { userId: candidate.id, skillName: skill.skillName },
+        const assessment = await prisma.skillAssessment.create({
+          data: {
+            userId: candidate.id,
+            userSkillId: userSkill.id,
+            skillName: skill.skillName,
+            level: verifiedLevel,
+            attemptNumber: 1,
+            status: "SUBMITTED",
+            scoredPoints: skill.scorePercent,
+            minPoints: 60,
+            maxPoints: 100,
+            totalPoints: 100,
+            startedAt: now - BigInt(3600),
+            submittedAt: now,
+            createdAt: now,
+            updatedAt: now,
+          },
         })
 
-        if (!userSkill) {
-          const scorePercent = 50 + ((candIdx * 7 + sIdx * 11) % 46) // Score between 50 and 95%
-          const verifiedLevel: VerifiedSkillLevel =
-            scorePercent >= 90
-              ? "EXPERT"
-              : scorePercent >= 70
-              ? "PROFESSIONAL"
-              : scorePercent >= 40
-              ? "INTERMEDIATE"
-              : "BEGINNER"
-
-          // 1. Create UserSkills row first
-          userSkill = await prisma.userSkills.create({
-            data: {
-              userId: candidate.id,
-              skillName: skill.skillName,
-              level: 3,
-              verifiedLevel,
-              verifiedAt: now,
-              createdAt: now,
-              updatedAt: now,
-            },
-          })
-
-          // 2. Create SkillAssessment row linked to userSkill.id
-          const assessment = await prisma.skillAssessment.create({
-            data: {
-              userId: candidate.id,
-              userSkillId: userSkill.id,
-              skillName: skill.skillName,
-              level: verifiedLevel,
-              attemptNumber: 1,
-              status: "SUBMITTED",
-              scoredPoints: scorePercent,
-              minPoints: 60,
-              maxPoints: 100,
-              totalPoints: 100,
-              startedAt: now - BigInt(3600),
-              submittedAt: now,
-              createdAt: now,
-              updatedAt: now,
-            },
-          })
-
-          // 3. Set lastAssessmentId on UserSkills
-          await prisma.userSkills.update({
-            where: { id: userSkill.id },
-            data: { lastAssessmentId: assessment.id },
-          })
-        }
+        await prisma.userSkills.update({
+          where: { id: userSkill.id },
+          data: { lastAssessmentId: assessment.id },
+        })
       }
+    }
 
-      // Apply candidate to job if not applied
+    // Apply to the jobs this candidate is targeting
+    for (const jobCode of spec.applyTo) {
+      const jobId = jobCodeById.get(jobCode)
+      if (!jobId) continue
+
       const existingApp = await prisma.jobsApplied.findUnique({
-        where: { jobId_userId: { jobId: job.id, userId: candidate.id } },
+        where: { jobId_userId: { jobId, userId: candidate.id } },
       })
 
       if (!existingApp) {
         await prisma.jobsApplied.create({
           data: {
-            jobId: job.id,
+            jobId,
             userId: candidate.id,
             status: "SUBMITTED",
-            appliedAt: now - BigInt(candIdx * 1800),
+            appliedAt: now - BigInt(1800),
           },
         })
       }
     }
 
-    const appCount = await prisma.jobsApplied.count({ where: { jobId: job.id } })
-    console.log(`✅ Seeded ${appCount} applications for "${job.title}".`)
+    credentialRows.push({
+      name: `${spec.firstname} ${spec.lastname}`,
+      email,
+      specialty: spec.skills.map((s) => s.skillName).join(", "),
+    })
   }
 
-  console.log("🎉 Seeding complete successfully!")
+  for (const jobData of demoJobsData) {
+    const jobId = jobCodeById.get(jobData.code)!
+    const appCount = await prisma.jobsApplied.count({ where: { jobId } })
+    console.log(`✅ ${appCount} candidate(s) applied to "${jobData.title}".`)
+  }
+
+  console.log("\n🎉 Seeding complete successfully!\n")
+  console.log("=".repeat(70))
+  console.log("DEMO CANDIDATE CREDENTIALS  (all passwords: Candidate123!)")
+  console.log("=".repeat(70))
+  for (const row of credentialRows) {
+    console.log(`${row.name.padEnd(20)} ${row.email.padEnd(30)} ${row.specialty}`)
+  }
+  console.log("=".repeat(70))
+  console.log("ADMIN LOGIN: admin@example.com / Admin123! (if no other admin existed)")
+  console.log("=".repeat(70))
 }
 
 main()

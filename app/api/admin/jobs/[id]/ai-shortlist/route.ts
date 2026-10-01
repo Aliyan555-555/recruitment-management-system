@@ -28,7 +28,10 @@ export async function POST(
       if (result.code === "RUN_IN_PROGRESS") status = 409
       if (result.code === "RATE_LIMITED") status = 429
 
-      return NextResponse.json({ error: result.error, code: result.code }, { status })
+      return NextResponse.json(
+        { error: result.error, code: result.code, retryAfterSeconds: result.retryAfterSeconds },
+        { status }
+      )
     }
 
     return NextResponse.json(
