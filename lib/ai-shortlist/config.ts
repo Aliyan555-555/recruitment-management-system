@@ -7,6 +7,13 @@ export const AI_SHORTLIST_WEIGHTS = {
   successCriteria: 0.10,
 } as const
 
+/**
+ * Share of the overall score given to the pre-application quick test when the candidate has a score.
+ * The other components are scaled to fill the remaining (1 - weight); jobs without a quick test, and
+ * candidates without a score, use only the weights above.
+ */
+export const AI_SHORTLIST_QUICK_TEST_WEIGHT = 0.15
+
 export const AI_SHORTLIST_THRESHOLDS = {
   shortlistMinScore: 50,
   maybeMinScore: 35,

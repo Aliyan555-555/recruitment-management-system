@@ -77,7 +77,7 @@ export default function SkillAssessmentResultPage({
       <div className="mx-auto max-w-2xl py-8 text-center">
         <p className="text-muted-foreground">Assessment result not found.</p>
         <Button asChild className="mt-4">
-          <Link href="/candidate/assessments/required">Back to required assessments</Link>
+          <Link href="/candidate/profile/edit">Back to profile</Link>
         </Button>
       </div>
     )
@@ -86,9 +86,9 @@ export default function SkillAssessmentResultPage({
   return (
     <div className="mx-auto max-w-2xl space-y-6 py-8">
         <Button asChild variant="ghost" className="pl-0">
-        <Link href="/candidate/assessments/required">
+        <Link href="/candidate/profile/edit">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to required assessments
+          Back to profile
         </Link>
       </Button>
 
@@ -140,7 +140,7 @@ export default function SkillAssessmentResultPage({
               </Button>
             )}
             <Button asChild variant="outline">
-              <Link href="/candidate/assessments/required">Continue skill assessments</Link>
+              <Link href="/candidate/profile/edit">Back to profile</Link>
             </Button>
           </div>
         </CardContent>

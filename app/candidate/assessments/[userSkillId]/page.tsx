@@ -240,9 +240,9 @@ export default function TakeSkillAssessmentPage({
     return (
       <div className="mx-auto max-w-2xl space-y-6 py-8">
         <Button asChild variant="ghost" className="pl-0">
-          <Link href="/candidate/assessments/required">
+          <Link href="/candidate/profile/edit">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to required assessments
+            Back to profile
           </Link>
         </Button>
 
@@ -301,7 +301,7 @@ export default function TakeSkillAssessmentPage({
                 </Link>
               </Button>
               <Button asChild>
-                <Link href="/candidate/assessments/required">Continue skill assessments</Link>
+                <Link href="/candidate/profile/edit">Back to profile</Link>
               </Button>
               {!result.passed && result.canReattempt && (
                 <Button
@@ -327,9 +327,9 @@ export default function TakeSkillAssessmentPage({
     return (
       <div className="mx-auto max-w-2xl space-y-6 py-8">
         <Button asChild variant="ghost" className="pl-0">
-          <Link href="/candidate/assessments/required">
+          <Link href="/candidate/profile/edit">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to required assessments
+            Back to profile
           </Link>
         </Button>
 
@@ -366,9 +366,9 @@ export default function TakeSkillAssessmentPage({
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-8">
       <Button asChild variant="ghost" className="pl-0">
-        <Link href="/candidate/assessments/required">
+        <Link href="/candidate/profile/edit">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to required assessments
+          Back to profile
         </Link>
       </Button>
 

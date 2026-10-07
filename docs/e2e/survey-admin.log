@@ -1,0 +1,135 @@
+shot s-login http://localhost:3001/admin/login
+shot s-login-filled http://localhost:3001/admin/login
+shot s-dashboard http://localhost:3001/admin/dashboard
+  load /admin/dashboard 11895ms
+shot s-jobs http://localhost:3001/admin/jobs
+  load /admin/jobs 64063ms
+shot s-job1 http://localhost:3001/admin/jobs/1
+  load /admin/jobs/1 37720ms
+shot s-create http://localhost:3001/admin/jobs/create
+  load /admin/jobs/create 26715ms
+shot s-edit http://localhost:3001/admin/jobs/1/edit
+  load /admin/jobs/1/edit 13858ms
+shot s-quicktest http://localhost:3001/admin/jobs/1/quick-test
+  load /admin/jobs/1/quick-test 23028ms
+shot s-aishort http://localhost:3001/admin/jobs/1/ai-shortlist
+  load /admin/jobs/1/ai-shortlist 25401ms
+shot s-shortlist http://localhost:3001/admin/jobs/1/shortlist
+  load /admin/jobs/1/shortlist 31559ms
+shot s-applied http://localhost:3001/admin/jobs/1/rounds/1/applied
+  load /admin/jobs/1/rounds/1/applied 24083ms
+shot s-slots http://localhost:3001/admin/jobs/1/rounds/1/slots
+  load /admin/jobs/1/rounds/1/slots 18378ms
+shot s-shortlisted http://localhost:3001/admin/jobs/1/rounds/1/shortlisted
+  load /admin/jobs/1/rounds/1/shortlisted 13200ms
+shot s-results http://localhost:3001/admin/jobs/1/rounds/1/results
+  load /admin/jobs/1/rounds/1/results 21037ms
+shot s-offers http://localhost:3001/admin/jobs/1/rounds/2/offers
+  load /admin/jobs/1/rounds/2/offers 15725ms
+shot s-cands http://localhost:3001/admin/candidates
+  load /admin/candidates 21425ms
+shot s-cand2 http://localhost:3001/admin/candidates/2
+  load /admin/candidates/2 25647ms
+shot s-assess http://localhost:3001/admin/assessments
+  load /admin/assessments 17337ms
+shot s-users http://localhost:3001/admin/users
+  load /admin/users 13337ms
+shot s-workflows http://localhost:3001/admin/workflows
+  load /admin/workflows 12531ms
+shot s-settings http://localhost:3001/admin/settings
+  load /admin/settings 13997ms
+ISSUES
+[http 404] GET /grid.svg
+[console] http://localhost:3001/admin/login :: Failed to load resource: the server responded with a status of 404 (Not Found)
+[console] http://localhost:3001/admin/login :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[http 404] GET /favicon.ico
+[console] http://localhost:3001/admin/dashboard :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/dashboard :: Failed to fetch RSC payload for http://localhost:3001/admin/dashboard. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/jobs :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1 :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1 :: Failed to fetch RSC payload for http://localhost:3001/admin/jobs/1. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/jobs/create :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/edit :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/quick-test :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/ai-shortlist :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/shortlist :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/rounds/1/applied :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/rounds/1/slots :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[http 404] GET /api/admin/jobs/1/rounds/1/slots
+[console] http://localhost:3001/admin/jobs/1/rounds/1/slots :: Failed to load resource: the server responded with a status of 404 (Not Found)
+[console] http://localhost:3001/admin/jobs/1/rounds/1/shortlisted :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/rounds/1/results :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/rounds/2/offers :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/jobs/1/rounds/2/offers :: Failed to fetch RSC payload for http://localhost:3001/admin/jobs/1/rounds/2/offers. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/candidates :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/candidates/2 :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[http 404] GET /api/admin/pipelines/2
+[console] http://localhost:3001/admin/candidates/2 :: Failed to load resource: the server responded with a status of 404 (Not Found)
+[console] http://localhost:3001/admin/candidates/2 :: Failed to fetch RSC payload for http://localhost:3001/admin/candidates/2. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/assessments :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/assessments :: Failed to fetch RSC payload for http://localhost:3001/admin/assessments. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/users :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/users :: Failed to fetch RSC payload for http://localhost:3001/admin/users. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/workflows :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien
+[console] http://localhost:3001/admin/workflows :: Failed to fetch RSC payload for http://localhost:3001/admin/workflows. Falling back to browser navigation. JSHandle@error
+[console] http://localhost:3001/admin/settings :: Warning: Extra attributes from the server: %s%s class,style 
+    at html
+    at RootLayout (Server)
+    at RedirectErrorBoundary (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/clien

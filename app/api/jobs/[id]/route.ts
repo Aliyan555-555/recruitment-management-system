@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getCurrentAttempt, getEnabledQuickTest } from "@/lib/services/quick-test-service"
+import { serializeCandidateAttempt } from "@/lib/quick-test/serializers"
+import { toCandidateState } from "@/lib/quick-test/rules"
 
 export async function GET(
   req: NextRequest,
@@ -62,6 +65,13 @@ export async function GET(
     const hasApplied = job.applications.length > 0
     const userApplication = hasApplied ? job.applications[0] : null
 
+    // Quick test requirement (only relevant for candidates who have not applied yet)
+    const quickTestConfig =
+      session.user.role === "CANDIDATE" && !hasApplied ? await getEnabledQuickTest(jobId) : null
+    const quickTestAttempt = quickTestConfig
+      ? await getCurrentAttempt(jobId, BigInt(session.user.id))
+      : null
+
     return NextResponse.json({
       job: {
         id: job.id.toString(),
@@ -89,6 +99,15 @@ export async function GET(
         creatorEmail: job.creator.email
       },
       hasApplied,
+      quickTest: quickTestConfig
+        ? {
+            required: true,
+            state: toCandidateState(quickTestAttempt?.status),
+            questionCount: quickTestConfig.questionCount,
+            timeLimitMinutes: quickTestConfig.timeLimitMinutes,
+            attempt: quickTestAttempt ? serializeCandidateAttempt(quickTestAttempt) : null
+          }
+        : { required: false },
       application: userApplication ? {
         id: userApplication.id.toString(),
         status: userApplication.status,

@@ -177,3 +177,82 @@ describe("combineShortlistScore", () => {
     assert.equal(fullConfidenceResult.overallScore, 100)
   })
 })
+
+describe("combineShortlistScore with quick test", () => {
+  const noAssessment: DeterministicMatch = {
+    ...mockBaseDeterministic,
+    assessmentAggregate: { averagePercentage: null, assessedSkillCount: 0, totalRelevantSkillCount: 3 },
+  }
+  const fullConfidenceAi: ShortlistEvaluation = { ...mockBaseAiEvaluation, confidence: 100 }
+
+  it("is unchanged when the candidate has no quick test score", () => {
+    const withoutField = combineShortlistScore(mockBaseDeterministic, fullConfidenceAi)
+    const withNull = combineShortlistScore(
+      { ...mockBaseDeterministic, quickTestScore: null },
+      fullConfidenceAi
+    )
+    // Original six-weight formula: 0.30 req + 0.10 pref + 0.20 assess + 0.15 edu + 0.15 exp + 0.10 succ
+    const expected = Math.round(100 * 0.3 + 100 * 0.1 + 85 * 0.2 + 85 * 0.15 + 85 * 0.15 + 80 * 0.1)
+    assert.equal(withoutField.overallScore, expected)
+    assert.equal(withNull.overallScore, expected)
+    assert.equal(withoutField.quickTestScore, null)
+  })
+
+  it("gives the quick test exactly 15% and scales the other components by 85%", () => {
+    const high = combineShortlistScore({ ...mockBaseDeterministic, quickTestScore: 100 }, fullConfidenceAi)
+    const low = combineShortlistScore({ ...mockBaseDeterministic, quickTestScore: 0 }, fullConfidenceAi)
+    const baseline = combineShortlistScore(mockBaseDeterministic, fullConfidenceAi)
+
+    assert.equal(high.quickTestScore, 100)
+    assert.equal(low.quickTestScore, 0)
+    // swing between a perfect and a zero quick test is the 15% weight
+    assert.ok(Math.abs(high.overallScore - low.overallScore - 15) <= 1)
+    assert.ok(low.overallScore < baseline.overallScore)
+    assert.ok(high.overallScore > baseline.overallScore)
+  })
+
+  it("keeps the quick test at 15% when assessments are also missing", () => {
+    const high = combineShortlistScore({ ...noAssessment, quickTestScore: 100 }, fullConfidenceAi)
+    const low = combineShortlistScore({ ...noAssessment, quickTestScore: 0 }, fullConfidenceAi)
+    assert.ok(Math.abs(high.overallScore - low.overallScore - 15) <= 1)
+    assert.ok(!isNaN(high.overallScore))
+  })
+
+  it("keeps the 100-point ceiling when every component is perfect", () => {
+    const maxAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 100,
+      educationScore: 100,
+      experienceScore: 100,
+      successCriteriaScore: 100,
+      confidence: 100,
+    }
+    const maxDeterministic: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      assessmentAggregate: { averagePercentage: 100, assessedSkillCount: 1, totalRelevantSkillCount: 1 },
+      quickTestScore: 100,
+    }
+    assert.equal(combineShortlistScore(maxDeterministic, maxAi).overallScore, 100)
+  })
+
+  it("a weak quick test can pull a borderline candidate below the shortlist threshold", () => {
+    const borderlineAi: ShortlistEvaluation = {
+      ...mockBaseAiEvaluation,
+      skillsScore: 55,
+      educationScore: 55,
+      experienceScore: 55,
+      successCriteriaScore: 55,
+      confidence: 100,
+    }
+    const borderline: DeterministicMatch = {
+      ...mockBaseDeterministic,
+      requiredSkillCoverage: 0.55,
+      preferredSkillCoverage: 0.55,
+      assessmentAggregate: { averagePercentage: 55, assessedSkillCount: 2, totalRelevantSkillCount: 3 },
+    }
+    const without = combineShortlistScore(borderline, borderlineAi)
+    const withWeakTest = combineShortlistScore({ ...borderline, quickTestScore: 10 }, borderlineAi)
+    assert.equal(without.overallScore, 55)
+    assert.ok(withWeakTest.overallScore < without.overallScore)
+  })
+})

@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, UserCircle, Loader2, Eye, EyeOff } from "lucide-react"
-import { fetchMandatoryRedirectPath } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -57,8 +56,7 @@ export default function LoginPage() {
               ? callbackUrl
               : "/"
 
-          const redirectPath = await fetchMandatoryRedirectPath(fallback)
-          router.push(redirectPath)
+          router.push(fallback)
           router.refresh()
           setIsLoading(false)
           return

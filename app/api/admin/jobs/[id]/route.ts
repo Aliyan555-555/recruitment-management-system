@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { parseAndValidateSkillNames } from "@/lib/skills"
+import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
 
 interface WorkflowStepInput {
   stepName: string
@@ -67,6 +68,7 @@ interface UpdateJobRequest {
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   workflowSteps?: WorkflowStepInput[]
+  quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
 
 export async function GET(
@@ -109,6 +111,7 @@ export async function GET(
             }
           }
         },
+        quickTest: true,
         workflow: {
           include: {
             steps: {
@@ -174,6 +177,13 @@ export async function GET(
         updatedAt: job.updatedAt.toString(),
         deletedAt: job.deletedAt?.toString(),
         skills: job.skills.map(s => ({ skillName: s.skillName, priority: s.priority })),
+        quickTest: job.quickTest
+          ? {
+              enabled: job.quickTest.isEnabled,
+              questionCount: job.quickTest.questionCount,
+              timeLimitMinutes: job.quickTest.timeLimitMinutes
+            }
+          : { enabled: false, questionCount: 10, timeLimitMinutes: 15 },
         workflow: job.workflow ? {
           id: job.workflow.id.toString(),
           jobId: job.workflow.jobId.toString(),
@@ -284,6 +294,11 @@ export async function PUT(
     const jobId = BigInt(params.id)
     const body: UpdateJobRequest = await req.json()
     const now = BigInt(Math.floor(Date.now() / 1000))
+
+    const quickTestResult = parseQuickTestConfigInput(body.quickTest)
+    if (!quickTestResult.ok) {
+      return NextResponse.json({ error: quickTestResult.error }, { status: 400 })
+    }
 
     // Check if job exists
     const existingJob = await prisma.job.findUnique({
@@ -585,6 +600,10 @@ export async function PUT(
           where: { id: existingJob.workflow.id },
           data: { updatedAt: now }
         })
+      }
+
+      if (quickTestResult.value) {
+        await upsertJobQuickTest(tx, jobId, quickTestResult.value)
       }
 
       return job

@@ -24,7 +24,6 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import DOMPurify from "isomorphic-dompurify"
-import { fetchMandatoryRedirectPath } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface JobLocation {
   city: string
@@ -56,6 +55,14 @@ interface Job {
   creatorEmail: string
 }
 
+export interface QuickTestInfo {
+  required: boolean
+  state?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
+  questionCount?: number
+  timeLimitMinutes?: number
+  attempt?: { scorePercent: number | null } | null
+}
+
 interface Application {
   id: string
   status: string
@@ -67,11 +74,13 @@ export function JobDetails({
   job,
   hasApplied = false,
   application = null,
+  quickTest = null,
   isPublic = false
 }: {
   job: Job
   hasApplied?: boolean
   application?: Application | null
+  quickTest?: QuickTestInfo | null
   isPublic?: boolean
 }) {
   const router = useRouter()
@@ -87,10 +96,9 @@ export function JobDetails({
     setApplying(true)
     setErrorMessage(null)
     try {
-      const mandatoryPath = await fetchMandatoryRedirectPath()
-      if (mandatoryPath === "/candidate/assessments/required") {
-        router.push(mandatoryPath)
-        setApplying(false)
+      // Jobs with a quick test: the candidate takes it first, and the test page submits the application.
+      if (quickTest?.required && quickTest.state !== "COMPLETED") {
+        router.push(`/candidate/quick-test/${job.id}`)
         return
       }
 
@@ -104,6 +112,10 @@ export function JobDetails({
         router.push(`/jobs/${job.id}/apply/success`)
       } else {
         const data = await response.json()
+        if (data.code === "QUICK_TEST_REQUIRED") {
+          router.push(data.redirectTo)
+          return
+        }
         setErrorMessage(data.error || "Failed to apply. Please try again.")
       }
     } catch (error) {
@@ -355,10 +367,24 @@ export function JobDetails({
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Submitting...
                       </div>
+                    ) : quickTest?.required && quickTest.state !== "COMPLETED" ? (
+                      quickTest.state === "IN_PROGRESS" ? "Resume Quick Test" : "Take Quick Test & Apply"
                     ) : (
                       "Apply Now"
                     )}
                   </Button>
+                  {quickTest?.required && (
+                    <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                      <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {quickTest.state === "COMPLETED"
+                          ? "You've completed the quick test. Submit your application to finish."
+                          : quickTest.state === "IN_PROGRESS"
+                            ? "Your quick test is in progress. The timer keeps running, so resume it now."
+                            : `This job includes a ${quickTest.timeLimitMinutes}-minute quick test (${quickTest.questionCount} questions, one attempt). Your application is submitted when you finish it.`}
+                      </span>
+                    </div>
+                  )}
                   <p className="text-xs text-center text-muted-foreground">
                     By applying, you agree to share your profile information with {job.company}.
                   </p>

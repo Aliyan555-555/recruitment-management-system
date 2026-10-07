@@ -17,9 +17,11 @@ interface WorkflowRound {
 interface UseJobPipelineOptions {
   jobId: string
   currentStageId?: string
+  /** Change this value to reload the stages (e.g. after saving settings that affect them). */
+  refreshKey?: number
 }
 
-export function useJobPipeline({ jobId, currentStageId }: UseJobPipelineOptions) {
+export function useJobPipeline({ jobId, currentStageId, refreshKey = 0 }: UseJobPipelineOptions) {
   const [jobTitle, setJobTitle] = useState("")
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,7 +42,20 @@ export function useJobPipeline({ jobId, currentStageId }: UseJobPipelineOptions)
 
         setJobTitle(workflow?.jobTitle || "")
 
+        const quickTest = workflow?.quickTest
         const pipelineStages: PipelineStage[] = [
+          // The quick test happens before an application exists, so it leads the pipeline.
+          ...(quickTest?.enabled || quickTest?.started > 0
+            ? [
+                {
+                  id: "quick-test",
+                  label: "Quick Test",
+                  count: quickTest.started ?? 0,
+                  href: `/admin/jobs/${jobId}/quick-test`,
+                  kind: "quickTest" as const,
+                },
+              ]
+            : []),
           {
             id: "applications",
             label: "Applications",
@@ -69,7 +84,7 @@ export function useJobPipeline({ jobId, currentStageId }: UseJobPipelineOptions)
     return () => {
       cancelled = true
     }
-  }, [jobId])
+  }, [jobId, refreshKey])
 
   return { jobTitle, stages, loading, currentStageId }
 }
@@ -77,13 +92,15 @@ export function useJobPipeline({ jobId, currentStageId }: UseJobPipelineOptions)
 interface JobPipelineHeaderLoaderProps {
   jobId: string
   currentStageId?: string
+  refreshKey?: number
 }
 
 export function JobPipelineHeaderLoader({
   jobId,
   currentStageId,
+  refreshKey,
 }: JobPipelineHeaderLoaderProps) {
-  const { jobTitle, stages, loading } = useJobPipeline({ jobId, currentStageId })
+  const { jobTitle, stages, loading } = useJobPipeline({ jobId, currentStageId, refreshKey })
 
   if (loading || !jobTitle) return null
 

@@ -295,6 +295,31 @@ export default function AiShortlistPage() {
   }, [results])
 
   // Table Columns Definition
+  // Only show quick test columns/cards when at least one candidate has a quick test score.
+  const hasQuickTestScores = results.some((r) => r.quickTestScore !== null)
+
+  const quickTestColumn: ColumnDef<SerializedAiCandidateShortlistResult> = {
+    accessorKey: "quickTestScore",
+    header: "Quick Test",
+    cell: ({ row }) => {
+      const q = row.original.quickTestScore
+      if (q === null) {
+        return <span className="text-muted-foreground text-[11px] bg-muted/60 px-2 py-0.5 rounded">Not taken</span>
+      }
+      return (
+        <div className="space-y-1 min-w-[70px]">
+          <span className="text-xs font-semibold text-foreground">{q}%</span>
+          <div className="w-16 bg-muted rounded-full h-1 overflow-hidden">
+            <div
+              className="bg-amber-500 h-full rounded-full"
+              style={{ width: `${Math.min(100, Math.max(0, q))}%` }}
+            />
+          </div>
+        </div>
+      )
+    },
+  }
+
   const columns: ColumnDef<SerializedAiCandidateShortlistResult>[] = [
     {
       id: "candidate",
@@ -408,6 +433,7 @@ export default function AiShortlistPage() {
         )
       },
     },
+    ...(hasQuickTestScores ? [quickTestColumn] : []),
     {
       accessorKey: "mandatoryRequirementsMet",
       header: "Mandatory Met",
@@ -977,7 +1003,7 @@ export default function AiShortlistPage() {
 
               <div className="p-6 space-y-6 pt-0">
                 {/* 5-Card Score Radar / Metric Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className={`grid grid-cols-2 gap-3 ${selectedResult.quickTestScore !== null ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-5"}`}>
                   <div className="p-3 bg-muted/50 rounded-xl border border-border/60 text-center">
                     <p className="text-[11px] text-muted-foreground font-semibold">Overall Fit</p>
                     <p className="text-xl font-extrabold text-foreground mt-1">
@@ -996,6 +1022,14 @@ export default function AiShortlistPage() {
                       {selectedResult.assessmentScore !== null ? `${selectedResult.assessmentScore}%` : "N/A"}
                     </p>
                   </div>
+                  {selectedResult.quickTestScore !== null && (
+                    <div className="p-3 bg-muted/50 rounded-xl border border-border/60 text-center">
+                      <p className="text-[11px] text-muted-foreground font-semibold">Quick Test</p>
+                      <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
+                        {selectedResult.quickTestScore}%
+                      </p>
+                    </div>
+                  )}
                   <div className="p-3 bg-muted/50 rounded-xl border border-border/60 text-center">
                     <p className="text-[11px] text-muted-foreground font-semibold">Experience</p>
                     <p className="text-xl font-extrabold text-foreground mt-1">

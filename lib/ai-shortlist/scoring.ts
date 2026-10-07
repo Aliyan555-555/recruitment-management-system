@@ -1,4 +1,8 @@
-import { AI_SHORTLIST_THRESHOLDS, AI_SHORTLIST_WEIGHTS } from "@/lib/ai-shortlist/config"
+import {
+  AI_SHORTLIST_QUICK_TEST_WEIGHT,
+  AI_SHORTLIST_THRESHOLDS,
+  AI_SHORTLIST_WEIGHTS,
+} from "@/lib/ai-shortlist/config"
 import { DeterministicMatch } from "@/lib/ai-shortlist/deterministic"
 import { ShortlistEvaluation } from "@/lib/ai/shortlist-evaluator"
 
@@ -11,6 +15,7 @@ export interface CombinedScoreResult {
   experienceScore: number
   successCriteriaScore: number
   assessmentScore: number | null
+  quickTestScore: number | null
   mandatoryRequirementsMet: boolean
   aiConfidence: number
   recommendation: RecommendationType
@@ -20,7 +25,8 @@ export function combineShortlistScore(
   deterministic: DeterministicMatch,
   ai: ShortlistEvaluation,
   weights = AI_SHORTLIST_WEIGHTS,
-  thresholds = AI_SHORTLIST_THRESHOLDS
+  thresholds = AI_SHORTLIST_THRESHOLDS,
+  quickTestWeight: number = AI_SHORTLIST_QUICK_TEST_WEIGHT
 ): CombinedScoreResult {
   const reqSkillsScore = deterministic.requiredSkillCoverage * 100
   const prefSkillsScore = deterministic.preferredSkillCoverage * 100
@@ -28,6 +34,7 @@ export function combineShortlistScore(
   const expScore = ai.experienceScore
   const succScore = ai.successCriteriaScore
   const assessScore = deterministic.assessmentAggregate.averagePercentage
+  const quickTestScore = deterministic.quickTestScore ?? null
 
   // Blended skills score reported to UI with resilience against missing explicit profile tags
   const effectiveReqSkillsScore =
@@ -37,39 +44,29 @@ export function combineShortlistScore(
     Math.round(0.75 * effectiveReqSkillsScore + 0.25 * ai.skillsScore)
   )
 
-  // Weight redistribution if assessment score is null/unassessed
-  let wReq: number = weights.requiredSkills
-  let wPref: number = weights.preferredSkills
-  let wEdu: number = weights.education
-  let wExp: number = weights.experience
-  let wSucc: number = weights.successCriteria
-  let wAssess: number = weights.assessment
+  // Components without data are dropped and the remaining weights are renormalised, so a missing
+  // assessment (or quick test) never counts as a zero. A present quick test always carries
+  // `quickTestWeight` of the total; the other components share the rest.
+  const hasAssessment = assessScore !== null && deterministic.assessmentAggregate.assessedSkillCount > 0
+  const baseComponents: Array<{ score: number; weight: number }> = [
+    { score: effectiveReqSkillsScore, weight: weights.requiredSkills },
+    { score: prefSkillsScore, weight: weights.preferredSkills },
+    ...(hasAssessment ? [{ score: assessScore as number, weight: weights.assessment }] : []),
+    { score: eduScore, weight: weights.education },
+    { score: expScore, weight: weights.experience },
+    { score: succScore, weight: weights.successCriteria },
+  ]
+  const rawWeightSum = baseComponents.reduce((sum, component) => sum + component.weight, 0)
+  // Skip normalisation when the weights already sum to 1 so results stay identical to the original formula.
+  const baseWeightDivisor = Math.abs(rawWeightSum - 1) < 1e-9 ? 1 : rawWeightSum
+  const baseShare = quickTestScore !== null ? 1 - quickTestWeight : 1
 
-  let overallScoreRaw: number
-
-  if (assessScore === null || deterministic.assessmentAggregate.assessedSkillCount === 0) {
-    wAssess = 0
-    const sumActiveWeights = wReq + wPref + wEdu + wExp + wSucc
-    wReq = wReq / sumActiveWeights
-    wPref = wPref / sumActiveWeights
-    wEdu = wEdu / sumActiveWeights
-    wExp = wExp / sumActiveWeights
-    wSucc = wSucc / sumActiveWeights
-
-    overallScoreRaw =
-      effectiveReqSkillsScore * wReq +
-      prefSkillsScore * wPref +
-      eduScore * wEdu +
-      expScore * wExp +
-      succScore * wSucc
-  } else {
-    overallScoreRaw =
-      effectiveReqSkillsScore * wReq +
-      prefSkillsScore * wPref +
-      assessScore * wAssess +
-      eduScore * wEdu +
-      expScore * wExp +
-      succScore * wSucc
+  let overallScoreRaw = baseComponents.reduce(
+    (sum, component) => sum + component.score * (component.weight / baseWeightDivisor) * baseShare,
+    0
+  )
+  if (quickTestScore !== null) {
+    overallScoreRaw += quickTestScore * quickTestWeight
   }
 
   // Confidence dampening (calibration based on profile data completeness)
@@ -123,6 +120,7 @@ export function combineShortlistScore(
     experienceScore: expScore,
     successCriteriaScore: succScore,
     assessmentScore: assessScore,
+    quickTestScore,
     mandatoryRequirementsMet,
     aiConfidence: ai.confidence,
     recommendation,

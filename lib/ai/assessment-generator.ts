@@ -19,7 +19,7 @@ export class AssessmentGenerationError extends Error {
   }
 }
 
-function stripCodeFences(raw: string): string {
+export function stripCodeFences(raw: string): string {
   const trimmed = raw.trim()
   if (trimmed.startsWith("```")) {
     const lines = trimmed.split("\n")
@@ -36,7 +36,7 @@ function stripCodeFences(raw: string): string {
   return trimmed
 }
 
-function normalizePoints(
+export function normalizePoints(
   questions: GeneratedAssessmentQuestion[],
   maxPoints: number
 ): GeneratedAssessmentQuestion[] {
@@ -133,7 +133,7 @@ function parseAndValidateQuestions(
 /**
  * High-quality fallback questions in case AI service is unavailable or exhausted
  */
-function getFallbackQuestions(skill: string, count: number, maxPoints: number): GeneratedAssessmentQuestion[] {
+export function getFallbackQuestions(skill: string, count: number, maxPoints: number): GeneratedAssessmentQuestion[] {
   const skillLower = skill.toLowerCase()
   let pool: Array<{ question: string; options: [string, string, string, string]; correct: string }> = []
 

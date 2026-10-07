@@ -33,6 +33,7 @@ export type SerializedAiCandidateShortlistResult = {
   experienceScore: number | null
   successCriteriaScore: number | null
   assessmentScore: number | null
+  quickTestScore: number | null
   mandatoryRequirementsMet: boolean | null
   aiConfidence: number | null
   recommendation: string | null
@@ -112,6 +113,7 @@ export function serializeShortlistResult(
     experienceScore: result.experienceScore ?? null,
     successCriteriaScore: result.successCriteriaScore ?? null,
     assessmentScore: result.assessmentScore ?? null,
+    quickTestScore: result.quickTestScore ?? null,
     mandatoryRequirementsMet: result.mandatoryRequirementsMet ?? null,
     aiConfidence: result.aiConfidence ?? null,
     recommendation: result.recommendation ?? null,

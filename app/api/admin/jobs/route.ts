@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { generateJobCode } from "@/lib/utils"
 import { parseAndValidateSkillNames } from "@/lib/skills"
+import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
 
 // Helper function to convert stepType to human-readable stepName
 function getStepNameFromType(stepType: string): string {
@@ -68,6 +69,7 @@ interface CreateJobRequest {
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   workflowSteps: WorkflowStepInput[]
+  quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
 
 export async function POST(req: NextRequest) {
@@ -84,6 +86,11 @@ export async function POST(req: NextRequest) {
     const body: CreateJobRequest = await req.json()
     const now = BigInt(Math.floor(Date.now() / 1000))
     const adminId = BigInt(user.id)
+
+    const quickTestResult = parseQuickTestConfigInput(body.quickTest)
+    if (!quickTestResult.ok) {
+      return NextResponse.json({ error: quickTestResult.error }, { status: 400 })
+    }
 
     // Validate workflow steps
     if (!body.workflowSteps || body.workflowSteps.length === 0) {
@@ -340,6 +347,10 @@ export async function POST(req: NextRequest) {
           }
         }
       })
+
+      if (quickTestResult.value) {
+        await upsertJobQuickTest(tx, newJob.id, quickTestResult.value)
+      }
 
       return { job: newJob, workflow }
     })

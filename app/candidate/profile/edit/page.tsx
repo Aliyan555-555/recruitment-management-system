@@ -817,7 +817,7 @@ export default function EditProfilePage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Skills</CardTitle>
-              <CardDescription>Add your technical skills and verify them with AI assessments.</CardDescription>
+              <CardDescription>Add your technical skills. Verifying them with an AI assessment is optional and strengthens your profile.</CardDescription>
             </div>
             {!showAddSkill && (
               <Button size="sm" onClick={() => setShowAddSkill(true)}>
@@ -843,7 +843,7 @@ export default function EditProfilePage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Skills are stored in uppercase without spaces. Proficiency is set after you pass the AI assessment.
+                    Skills are stored in uppercase without spaces. Proficiency is set if you choose to take the optional AI assessment.
                   </p>
                 </div>
                 <div className="flex gap-2">

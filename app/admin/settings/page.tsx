@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Save, Building2, Upload, Globe, Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Instagram } from "lucide-react"
 import { toast } from "sonner"
 import { EducationLevelsManager } from "@/components/admin/EducationLevelsManager"
+import { AiSettingsCard } from "@/components/admin/AiSettingsCard"
 
 interface OrganizationSettings {
   id: string
@@ -379,6 +380,8 @@ export default function AdminSettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <AiSettingsCard />
 
         <EducationLevelsManager />
       </div>

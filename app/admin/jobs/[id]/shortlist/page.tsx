@@ -24,6 +24,7 @@ interface Candidate {
   actionBlockedReason?: string | null
   statusLabel?: string | null
   pipelineStatus?: string | null
+  quickTestScore?: number | null
 }
 
 interface ShortlistCounts {
@@ -157,6 +158,7 @@ export default function ShortlistPage() {
   ]
 
   const showActions = activeTab === "applied"
+  const hasQuickTestScores = candidates.some((candidate) => candidate.quickTestScore != null)
   const actionableCandidates = candidates.filter((c) => c.actionable !== false)
   const isEmpty = !loading && candidates.length === 0
 
@@ -334,6 +336,11 @@ export default function ShortlistPage() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">
                   Status
                 </th>
+                {hasQuickTestScores && (
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">
+                    Quick Test
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-sm font-semibold text-muted-foreground">
                   Applied
                 </th>
@@ -387,6 +394,15 @@ export default function ShortlistPage() {
                       {candidate.statusLabel || formatApplicationStatus(candidate.status)}
                     </span>
                   </td>
+                  {hasQuickTestScores && (
+                    <td className="px-6 py-4 text-sm">
+                      {candidate.quickTestScore != null ? (
+                        <span className="font-semibold text-foreground">{candidate.quickTestScore}%</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Not taken</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-sm text-muted-foreground">
                     {new Date(Number(candidate.appliedAt) * 1000).toLocaleDateString()}
                   </td>

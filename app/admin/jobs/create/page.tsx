@@ -6,6 +6,13 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { toast } from "sonner"
 import { addSkillToList, sanitizeSkillInput } from "@/lib/skills"
+import {
+  DEFAULT_QUICK_TEST_FORM,
+  QuickTestConfigCard,
+  toQuickTestPayload,
+  validateQuickTestForm,
+  type QuickTestFormValue,
+} from "@/components/admin/QuickTestConfigCard"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
@@ -140,6 +147,9 @@ export default function CreateJobPage() {
   ]
 
   // Interviewer selection removed - interviewers will be assigned later in the process
+
+  const [quickTest, setQuickTest] = useState<QuickTestFormValue>(DEFAULT_QUICK_TEST_FORM)
+  const [quickTestError, setQuickTestError] = useState<string | null>(null)
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
     {
@@ -447,6 +457,12 @@ export default function CreateJobPage() {
 
     setErrors(newErrors)
 
+    const quickTestValidationError = validateQuickTestForm(quickTest)
+    setQuickTestError(quickTestValidationError)
+    if (quickTestValidationError) {
+      return false
+    }
+
     // Check if there are any errors (including nested workflow step errors)
     const topLevelKeys = Object.keys(newErrors).filter(key => key !== 'workflowSteps')
     if (topLevelKeys.length > 0) {
@@ -652,6 +668,7 @@ export default function CreateJobPage() {
           status: formData.status,
           skills: formData.skills,
           workflowSteps: transformedSteps,
+          quickTest: toQuickTestPayload(quickTest),
           locations,
           educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
         }),
@@ -1402,6 +1419,9 @@ export default function CreateJobPage() {
               </ul>
             )}
           </div>
+
+          {/* Quick Test (pre-application) */}
+          <QuickTestConfigCard value={quickTest} onChange={setQuickTest} error={quickTestError} />
 
           {/* Workflow Steps */}
           <div className="bg-card rounded-lg shadow p-6 border border-border">

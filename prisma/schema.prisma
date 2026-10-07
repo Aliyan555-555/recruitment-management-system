@@ -61,6 +61,7 @@ model User {
   auditLogs               AuditLog[]              @relation("AuditLogs")
   notifications           Notification[]          @relation("UserNotifications")
   slotBookings            SlotBooking[]
+  quickTestAttempts       QuickTestAttempt[]
   stageEvaluations        StageEvaluation[]
   lois                    LetterOfIntent[]        @relation("CandidateLOIs")
   offerLetters            OfferLetter[]           @relation("CandidateOfferLetters")
@@ -356,6 +357,8 @@ model Job {
   offerLetters          OfferLetter[]
   aiShortlistRuns       AiShortlistRun[]
   aiShortlistResults    AiCandidateShortlistResult[]
+  quickTest             JobQuickTest?
+  quickTestAttempts     QuickTestAttempt[]
 
   @@index([createdBy])
   @@index([updatedBy])
@@ -991,6 +994,21 @@ model OrganizationSettings {
   @@map("organization_settings")
 }
 
+/// Singleton row holding admin-managed AI provider config.
+/// The API token is stored encrypted (AES-256-GCM, see lib/ai/secret-crypto.ts) and is never returned by any API.
+model AiSettings {
+  id             BigInt  @id @default(autoincrement())
+  endpoint       String? @db.VarChar(500)
+  model          String? @db.VarChar(200)
+  fallbackModel  String? @map("fallback_model") @db.VarChar(200)
+  encryptedToken String? @map("encrypted_token") @db.Text
+  tokenHint      String? @map("token_hint") @db.VarChar(8)
+  updatedBy      BigInt? @map("updated_by")
+  updatedAt      BigInt  @map("updated_at")
+
+  @@map("ai_settings")
+}
+
 // ============================================
 // AI Shortlisting
 // ============================================
@@ -1038,6 +1056,7 @@ model AiCandidateShortlistResult {
   experienceScore               Int?                        @map("experience_score")
   successCriteriaScore             Int?                        @map("success_criteria_score")
   assessmentScore                    Int?                        @map("assessment_score")
+  quickTestScore                     Int?                        @map("quick_test_score")
   mandatoryRequirementsMet  Boolean?                    @map("mandatory_requirements_met")
   aiConfidence              Int?                        @map("ai_confidence")
   recommendation            AiShortlistRecommendation?
@@ -1075,3 +1094,93 @@ enum AiShortlistRecommendation {
   REJECT
 }
 
+
+
+// ============================================
+// QUICK TEST (pre-application test)
+// ============================================
+
+model JobQuickTest {
+  id               BigInt  @id @default(autoincrement())
+  jobId            BigInt  @unique @map("job_id")
+  isEnabled        Boolean @default(true) @map("is_enabled")
+  questionCount    Int     @default(10) @map("question_count")
+  timeLimitMinutes Int     @default(15) @map("time_limit_minutes")
+  createdAt        BigInt  @map("created_at")
+  updatedAt        BigInt  @map("updated_at")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_quick_test")
+}
+
+enum QuickTestAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
+model QuickTestAttempt {
+  id               BigInt                 @id @default(autoincrement())
+  jobId            BigInt                 @map("job_id")
+  userId           BigInt                 @map("user_id")
+  status           QuickTestAttemptStatus @default(IN_PROGRESS)
+  questionCount    Int                    @map("question_count")
+  timeLimitMinutes Int                    @map("time_limit_minutes")
+  maxPoints        Int                    @default(100) @map("max_points")
+  scoredPoints     Int?                   @map("scored_points")
+  scorePercent     Int?                   @map("score_percent")
+  aiModel          String?                @map("ai_model")
+  applicationId    BigInt?                @map("application_id")
+  startedAt        BigInt                 @map("started_at")
+  expiresAt        BigInt                 @map("expires_at")
+  submittedAt      BigInt?                @map("submitted_at")
+  createdAt        BigInt                 @map("created_at")
+  updatedAt        BigInt                 @map("updated_at")
+
+  job       Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions QuickTestQuestion[]
+  answers   QuickTestAnswer[]
+
+  @@unique([jobId, userId])
+  @@index([jobId])
+  @@index([userId])
+  @@index([status])
+  @@map("quick_test_attempt")
+}
+
+model QuickTestQuestion {
+  id            BigInt @id @default(autoincrement())
+  attemptId     BigInt @map("attempt_id")
+  question      String @db.Text
+  options       Json
+  correctOption String @map("correct_option") @db.VarChar(500)
+  points        Int
+  order         Int
+
+  attempt QuickTestAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  answers QuickTestAnswer[]
+
+  @@unique([attemptId, order])
+  @@index([attemptId])
+  @@map("quick_test_question")
+}
+
+model QuickTestAnswer {
+  id             BigInt  @id @default(autoincrement())
+  attemptId      BigInt  @map("attempt_id")
+  questionId     BigInt  @map("question_id")
+  selectedOption String  @map("selected_option") @db.VarChar(500)
+  isCorrect      Boolean @default(false) @map("is_correct")
+  pointsAwarded  Int     @default(0) @map("points_awarded")
+  createdAt      BigInt  @map("created_at")
+  updatedAt      BigInt  @map("updated_at")
+
+  attempt  QuickTestAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question QuickTestQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@map("quick_test_answer")
+}

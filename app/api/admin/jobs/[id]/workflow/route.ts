@@ -83,6 +83,11 @@ export async function GET(
       }
     })
 
+    const [quickTestConfig, quickTestStarted] = await Promise.all([
+      prisma.jobQuickTest.findUnique({ where: { jobId: job.id }, select: { isEnabled: true } }),
+      prisma.quickTestAttempt.count({ where: { jobId: job.id } }),
+    ])
+
     return NextResponse.json({
       workflow: {
         id: job.workflow.id.toString(),
@@ -93,6 +98,10 @@ export async function GET(
           shortlisted: shortlistedApps,
           rejected: rejectedApps,
           total: needsReview + shortlistedApps + rejectedApps,
+        },
+        quickTest: {
+          enabled: quickTestConfig?.isEnabled ?? false,
+          started: quickTestStarted,
         },
         rounds: roundsWithStats
       }

@@ -147,4 +147,18 @@ describe("buildAiPromptPayload", () => {
     assert.equal(payload.deterministic.requiredSkillCoveragePercent, 100)
     assert.equal(payload.deterministic.assessmentAverageScore, "85%")
   })
+
+  it("reports the quick test score or 'Not Taken' in the AI payload", () => {
+    const withTest = { ...sampleCandidate, quickTestPercentage: 72 }
+    const matchWith = computeDeterministicMatch(sampleJob, withTest)
+    assert.equal(matchWith.quickTestScore, 72)
+    assert.equal(buildAiPromptPayload(sampleJob, matchWith, withTest).deterministic.quickTestScore, "72%")
+
+    const matchWithout = computeDeterministicMatch(sampleJob, sampleCandidate)
+    assert.equal(matchWithout.quickTestScore, null)
+    assert.equal(
+      buildAiPromptPayload(sampleJob, matchWithout, sampleCandidate).deterministic.quickTestScore,
+      "Not Taken"
+    )
+  })
 })

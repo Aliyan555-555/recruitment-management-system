@@ -58,6 +58,21 @@ export async function GET(
       },
     })
 
+    // Quick test scores for this job's applicants (one query)
+    const quickTestAttempts = applications.length
+      ? await prisma.quickTestAttempt.findMany({
+          where: {
+            jobId,
+            userId: { in: applications.map((app) => app.userId) },
+            status: { in: ["SUBMITTED", "EXPIRED"] },
+          },
+          select: { userId: true, scorePercent: true },
+        })
+      : []
+    const quickTestScoreByUser = new Map(
+      quickTestAttempts.map((attempt) => [attempt.userId.toString(), attempt.scorePercent])
+    )
+
     const classified = applications.map((app) => {
       const eligibility = eligibilityFromApplication(app)
       return { app, eligibility }
@@ -96,6 +111,7 @@ export async function GET(
         actionable: eligibility.actionable,
         actionBlockedReason: eligibility.actionBlockedReason,
         statusLabel: eligibility.statusLabel,
+        quickTestScore: quickTestScoreByUser.get(app.userId.toString()) ?? null,
         profile: {
           name: `${app.user.firstname} ${app.user.lastname}`,
           email: app.user.email,

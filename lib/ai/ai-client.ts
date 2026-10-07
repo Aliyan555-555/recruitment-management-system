@@ -2,7 +2,10 @@
  * Universal AI Completion Client
  * Supports Google Gemini (native generateContent and OpenAI-compatible),
  * OpenRouter, GitHub Models, Azure AI Inference, and standard OpenAI.
+ * Provider credentials come from getAiConfig() (admin settings, env fallback).
  */
+
+import { getAiConfig } from "@/lib/ai/ai-config"
 
 export interface AiChatOptions {
   systemPrompt: string
@@ -22,11 +25,6 @@ export class AiClientError extends Error {
   }
 }
 
-function cleanEndpoint(rawEndpoint?: string): string {
-  if (!rawEndpoint) return "https://openrouter.ai/api/v1"
-  return rawEndpoint.trim().replace(/\/+$/, "")
-}
-
 function isGeminiEndpointOrKey(endpoint: string, token: string): boolean {
   return (
     endpoint.includes("generativelanguage.googleapis.com") ||
@@ -44,12 +42,9 @@ async function callGeminiNative(
   options: AiChatOptions
 ): Promise<string> {
   const cleanModel = model.includes("/") ? model.split("/").pop()! : model
-  const candidateModels = [
-    cleanModel,
-    "gemini-1.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-  ].filter((m, i, arr) => arr.indexOf(m) === i)
+  // Only the admin-configured model is used; silently substituting other models
+  // masked real misconfiguration and Google retires model names regularly.
+  const candidateModels = [cleanModel]
 
   let lastError: Error | null = null
 
@@ -180,18 +175,69 @@ async function callOpenAiCompatible(
  * Universal AI chat completion
  */
 export async function callAiChat(options: AiChatOptions): Promise<string> {
-  const token = (process.env.AI_INFERENCE_TOKEN ?? process.env.GITHUB_TOKEN ?? "").trim()
+  const { token, endpoint, model, fallbackModel } = await getAiConfig()
   if (!token) {
-    throw new AiClientError("AI inference token is not configured (AI_INFERENCE_TOKEN or GITHUB_TOKEN)")
+    throw new AiClientError("AI token is not configured. An admin can set it under Settings → AI Configuration.")
   }
 
-  const endpoint = cleanEndpoint(process.env.AI_INFERENCE_ENDPOINT)
-  const model = (process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free").trim()
+  const models = fallbackModel && fallbackModel !== model ? [model, fallbackModel] : [model]
+  let lastError: unknown
 
+  for (const [index, m] of models.entries()) {
+    try {
+      return await callModelWithRetry(endpoint, m, token, options)
+    } catch (err) {
+      lastError = err
+      if (index < models.length - 1 && isModelUnavailable(err)) {
+        console.warn(`[AI Client] Model '${m}' unavailable, switching to fallback model '${models[index + 1]}'`)
+        continue
+      }
+      throw err
+    }
+  }
+  throw lastError
+}
+
+/** Overloaded / rate limited / server error / model retired: worth trying another model. */
+function isModelUnavailable(err: unknown): boolean {
+  if (!(err instanceof AiClientError)) return false
+  const s = err.statusCode
+  return s === 404 || s === 429 || (s !== undefined && s >= 500)
+}
+
+/** Retry transient failures (429/5xx) with backoff before giving up on a model. */
+async function callModelWithRetry(
+  endpoint: string,
+  model: string,
+  token: string,
+  options: AiChatOptions
+): Promise<string> {
+  const delaysMs = [1000, 3000]
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await callModelOnce(endpoint, model, token, options)
+    } catch (err) {
+      const s = err instanceof AiClientError ? err.statusCode : undefined
+      const transient = s === 429 || (s !== undefined && s >= 500)
+      if (!transient || attempt >= delaysMs.length) throw err
+      console.warn(`[AI Client] '${model}' returned ${s}, retrying in ${delaysMs[attempt]}ms`)
+      await new Promise((r) => setTimeout(r, delaysMs[attempt]))
+    }
+  }
+}
+
+async function callModelOnce(
+  endpoint: string,
+  model: string,
+  token: string,
+  options: AiChatOptions
+): Promise<string> {
   if (isGeminiEndpointOrKey(endpoint, token)) {
     try {
       return await callGeminiNative(model, token, options)
     } catch (geminiError: any) {
+      // 404 (bad/retired model) and 429/5xx (overload) would fail identically on the compat endpoint.
+      if (geminiError instanceof AiClientError && isModelUnavailable(geminiError)) throw geminiError
       console.warn("[AI Client] Gemini native call failed, trying OpenAI compatibility fallback:", geminiError?.message)
       const openAiUrl = "https://generativelanguage.googleapis.com/v1beta/openai"
       return await callOpenAiCompatible(openAiUrl, model.includes("/") ? model.split("/").pop()! : model, token, options)

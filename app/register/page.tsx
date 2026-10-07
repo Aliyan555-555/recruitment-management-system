@@ -488,7 +488,7 @@ export default function RegisterPage() {
   if (success) {
     const loginUrl = jobId
       ? `/login?jobId=${jobId}`
-      : "/login?callbackUrl=/candidate/assessments/required"
+      : "/login"
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted px-4">
@@ -504,13 +504,13 @@ export default function RegisterPage() {
           </CardHeader>
           <CardContent className="text-center space-y-2">
             <p className="text-muted-foreground">
-              Sign in to complete AI skill assessments for all skills on your profile before
-              applying to jobs.
+              Sign in to start applying to jobs. You can optionally verify your skills with AI
+              assessments from your profile to make it stand out.
             </p>
           </CardContent>
           <CardFooter className="flex justify-center gap-4 flex-wrap">
             <Button onClick={() => router.push(loginUrl)} className="min-w-[180px]">
-              Sign in &amp; start assessments
+              Sign in
             </Button>
           </CardFooter>
         </Card>

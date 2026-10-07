@@ -1,4 +1,6 @@
+import { getEnabledQuickTest } from "@/lib/services/quick-test-service"
 import { prisma } from "@/lib/prisma"
+import { getAiModelName } from "@/lib/ai/ai-config"
 import { checkRateLimit } from "@/lib/rate-limit"
 import {
   eligibilityFromApplication,
@@ -134,7 +136,7 @@ export async function startShortlistRun(
           triggeredBy: adminUserId,
           status: "RUNNING",
           totalCandidates: candidateApps.length,
-          aiModel: process.env.AI_INFERENCE_MODEL ?? "openai/gpt-oss-20b:free",
+          aiModel: await getAiModelName(),
           startedAt: nowBigInt,
           createdAt: nowBigInt,
         },
@@ -256,6 +258,24 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
 
   const assessmentPercentageMap = buildSkillPercentageMap(lastAssessments)
 
+  // Quick test scores (one query for all candidates). Only used while the job's quick test is enabled.
+  const quickTestScoreMap = new Map<string, number>()
+  if (await getEnabledQuickTest(run.jobId)) {
+    const quickTestAttempts = await prisma.quickTestAttempt.findMany({
+      where: {
+        jobId: run.jobId,
+        userId: { in: candidateIds },
+        status: { in: ["SUBMITTED", "EXPIRED"] },
+      },
+      select: { userId: true, scorePercent: true },
+    })
+    for (const attempt of quickTestAttempts) {
+      if (attempt.scorePercent != null) {
+        quickTestScoreMap.set(attempt.userId.toString(), attempt.scorePercent)
+      }
+    }
+  }
+
   // Map pre-fetched candidate data by stringified user ID
   const usersMap = new Map(users.map((u) => [u.id.toString(), u]))
   const skillsMap = new Map<string, typeof userSkills>()
@@ -337,6 +357,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
       experiences: expsMap.get(userIdStr) ?? [],
       profileDetail: profilesMap.get(userIdStr) ?? null,
       assessmentPercentageMap,
+      quickTestPercentage: quickTestScoreMap.get(userIdStr) ?? null,
     }
 
     try {
@@ -366,6 +387,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
           experienceScore: combined.experienceScore,
           successCriteriaScore: combined.successCriteriaScore,
           assessmentScore: combined.assessmentScore,
+          quickTestScore: combined.quickTestScore,
           mandatoryRequirementsMet: combined.mandatoryRequirementsMet,
           aiConfidence: combined.aiConfidence,
           recommendation: combined.recommendation,
@@ -387,6 +409,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
           experienceScore: combined.experienceScore,
           successCriteriaScore: combined.successCriteriaScore,
           assessmentScore: combined.assessmentScore,
+          quickTestScore: combined.quickTestScore,
           mandatoryRequirementsMet: combined.mandatoryRequirementsMet,
           aiConfidence: combined.aiConfidence,
           recommendation: combined.recommendation,

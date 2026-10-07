@@ -4,10 +4,9 @@ import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Navbar } from "@/components/Navbar"
-import { JobDetails } from "@/components/JobDetails"
+import { JobDetails, type QuickTestInfo } from "@/components/JobDetails"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { MandatoryAssessmentRedirect } from "@/components/candidate/useMandatoryAssessmentRedirect"
 
 interface JobLocation {
   city: string
@@ -53,6 +52,7 @@ export default function JobDetailsPage() {
   const [job, setJob] = useState<Job | null>(null)
   const [hasApplied, setHasApplied] = useState(false)
   const [application, setApplication] = useState<Application | null>(null)
+  const [quickTest, setQuickTest] = useState<QuickTestInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -95,6 +95,7 @@ export default function JobDetailsPage() {
       setJob(data.job)
       setHasApplied(data.hasApplied)
       setApplication(data.application)
+      setQuickTest(data.quickTest ?? null)
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to fetch job details"
@@ -197,7 +198,6 @@ export default function JobDetailsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted">
-      <MandatoryAssessmentRedirect />
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <JobDetails
@@ -208,6 +208,7 @@ export default function JobDetailsPage() {
           }}
           hasApplied={hasApplied}
           application={application}
+          quickTest={quickTest}
           isPublic={status === "unauthenticated"}
         />
       </main>

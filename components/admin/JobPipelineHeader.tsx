@@ -8,7 +8,7 @@ export interface PipelineStage {
   label: string
   count: number
   href: string
-  kind: "applications" | "round"
+  kind: "applications" | "round" | "quickTest"
 }
 
 interface JobPipelineHeaderProps {

@@ -5,7 +5,11 @@ import { notifyAdminNewApplication, notifyInterviewerAssignment } from "@/lib/no
 import { sendApplicationConfirmationEmail, sendInterviewerAssignmentEmail, sendAdminNewApplicationEmail } from "@/lib/email"
 import { handleBulkApplication } from "@/lib/services/bulk-hiring-service"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
-import { getMandatoryAssessmentStatus } from "@/lib/assessments/mandatory"
+import {
+  getEnabledQuickTest,
+  hasCompletedQuickTest,
+  linkAttemptToApplication,
+} from "@/lib/services/quick-test-service"
 
 export async function POST(
   req: NextRequest,
@@ -16,21 +20,6 @@ export async function POST(
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const mandatoryStatus = await getMandatoryAssessmentStatus(BigInt(session.user.id))
-    if (mandatoryStatus.required) {
-      return NextResponse.json(
-        {
-          error:
-            mandatoryStatus.reason === "no_skills"
-              ? "Add skills to your profile and complete AI assessments before applying."
-              : "Complete AI assessments for all skills before applying to jobs.",
-          code: "MANDATORY_ASSESSMENTS_PENDING",
-          redirectTo: "/candidate/assessments/required",
-        },
-        { status: 403 }
-      )
     }
 
     const body = await req.json()
@@ -76,6 +65,19 @@ export async function POST(
       )
     }
 
+    // Jobs with a quick test require a finished attempt before the application can be created
+    const quickTestConfig = await getEnabledQuickTest(jobId)
+    if (quickTestConfig && !(await hasCompletedQuickTest(jobId, userIdBig))) {
+      return NextResponse.json(
+        {
+          error: "Complete the quick test before submitting your application.",
+          code: "QUICK_TEST_REQUIRED",
+          redirectTo: `/candidate/quick-test/${jobId.toString()}`,
+        },
+        { status: 403 }
+      )
+    }
+
     // Handle bulk hiring differently
     if (job.jobType === "BULK") {
       // Check if job is still accepting applications
@@ -89,6 +91,7 @@ export async function POST(
       // Use bulk application handler
       try {
         const applicationId = await handleBulkApplication(jobId, userIdBig)
+        await linkAttemptToApplication(jobId, userIdBig, applicationId)
         
         const application = await prisma.jobsApplied.findUnique({
           where: { id: applicationId },
@@ -196,6 +199,8 @@ export async function POST(
         }
       }
     })
+
+    await linkAttemptToApplication(jobId, userIdBig, application.id)
 
     const candidateName = `${application.user.firstname} ${application.user.lastname}`
     const jobTitle = application.job.title

@@ -100,6 +100,28 @@ $$W_{new} = \frac{W_{standard}}{\sum \text{Active Weights}} = \frac{W_{standard}
 
 ---
 
+### Quick Test Score (Jobs With a Pre-Application Quick Test)
+
+When an admin enables a **Quick Test** on a job, candidates take a timed, AI-generated test before their application is submitted. Their score ($S_{quick}$, 0-100) is added as a seventh component with a fixed **15%** weight (`AI_SHORTLIST_QUICK_TEST_WEIGHT` in `lib/ai-shortlist/config.ts`).
+
+* The six standard components above are scaled to share the remaining **85%**, keeping their relative proportions: $W_{final} = W_{normalized} 	imes 0.85$ (e.g. Required Skills `0.30` becomes `0.255`).
+* If the Assessment Score is also missing, the five remaining standard components are first renormalised to 100% as described above, and then scaled by 0.85. The quick test always carries exactly 15%.
+* If the job has **no quick test**, or the candidate has **no quick test score** (for example they applied before the test was enabled), the quick test is dropped and scoring is **identical to the six-weight formula** above. A missing quick test is never counted as zero.
+* The quick test score is shown in the AI Shortlist table and candidate dialog, in the manual shortlist queue, and is passed to the AI evaluator as context ("Quick test score: NN%" or "Not Taken"). It does not take part in the mandatory-requirements check.
+* Each candidate gets **one attempt** with no pass mark. If the timer runs out, the answers saved so far are scored and unanswered questions count as incorrect.
+
+| Category | Weight with quick test | Weight without |
+| :--- | :--- | :--- |
+| Required Skills | 25.5% | 30% |
+| Preferred Skills | 8.5% | 10% |
+| Assessment Score | 17% | 20% |
+| Education Score | 12.75% | 15% |
+| Experience Score | 12.75% | 15% |
+| Success Criteria | 8.5% | 10% |
+| **Quick Test** | **15%** | - |
+
+---
+
 ### Step-by-Step Overall Score Formula
 
 #### Step 1: Compute Raw Overall Score ($Score_{raw}$)

@@ -6,6 +6,13 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { toast } from "sonner"
 import { addSkillToList, sanitizeSkillInput } from "@/lib/skills"
+import {
+  DEFAULT_QUICK_TEST_FORM,
+  QuickTestConfigCard,
+  toQuickTestPayload,
+  validateQuickTestForm,
+  type QuickTestFormValue,
+} from "@/components/admin/QuickTestConfigCard"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
@@ -116,6 +123,8 @@ export default function EditJobPage() {
 
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
+  const [quickTest, setQuickTest] = useState<QuickTestFormValue>(DEFAULT_QUICK_TEST_FORM)
+  const [quickTestError, setQuickTestError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
   // Load job data and education levels
@@ -146,6 +155,14 @@ export default function EditJobPage() {
         }
         const data = await res.json()
         const job = data.job
+
+        if (job.quickTest) {
+          setQuickTest({
+            enabled: !!job.quickTest.enabled,
+            questionCount: job.quickTest.questionCount ?? DEFAULT_QUICK_TEST_FORM.questionCount,
+            timeLimitMinutes: job.quickTest.timeLimitMinutes ?? DEFAULT_QUICK_TEST_FORM.timeLimitMinutes,
+          })
+        }
 
         // Populate form data
         setFormData({
@@ -486,7 +503,9 @@ export default function EditJobPage() {
 
     const cleanedErrors = pruneFormErrors(newErrors)
     setErrors(cleanedErrors)
-    return Object.keys(cleanedErrors).length === 0
+    const quickTestValidationError = validateQuickTestForm(quickTest)
+    setQuickTestError(quickTestValidationError)
+    return Object.keys(cleanedErrors).length === 0 && !quickTestValidationError
   }
 
   const handleBlur = (fieldName: string, value: any) => {
@@ -630,6 +649,7 @@ export default function EditJobPage() {
         status: formData.status,
         skills: formData.skills,
         workflowSteps: transformedSteps,
+        quickTest: toQuickTestPayload(quickTest),
         locations: locations,
         educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
       }
@@ -1327,6 +1347,9 @@ export default function EditJobPage() {
               </ul>
             )}
           </div>
+
+          {/* Quick Test (pre-application) */}
+          <QuickTestConfigCard value={quickTest} onChange={setQuickTest} error={quickTestError} />
 
           {/* Workflow Steps */}
           <div className="bg-card rounded-lg shadow p-6 border border-border">

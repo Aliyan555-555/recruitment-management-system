@@ -68,6 +68,8 @@ export interface CandidateProfileBundle {
   experiences: CandidateExperienceItem[]
   profileDetail?: CandidateProfileDetailItem | null
   assessmentPercentageMap?: Map<string, number | null>
+  /** Candidate's quick test score (0-100) for this job, when the job has a quick test and they took it. */
+  quickTestPercentage?: number | null
 }
 
 export interface DeterministicMatch {
@@ -82,6 +84,7 @@ export interface DeterministicMatch {
     assessedSkillCount: number
     totalRelevantSkillCount: number
   }
+  quickTestScore?: number | null
 }
 
 export interface ShortlistAiPromptPayload {
@@ -116,6 +119,7 @@ export interface ShortlistAiPromptPayload {
     requiredSkillCoveragePercent: number
     preferredSkillCoveragePercent: number
     assessmentAverageScore: string
+    quickTestScore: string
   }
 }
 
@@ -260,6 +264,7 @@ export function computeDeterministicMatch(
       assessedSkillCount: assessedCount,
       totalRelevantSkillCount: job.skills.length,
     },
+    quickTestScore: candidate.quickTestPercentage ?? null,
   }
 }
 
@@ -360,6 +365,8 @@ export function buildAiPromptPayload(
         deterministic.assessmentAggregate.averagePercentage !== null
           ? `${deterministic.assessmentAggregate.averagePercentage}%`
           : "Not Assessed",
+      quickTestScore:
+        deterministic.quickTestScore != null ? `${deterministic.quickTestScore}%` : "Not Taken",
     },
   }
 }
