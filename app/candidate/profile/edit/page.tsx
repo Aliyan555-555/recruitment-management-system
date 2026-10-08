@@ -34,6 +34,8 @@ import {
   validateAndNormalizeSkillName,
 } from "@/lib/skills"
 
+import { InstituteSelect } from "@/components/InstituteSelect"
+
 export default function EditProfilePage() {
   const router = useRouter()
   // const { toast } = useToast() // Removed hook
@@ -41,7 +43,7 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string }>>([])
+  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string; rank?: number }>>([])
 
   // Personal Info State
   const [title, setTitle] = useState("")
@@ -80,6 +82,7 @@ export default function EditProfilePage() {
     educationLevelId: "",
     degreeTitle: "",
     institute: "",
+    instituteId: "",
     majorSubject: "",
     grade: "",
     passingYear: ""
@@ -120,7 +123,7 @@ export default function EditProfilePage() {
   const [thirdPriority, setThirdPriority] = useState("")
   const [summary, setSummary] = useState("")
 
-  type DegreeOption = { value: string; label: string }
+  type DegreeOption = { value: string; label: string; rank: number }
 
   // Priority Options (Matching Signup)
   const priorityOptions = [
@@ -134,16 +137,22 @@ export default function EditProfilePage() {
 
   const degreeOptions = useMemo<DegreeOption[]>(() => {
     if (!educationLevels.length) return []
-    return educationLevels.map((level) => ({
-      value: level.id.toString(),
-      label: level.name ?? level.id.toString(),
-    }))
+    // "No formal education" (rank 0) is only meaningful as a job minimum
+    return educationLevels
+      .filter((level) => (level.rank ?? 1) > 0)
+      .map((level) => ({
+        value: level.id.toString(),
+        label: level.name ?? level.id.toString(),
+        rank: level.rank ?? 40,
+      }))
   }, [educationLevels])
+
+  const newEduRank = degreeOptions.find((o) => o.value === newEducation.educationLevelId)?.rank ?? 40
 
   useEffect(() => {
     if (!educationLevels.length) return
     if (newEducation.educationLevelId) return
-    const firstId = educationLevels[0]?.id?.toString()
+    const firstId = educationLevels.find((l) => (l.rank ?? 1) > 0)?.id?.toString()
     if (firstId) {
       setNewEducation((prev) => ({ ...prev, educationLevelId: firstId }))
     }
@@ -271,6 +280,11 @@ export default function EditProfilePage() {
   }, [])
 
   const handleSave = async () => {
+    if (!dateOfBirth) {
+      setError("Date of birth is required")
+      toast.error("Date of birth is required")
+      return
+    }
     try {
       setSaving(true)
       setError(null)
@@ -343,6 +357,10 @@ export default function EditProfilePage() {
       toast.error("Validation Error", { description: "Degree title and level are required" })
       return
     }
+    if (!newEducation.institute.trim()) {
+      toast.error("Validation Error", { description: newEduRank < 30 ? "School / college name is required" : "Institute is required" })
+      return
+    }
     try {
       const res = await fetch("/api/profile/education", {
         method: "POST",
@@ -352,7 +370,7 @@ export default function EditProfilePage() {
       if (!res.ok) throw new Error("Failed to add education")
       const edu = await res.json()
       setEducations([edu, ...educations])
-      setNewEducation({ educationLevelId: "", degreeTitle: "", institute: "", majorSubject: "", grade: "", passingYear: "" })
+      setNewEducation({ educationLevelId: "", degreeTitle: "", institute: "", instituteId: "", majorSubject: "", grade: "", passingYear: "" })
       setShowAddEducation(false)
     } catch (err) {
       toast.error("Error", { description: "Failed to add education" })
@@ -560,7 +578,7 @@ export default function EditProfilePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Date of Birth</Label>
+                <Label>Date of Birth *</Label>
                 <Input type="date" max={maxDob} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
               </div>
               <div className="space-y-2">
@@ -693,18 +711,22 @@ export default function EditProfilePage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Institute</Label>
-                    <Input value={newEducation.institute} onChange={e => setNewEducation(prev => ({ ...prev, institute: e.target.value }))} />
+                    <Label>{newEduRank < 30 ? "School / College name" : "Institute"}</Label>
+                    <InstituteSelect
+                      freeText={newEduRank < 30}
+                      value={{ instituteId: newEducation.instituteId, institute: newEducation.institute }}
+                      onChange={(v) => setNewEducation(prev => ({ ...prev, instituteId: v.instituteId, institute: v.institute }))}
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label>Major Subject</Label>
+                    <Label>{newEduRank >= 30 ? "Major Subject" : "Major Subject (optional)"}</Label>
                     <Input value={newEducation.majorSubject} onChange={e => setNewEducation(prev => ({ ...prev, majorSubject: e.target.value }))} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Grade / CGPA</Label>
-                    <Input value={newEducation.grade} onChange={e => setNewEducation(prev => ({ ...prev, grade: e.target.value }))} />
+                    <Input placeholder="e.g. 3.5/4 or 85%" value={newEducation.grade} onChange={e => setNewEducation(prev => ({ ...prev, grade: e.target.value }))} />
                   </div>
                   <div className="space-y-2">
                     <Label>Passing Year</Label>

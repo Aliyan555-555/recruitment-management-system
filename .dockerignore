@@ -6,5 +6,8 @@ README.md
 .next
 .git
 .github
+.env
+.env.*
+!.env.example
 *.log
 .DS_Store

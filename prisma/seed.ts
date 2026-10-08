@@ -1,5 +1,6 @@
 import { PrismaClient, VerifiedSkillLevel } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import { ensurePipelineForApplication } from "../lib/services/pipeline-gate"
 
 const prisma = new PrismaClient()
 
@@ -50,19 +51,25 @@ async function main() {
   console.log("✅ Global Skill Assessment Config seeded.")
 
   // 2. Seed Education Levels
-  const eduLevelNames = [
-    "High School Diploma",
-    "Associate Degree",
-    "Bachelor's Degree",
-    "Master's Degree",
-    "Doctorate / PhD",
+  // rank orders levels lowest -> highest (used for a job's minimum education)
+  const eduLevels = [
+    { name: "No formal education", rank: 0 },
+    { name: "Matric / Secondary (SSC)", rank: 10 },
+    { name: "Intermediate / College (HSSC)", rank: 20 },
+    { name: "High School Diploma", rank: 25 },
+    { name: "Associate Degree", rank: 30 },
+    { name: "Bachelor's Degree", rank: 40 },
+    { name: "Master's Degree", rank: 50 },
+    { name: "Doctorate / PhD", rank: 60 },
   ]
   const eduLevelMap = new Map<string, bigint>()
 
-  for (const name of eduLevelNames) {
+  for (const { name, rank } of eduLevels) {
     let level = await prisma.userEducationLevel.findFirst({ where: { name } })
     if (!level) {
-      level = await prisma.userEducationLevel.create({ data: { name } })
+      level = await prisma.userEducationLevel.create({ data: { name, rank } })
+    } else if (level.rank !== rank) {
+      level = await prisma.userEducationLevel.update({ where: { id: level.id }, data: { rank } })
     }
     eduLevelMap.set(name, level.id)
   }
@@ -827,7 +834,7 @@ async function main() {
       })
 
       if (!existingApp) {
-        await prisma.jobsApplied.create({
+        const created = await prisma.jobsApplied.create({
           data: {
             jobId,
             userId: candidate.id,
@@ -835,6 +842,15 @@ async function main() {
             appliedAt: now - BigInt(1800),
           },
         })
+        // Same as a real application: NORMAL jobs get a pipeline at step 1.
+        await prisma.$transaction((tx) =>
+          ensurePipelineForApplication(tx, {
+            applicationId: created.id,
+            jobId,
+            userId: candidate.id,
+            startedAt: now - BigInt(1800),
+          })
+        )
       }
     }
 

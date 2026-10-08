@@ -206,7 +206,7 @@ const PersonalInfoStep = ({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label>Date of Birth</Label>
+          <Label>Date of Birth *</Label>
           <Input
             type="date"
             value={personalInfo.dateOfBirth}

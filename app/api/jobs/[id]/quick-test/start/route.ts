@@ -201,6 +201,10 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     }
   } catch (error) {
     console.error("[Quick Test] Failed to start:", error)
-    return NextResponse.json({ error: "Failed to start the quick test" }, { status: 500 })
+    const detail = error instanceof Error && error.message ? error.message.split("\n").pop()?.trim() : ""
+    return NextResponse.json(
+      { error: `Failed to start the quick test${detail ? `: ${detail}` : ""}`, code: "QUICK_TEST_START_FAILED" },
+      { status: 500 }
+    )
   }
 }

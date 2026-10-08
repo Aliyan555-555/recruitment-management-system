@@ -236,16 +236,10 @@ export default function JobDetailPage() {
           View Candidates ({job._count.applications})
         </Link>
         <Link
-          href={`/admin/jobs/${job.id}/shortlist`}
+          href={`/admin/jobs/${job.id}/applicants`}
           className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors"
         >
-          Manual Shortlist
-        </Link>
-        <Link
-          href={`/admin/jobs/${job.id}/ai-shortlist`}
-          className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md transition-colors"
-        >
-          Run AI Shortlisting
+          Review Applicants (Manual &amp; AI)
         </Link>
       </div>
     </div>

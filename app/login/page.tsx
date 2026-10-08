@@ -15,9 +15,16 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
   const jobId = searchParams?.get("jobId")
   const callbackUrl = searchParams?.get("callbackUrl")
-  const sessionExpired = searchParams?.get("error") === "SessionExpired"
+  const errorParam = searchParams?.get("error")
+  const sessionExpired = errorParam === "SessionExpired"
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(sessionExpired ? "Your session expired. Please sign in again." : "")
+  const [error, setError] = useState(
+    sessionExpired
+      ? "Your session expired. Please sign in again."
+      : errorParam
+        ? "Sign-in is temporarily unavailable. Please try again in a moment."
+        : ""
+  )
   const [formData, setFormData] = useState({
     email: "",
     password: "",

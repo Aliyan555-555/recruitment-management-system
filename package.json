@@ -8,11 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "seed": "tsx prisma/seed.ts",
+    "seed": "tsx prisma/seed-production.ts",
+    "seed:demo": "tsx prisma/seed.ts",
+    "seed:candidates": "tsx prisma/seed-candidates.ts",
     "test": "tsx --test lib/**/*.test.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed-production.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",

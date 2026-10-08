@@ -3,6 +3,7 @@ export type EducationEntry = {
   educationLevelId: string
   degreeTitle: string
   institute: string
+  instituteId: string
   majorSubject: string
   grade: string
   passingYear: string

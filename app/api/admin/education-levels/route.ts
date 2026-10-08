@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     }
 
     const levels = await prisma.userEducationLevel.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ rank: "asc" }, { name: "asc" }],
     });
 
     const serialized = levels.map((level) => ({
@@ -37,14 +37,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { name } = body;
+    const rank = body.rank === undefined || body.rank === "" ? 0 : Number(body.rank);
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+    if (!Number.isInteger(rank) || rank < 0 || rank > 1000) {
+      return NextResponse.json({ error: "Rank must be a whole number from 0 to 1000" }, { status: 400 });
     }
 
     const newLevel = await prisma.userEducationLevel.create({
       data: {
         name: name.trim(),
+        rank,
       },
     });
 

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { generateJobCode } from "@/lib/utils"
 import { parseAndValidateSkillNames } from "@/lib/skills"
+import { HiringCriteriaInput, parseHiringCriteria } from "@/lib/job-criteria"
 import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
 
 // Helper function to convert stepType to human-readable stepName
@@ -68,6 +69,7 @@ interface CreateJobRequest {
   skills?: Array<string | { skillName: string; priority?: "REQUIRED" | "PREFERRED" }>
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
+  hiringCriteria?: HiringCriteriaInput
   workflowSteps: WorkflowStepInput[]
   quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
@@ -219,6 +221,18 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const criteriaResult = parseHiringCriteria(body.hiringCriteria)
+    if (!criteriaResult.valid) {
+      return NextResponse.json({ error: criteriaResult.error }, { status: 400 })
+    }
+    const criteria = criteriaResult.data
+    if (criteria.instituteIds.length > 0) {
+      const found = await prisma.institute.count({ where: { id: { in: criteria.instituteIds }, deletedAt: null } })
+      if (found !== criteria.instituteIds.length) {
+        return NextResponse.json({ error: "One or more selected institutes do not exist" }, { status: 400 })
+      }
+    }
+
     // Create job with workflow
     const job = await prisma.$transaction(async (tx) => {
       // Create the job
@@ -243,12 +257,22 @@ export async function POST(req: NextRequest) {
           minimumSalary: body.minimumSalary,
           benefits: body.benefits,
           successCriteria: body.successCriteria || null,
+          minAge: criteria.minAge,
+          maxAge: criteria.maxAge,
+          minCgpa: criteria.minCgpa,
+          cgpaScale: criteria.cgpaScale,
           createdBy: adminId,
           updatedBy: adminId,
           createdAt: now,
           updatedAt: now,
         },
       })
+
+      if (criteria.instituteIds.length > 0) {
+        await tx.jobAllowedInstitute.createMany({
+          data: criteria.instituteIds.map((instituteId) => ({ jobId: newJob.id, instituteId })),
+        })
+      }
 
       // Create job locations if provided
       if (body.locations && body.locations.length > 0) {

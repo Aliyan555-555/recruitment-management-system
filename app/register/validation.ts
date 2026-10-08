@@ -33,9 +33,8 @@ export const personalInfoSchema = Joi.object({
   religion: Joi.string().required().messages({ "any.required": "Religion is required" }),
   nationality: Joi.string().required().messages({ "any.required": "Nationality is required" }),
   dateOfBirth: Joi.string()
-    .allow("")
+    .required()
     .custom((value, helpers) => {
-      if (!value) return value
       const dateValue = new Date(value)
       if (Number.isNaN(dateValue.getTime())) {
         return helpers.error("date.base")
@@ -48,6 +47,8 @@ export const personalInfoSchema = Joi.object({
       return value
     })
     .messages({
+      "any.required": "Date of birth is required",
+      "string.empty": "Date of birth is required",
       "date.base": "Enter a valid date",
       "date.less": "You must be at least 18 years old",
     }),
@@ -89,8 +90,13 @@ export const educationEntrySchemaJoi = Joi.object({
   institute: Joi.string().min(2).required().messages({
     "string.empty": "Institution name is required",
   }),
-  majorSubject: Joi.string().min(2).required().messages({
-    "string.empty": "Major subject is required",
+  // Major is only required for degree-level qualifications (validated with context.requireMajor)
+  majorSubject: Joi.string().allow("").when("$requireMajor", {
+    is: true,
+    then: Joi.string().min(2).required().messages({
+      "string.empty": "Major subject is required",
+      "string.min": "Major subject is required",
+    }),
   }),
   grade: Joi.string().allow(""),
   passingYear: Joi.string().required().messages({

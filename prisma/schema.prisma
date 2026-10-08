@@ -128,6 +128,7 @@ model UserEducation {
 model UserEducationLevel {
   id   BigInt @id @default(autoincrement())
   name String @db.VarChar(100)
+  rank Int    @default(0)
 
   // Relations
   userEducations           UserEducation[]
@@ -336,6 +337,11 @@ model Job {
   minimumSalary     String?        @db.VarChar(50)
   benefits          String?        @db.Text
   successCriteria   String?        @db.Text @map("success_criteria")
+  // Hiring criteria (pre-fill the shortlisting filters)
+  minAge            Int?           @map("min_age")
+  maxAge            Int?           @map("max_age")
+  minCgpa           Float?         @map("min_cgpa")
+  cgpaScale         Int?           @default(4) @map("cgpa_scale")
   createdBy         BigInt         @map("created_by")
   updatedBy         BigInt?        @map("updated_by")
   createdAt         BigInt         @map("created_at")
@@ -352,6 +358,7 @@ model Job {
   pipelines             CandidatePipeline[]
   locations             JobLocation[]
   educationRequirements JobEducationRequirement[]
+  allowedInstitutes     JobAllowedInstitute[]
   batches               Batch[]
   lois                  LetterOfIntent[]
   offerLetters          OfferLetter[]
@@ -451,6 +458,10 @@ model JobsApplied {
   statusUpdatedAt BigInt?           @map("status_updated_at")
   note            String?           @db.Text
   batchId         BigInt?           @map("batch_id")
+  // Shortlisting review metadata ("Maybe" is a soft flag; the application stays actionable)
+  reviewFlag      ReviewFlag?       @map("review_flag")
+  reviewedBy      BigInt?           @map("reviewed_by")
+  reviewedAt      BigInt?           @map("reviewed_at")
 
   // Relations
   job             Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -465,6 +476,10 @@ model JobsApplied {
   @@index([userId])
   @@index([batchId])
   @@map("jobs_applied")
+}
+
+enum ReviewFlag {
+  MAYBE
 }
 
 enum ApplicationStatus {
@@ -501,13 +516,28 @@ model Institute {
   id        BigInt  @id @default(autoincrement())
   name      String  @db.VarChar(255)
   visible   Boolean @default(true)
+  aliases   String[] @default([])
   deletedAt BigInt? @map("deleted_at")
 
   // Relations
   educations UserEducation[]
+  jobs       JobAllowedInstitute[]
 
   @@index([deletedAt])
   @@map("institute")
+}
+
+model JobAllowedInstitute {
+  id          BigInt @id @default(autoincrement())
+  jobId       BigInt @map("job_id")
+  instituteId BigInt @map("institute_id")
+
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, instituteId])
+  @@index([instituteId])
+  @@map("job_allowed_institute")
 }
 
 // ============================================
@@ -1020,6 +1050,7 @@ model AiShortlistRun {
   status           AiShortlistRunStatus @default(RUNNING)
   totalCandidates  Int                  @default(0) @map("total_candidates")
   aiModel          String?              @map("ai_model")
+  filters          Json?
   startedAt        BigInt               @map("started_at")
   completedAt      BigInt?              @map("completed_at")
   createdAt        BigInt               @map("created_at")
@@ -1068,6 +1099,9 @@ model AiCandidateShortlistResult {
   concerns            Json?
   aiReasoning         String? @db.Text @map("ai_reasoning")
 
+  // Deterministic facts (dob, cgpa, institute) used by hard filters; re-evaluated client-side
+  filterFacts Json? @map("filter_facts")
+
   createdAt BigInt @map("created_at")
   updatedAt BigInt @map("updated_at")
 
@@ -1086,6 +1120,7 @@ enum AiCandidateResultStatus {
   PENDING
   COMPLETED
   FAILED
+  FILTERED_OUT // excluded by hard filters; AI not called (can be scored on demand)
 }
 
 enum AiShortlistRecommendation {

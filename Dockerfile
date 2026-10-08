@@ -32,19 +32,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Providing build-time defaults for environment variables that
-# Next.js or Prisma might try to validate during build stages.
-# These will be overridden by runtime values from .env/compose.
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# ──────────────────────────────────────────────────────────────
+# STAGE 1b: build-base
+#   Build-time-only placeholder env vars that Next.js or Prisma may
+#   validate while building. Kept out of the runner image so a missing
+#   runtime secret fails loudly instead of using a dummy value.
+# ──────────────────────────────────────────────────────────────
+FROM base AS build-base
 ENV DATABASE_URL="postgresql://build_only:build_only@localhost:5432/build_only" \
     NEXTAUTH_SECRET="dummy_secret_for_build_stability" \
-    NEXTAUTH_URL="http://localhost:3000" \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXTAUTH_URL="http://localhost:3000"
 
 # ──────────────────────────────────────────────────────────────
 # STAGE 2: deps
 #   Install npm packages with exact lock file.
 # ──────────────────────────────────────────────────────────────
-FROM base AS deps
+FROM build-base AS deps
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
@@ -60,7 +65,7 @@ RUN npm install --legacy-peer-deps --ignore-scripts && \
 # STAGE 3: builder
 #   Compile the Next.js application.
 # ──────────────────────────────────────────────────────────────
-FROM base AS builder
+FROM build-base AS builder
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -78,8 +83,8 @@ FROM base AS runner
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME="0.0.0.0" \
-    # V8 heap cap: well under the 1G container limit (768MB + overhead)
-    NODE_OPTIONS="--max-old-space-size=768" \
+    # V8 heap cap: leaves room for Chromium (PDF generation) under the 2G container limit
+    NODE_OPTIONS="--max-old-space-size=1024" \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     # Avoid --single-process: often worsens CPU churn; shm_size in compose helps.
@@ -88,6 +93,7 @@ ENV NODE_ENV=production \
 # Install Chromium only in the final stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Non-root user setup
@@ -101,8 +107,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Persistence/Cache dirs
-RUN mkdir -p .next && chown nextjs:nodejs .next
+# Persistence/Cache dirs. public/uploads is a mounted volume in compose; creating it here
+# (owned by nextjs) makes the fresh named volume inherit writable ownership.
+RUN mkdir -p .next public/uploads && chown nextjs:nodejs .next public/uploads
 
 EXPOSE 3000
 

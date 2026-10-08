@@ -20,7 +20,10 @@ import {
 interface EducationLevel {
     id: string
     name: string
+    rank: number
 }
+
+const byRank = (a: EducationLevel, b: EducationLevel) => a.rank - b.rank || a.name.localeCompare(b.name)
 
 export function EducationLevelsManager() {
     const [levels, setLevels] = useState<EducationLevel[]>([])
@@ -29,6 +32,8 @@ export function EducationLevelsManager() {
     const [adding, setAdding] = useState(false)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editName, setEditName] = useState("")
+    const [newLevelRank, setNewLevelRank] = useState("")
+    const [editRank, setEditRank] = useState("")
 
     useEffect(() => {
         fetchLevels()
@@ -58,13 +63,14 @@ export function EducationLevelsManager() {
             const res = await fetch("/api/admin/education-levels", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: newLevelName })
+                body: JSON.stringify({ name: newLevelName, rank: newLevelRank })
             })
 
             if (res.ok) {
                 const data = await res.json()
-                setLevels([...levels, data.level])
+                setLevels([...levels, data.level].sort(byRank))
                 setNewLevelName("")
+                setNewLevelRank("")
                 toast.success("Education level added")
             } else {
                 const data = await res.json()
@@ -85,12 +91,12 @@ export function EducationLevelsManager() {
             const res = await fetch(`/api/admin/education-levels/${id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: editName })
+                body: JSON.stringify({ name: editName, rank: editRank })
             })
 
             if (res.ok) {
                 const data = await res.json()
-                setLevels(levels.map(l => l.id === id ? data.level : l))
+                setLevels(levels.map(l => l.id === id ? data.level : l).sort(byRank))
                 setEditingId(null)
                 setEditName("")
                 toast.success("Education level updated")
@@ -131,7 +137,7 @@ export function EducationLevelsManager() {
                     <CardTitle>Education Levels</CardTitle>
                 </div>
                 <CardDescription>
-                    Manage the education levels available for job requirements and candidate profiles.
+                    Manage the education levels available for job requirements and candidate profiles. "Order" ranks levels from lowest to highest and is used for a job's minimum education.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -141,6 +147,16 @@ export function EducationLevelsManager() {
                         value={newLevelName}
                         onChange={(e) => setNewLevelName(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                        disabled={adding}
+                    />
+                    <Input
+                        type="number"
+                        min={0}
+                        placeholder="Order"
+                        title="Order: higher number = higher education. Used for 'minimum education' on jobs."
+                        value={newLevelRank}
+                        onChange={(e) => setNewLevelRank(e.target.value)}
+                        className="w-24"
                         disabled={adding}
                     />
                     <Button onClick={handleAdd} disabled={adding || !newLevelName.trim()}>
@@ -171,6 +187,14 @@ export function EducationLevelsManager() {
                                                 if (e.key === 'Escape') setEditingId(null);
                                             }}
                                         />
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={editRank}
+                                            onChange={(e) => setEditRank(e.target.value)}
+                                            className="h-9 w-24"
+                                            title="Order: higher number = higher education"
+                                        />
                                         <Button size="sm" variant="ghost" className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleUpdate(level.id)}>
                                             <Check className="h-4 w-4" />
                                         </Button>
@@ -179,7 +203,10 @@ export function EducationLevelsManager() {
                                         </Button>
                                     </div>
                                 ) : (
-                                    <span className="font-medium text-sm px-2">{level.name}</span>
+                                    <span className="font-medium text-sm px-2">
+                                        {level.name}
+                                        <span className="ml-2 text-xs text-muted-foreground font-normal">order {level.rank}</span>
+                                    </span>
                                 )}
 
                                 {editingId !== level.id && (
@@ -191,6 +218,7 @@ export function EducationLevelsManager() {
                                             onClick={() => {
                                                 setEditingId(level.id)
                                                 setEditName(level.name)
+                                                setEditRank(String(level.rank))
                                             }}
                                         >
                                             <Pencil className="h-4 w-4" />

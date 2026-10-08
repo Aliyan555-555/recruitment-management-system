@@ -193,17 +193,28 @@ export async function generateQuickTestQuestions(
   job: QuickTestJobContext,
   count: number
 ): Promise<QuickTestGenerationResult> {
+  const failures: string[] = []
   for (const strict of [false, true]) {
     try {
       const raw = await requestFromAi(job, count, strict)
       return { questions: parseQuickTestQuestions(raw, count), source: "ai" }
     } catch (error: any) {
-      console.warn(
-        `[Quick Test Generator] AI attempt (${strict ? "strict" : "normal"}) failed: ${error?.message ?? error}`
-      )
+      const reason =
+        error instanceof z.ZodError
+          ? "AI returned questions in an unexpected format"
+          : String(error?.message ?? error)
+      failures.push(reason)
+      console.warn(`[Quick Test Generator] AI attempt (${strict ? "strict" : "normal"}) failed: ${reason}`)
     }
   }
 
   console.warn("[Quick Test Generator] AI generation failed twice. Using curated questions.")
-  return { questions: buildCuratedFallback(job, count), source: "curated" }
+  try {
+    return { questions: buildCuratedFallback(job, count), source: "curated" }
+  } catch (error: any) {
+    const aiReason = [...new Set(failures)].join("; ")
+    throw new QuickTestGenerationError(
+      `AI generation failed: ${aiReason}. Backup questions: ${error?.message ?? "unavailable"}`
+    )
+  }
 }

@@ -8,6 +8,7 @@ export type SerializedAiShortlistRun = {
   status: string
   totalCandidates: number
   aiModel: string | null
+  filters: any
   startedAt: string
   completedAt: string | null
   createdAt: string
@@ -43,6 +44,7 @@ export type SerializedAiCandidateShortlistResult = {
   strengths: any
   concerns: any
   aiReasoning: string | null
+  filterFacts: any
   createdAt: string
   updatedAt: string
   candidate?: {
@@ -71,6 +73,7 @@ export function serializeShortlistRun(
     status: run.status,
     totalCandidates: run.totalCandidates,
     aiModel: run.aiModel ?? null,
+    filters: run.filters ?? null,
     startedAt: run.startedAt.toString(),
     completedAt: run.completedAt ? run.completedAt.toString() : null,
     createdAt: run.createdAt.toString(),
@@ -123,6 +126,7 @@ export function serializeShortlistResult(
     strengths: result.strengths ?? null,
     concerns: result.concerns ?? null,
     aiReasoning: result.aiReasoning ?? null,
+    filterFacts: result.filterFacts ?? null,
     createdAt: result.createdAt.toString(),
     updatedAt: result.updatedAt.toString(),
     ...(result.candidate

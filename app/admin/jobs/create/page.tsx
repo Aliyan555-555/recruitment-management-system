@@ -14,6 +14,14 @@ import {
   type QuickTestFormValue,
 } from "@/components/admin/QuickTestConfigCard"
 
+import {
+  EMPTY_HIRING_CRITERIA,
+  HiringCriteriaFields,
+  hiringCriteriaFromJob,
+  hiringCriteriaPayload,
+  type HiringCriteriaForm,
+} from "@/components/admin/HiringCriteriaFields"
+
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
 interface FormErrors {
@@ -48,7 +56,7 @@ interface FormErrors {
 
 interface WorkflowStep {
   stepName?: string // Kept for backward compatibility/display
-  stepType: string // Required: TEST, SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
+  stepType: string // Required: SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
   stepOrder: number
   interviewerId?: string
   durationMins?: number
@@ -74,7 +82,6 @@ export default function CreateJobPage() {
   }, [])
 
   const stepTypeOptions = useMemo(() => [
-    { value: "TEST", label: "Test" },
     { value: "SCREENING_INTERVIEW", label: "Screening Interview" },
     { value: "FOCUS_GROUP", label: "Focus Group" },
     { value: "FINAL_INTERVIEW", label: "Final Interview" },
@@ -149,6 +156,7 @@ export default function CreateJobPage() {
   // Interviewer selection removed - interviewers will be assigned later in the process
 
   const [quickTest, setQuickTest] = useState<QuickTestFormValue>(DEFAULT_QUICK_TEST_FORM)
+  const [hiringCriteria, setHiringCriteria] = useState<HiringCriteriaForm>(EMPTY_HIRING_CRITERIA)
   const [quickTestError, setQuickTestError] = useState<string | null>(null)
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
@@ -670,7 +678,8 @@ export default function CreateJobPage() {
           workflowSteps: transformedSteps,
           quickTest: toQuickTestPayload(quickTest),
           locations,
-          educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
+          educationRequirements: hiringCriteria.minEducationId ? [{ educationLevelId: hiringCriteria.minEducationId, isRequired: true }] : [],
+          hiringCriteria: hiringCriteriaPayload(hiringCriteria),
         }),
       })
 
@@ -1147,23 +1156,6 @@ export default function CreateJobPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Minimum Education
-                </label>
-                <select
-                  value={formData.minEducation}
-                  onChange={(e) => setFormData({ ...formData, minEducation: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-md"
-                >
-                  <option value="">Select minimum education</option>
-                  <option value="High School Diploma">High School Diploma</option>
-                  <option value="Associate Degree">Associate Degree</option>
-                  <option value="Bachelor&apos;s Degree">Bachelor&apos;s Degree</option>
-                  <option value="Master&apos;s Degree">Master&apos;s Degree</option>
-                  <option value="Doctorate / PhD">Doctorate / PhD</option>
-                </select>
-              </div>
 
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-foreground mb-1">
@@ -1297,6 +1289,12 @@ export default function CreateJobPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Hiring Criteria */}
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Hiring Criteria</h3>
+            <HiringCriteriaFields value={hiringCriteria} onChange={setHiringCriteria} />
           </div>
 
           {/* Locations */}

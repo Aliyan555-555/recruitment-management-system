@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { registerSchema } from "@/lib/validations";
 import { getCurrentTimestamp } from "@/lib/utils";
+import { resolveInstituteForSave } from "@/lib/institutes-server";
 
 const resolveEducationLevelId = async (
   tx: Prisma.TransactionClient,
@@ -150,12 +151,15 @@ export async function POST(req: Request) {
             continue;
           }
 
+          const inst = await resolveInstituteForSave(entry.instituteId, entry.institute, tx);
+
           await tx.userEducation.create({
             data: {
               userId: createdUser.id,
               educationLevelId,
               degreeTitle: entry.degreeTitle,
-              institute: entry.institute,
+              institute: inst.institute ?? entry.institute,
+              instituteId: inst.instituteId,
               majorSubject: entry.majorSubject,
               grade: entry.grade,
               passingYear: entry.passingYear,

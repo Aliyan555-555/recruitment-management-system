@@ -1,3 +1,4 @@
+import { logApplicantAudit } from "@/lib/services/applicant-audit"
 import { prisma } from "@/lib/prisma"
 import {
   eligibilityFromApplication,
@@ -5,6 +6,11 @@ import {
   SHORTLIST_PIPELINE_SELECT,
 } from "@/lib/admin/shortlist-eligibility"
 import { createBatch } from "./batch-service"
+import {
+  admitToRound,
+  ensurePipelineForApplication,
+  rejectFromRound,
+} from "./pipeline-gate"
 
 /**
  * Handle bulk job application - creates application with status "applied" (no pipeline)
@@ -75,7 +81,8 @@ export async function handleBulkApplication(
 export async function shortlistCandidates(
   jobId: bigint,
   candidateIds: bigint[],
-  action: "select" | "reject"
+  action: "select" | "reject",
+  adminId?: bigint
 ): Promise<void> {
   const now = BigInt(Math.floor(Date.now() / 1000))
   const newStatus = action === "select" ? "SHORTLISTED" : "REMOVED"
@@ -87,7 +94,7 @@ export async function shortlistCandidates(
     },
     include: {
       pipeline: {
-        select: SHORTLIST_PIPELINE_SELECT,
+        select: { ...SHORTLIST_PIPELINE_SELECT, id: true },
       },
     },
   })
@@ -106,6 +113,66 @@ export async function shortlistCandidates(
     throw new ShortlistIneligibleError(ineligibleIds)
   }
 
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    select: { jobType: true },
+  })
+
+  // A decision clears any "Maybe" flag and records who made it.
+  const afterDecision = async () => {
+    await prisma.jobsApplied.updateMany({
+      where: { jobId, userId: { in: candidateIds } },
+      data: { reviewFlag: null, ...(adminId ? { reviewedBy: adminId, reviewedAt: now } : {}) },
+    })
+    if (adminId) {
+      await logApplicantAudit(
+        applications.map((app) => ({
+          applicationId: app.id,
+          pipelineId: app.pipeline?.id ?? null,
+          action: action === "select" ? "ASSIGNED" : "REJECTED",
+          changes: { jobId: jobId.toString(), from: app.status, to: newStatus, decision: action },
+        })),
+        adminId
+      )
+    }
+  }
+
+  // BULK jobs use the batch flow and keep the status-only update.
+  if (job?.jobType === "NORMAL") {
+    const roundOne = await prisma.workflowStep.findFirst({
+      where: { stepOrder: 1, workflow: { jobId } },
+      select: { id: true },
+    })
+
+    await prisma.$transaction(async (tx) => {
+      if (action === "reject") {
+        await rejectFromRound(tx, { jobId, userIds: candidateIds, now })
+        return
+      }
+
+      // Self-heal applications that never got a pipeline (legacy or seeded data).
+      for (const app of applications) {
+        await ensurePipelineForApplication(tx, {
+          applicationId: app.id,
+          jobId,
+          userId: app.userId,
+          startedAt: now,
+        })
+      }
+
+      if (roundOne) {
+        await admitToRound(tx, { jobId, userIds: candidateIds, workflowStepId: roundOne.id, now })
+      } else {
+        await tx.jobsApplied.updateMany({
+          where: { jobId, userId: { in: candidateIds } },
+          data: { status: newStatus, statusUpdatedAt: now },
+        })
+      }
+    })
+    await afterDecision()
+    return
+  }
+
   await prisma.jobsApplied.updateMany({
     where: {
       jobId,
@@ -117,6 +184,7 @@ export async function shortlistCandidates(
       statusUpdatedAt: now,
     },
   })
+  await afterDecision()
 }
 
 /**

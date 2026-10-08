@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { notifyAdminNewApplication, notifyInterviewerAssignment } from "@/lib/notifications"
 import { sendApplicationConfirmationEmail, sendInterviewerAssignmentEmail, sendAdminNewApplicationEmail } from "@/lib/email"
 import { handleBulkApplication } from "@/lib/services/bulk-hiring-service"
+import { ensurePipelineForApplication } from "@/lib/services/pipeline-gate"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
 import {
   getEnabledQuickTest,
@@ -208,41 +209,23 @@ export async function POST(
 
     // Create pipeline if job has a workflow
     if (application.job.workflow && application.job.workflow.steps.length > 0) {
-      const workflow = application.job.workflow
-      
-      // Find step 1
-      const firstStep = workflow.steps.find(step => step.stepOrder === 1)
-      
-      if (!firstStep) {
+      // Create pipeline with ONLY step 1 initially
+      // Next steps will be created when previous step is completed
+      const pipeline = await prisma.$transaction((tx) =>
+        ensurePipelineForApplication(tx, {
+          applicationId: application.id,
+          jobId,
+          userId: userIdBig,
+          startedAt: now,
+        })
+      )
+
+      if (!pipeline) {
         return NextResponse.json(
           { error: "Workflow must have a step 1" },
           { status: 400 }
         )
       }
-
-      // Create pipeline with ONLY step 1 initially
-      // Next steps will be created when previous step is completed
-      await (prisma as any).candidatePipeline.create({
-        data: {
-          candidateId: userIdBig,
-          jobId,
-          applicationId: application.id,
-          currentStepOrder: 1,
-          overallStatus: "IN_PROGRESS",
-          lockState: "NONE",
-          pipelineMode: "INDIVIDUAL",
-          startedAt: now,
-          steps: {
-            create: {
-              workflowStepId: firstStep.id,
-              stepOrder: 1,
-              status: "PENDING",
-              startedAt: now,
-            }
-          }
-        }
-      })
-
     }
 
     // Notify all admins (in-app notification + email)

@@ -60,7 +60,7 @@ export function useJobPipeline({ jobId, currentStageId, refreshKey = 0 }: UseJob
             id: "applications",
             label: "Applications",
             count: shortlistCounts?.total ?? 0,
-            href: `/admin/jobs/${jobId}/shortlist`,
+            href: `/admin/jobs/${jobId}/applicants`,
             kind: "applications",
           },
           ...rounds.map((round) => ({

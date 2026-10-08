@@ -8,6 +8,7 @@ const educationEntrySchema = z.object({
   educationLevelId: z.string().min(1, "Education level is required"),
   degreeTitle: z.string().min(2, "Degree title must be at least 2 characters"),
   institute: z.string().min(2, "Institute name is required"),
+  instituteId: z.string().optional(),
   majorSubject: z.string().optional(),
   grade: z.string().optional(),
   passingYear: z.string().optional(),
@@ -55,7 +56,15 @@ const profileDetailSchema = z.object({
   fatherName: z.string().optional(),
   religion: z.string().optional(),
   nationality: z.string().optional(),
-  dateOfBirth: z.string().optional(),
+  dateOfBirth: z
+    .string({ required_error: "Date of birth is required" })
+    .min(1, "Date of birth is required")
+    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Enter a valid date of birth")
+    .refine((v) => {
+      const d = new Date(v)
+      const t = new Date()
+      return d <= new Date(t.getFullYear() - 18, t.getMonth(), t.getDate())
+    }, "You must be at least 18 years old"),
   cnic: z.string().optional(),
   gender: z.string().optional(),
   maritalStatus: z.string().optional(),
@@ -77,7 +86,7 @@ export const registerSchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().length(2).optional(),
-  profile: profileDetailSchema.optional(),
+  profile: profileDetailSchema,
   educationHistory: z.array(educationEntrySchema).optional(),
   experiences: z.array(experienceEntrySchema).optional(),
   skillsInput: z

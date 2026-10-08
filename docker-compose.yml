@@ -5,6 +5,10 @@ networks:
     driver: bridge
     name: ats_internal_net
 
+volumes:
+  ats_uploads:
+    name: ats_uploads
+
 services:
 
   # ──────────────────────────────────────────────────────────────
@@ -23,8 +27,8 @@ services:
 
     # ── Resource limits (top-level — enforced in Compose v2) ──
     cpus: '1.50'
-    mem_limit: 1g
-    memswap_limit: 1g          # disables swap
+    mem_limit: 2g
+    memswap_limit: 2g          # disables swap
 
     # ── Process limit (anti fork-bomb) ───────────────────────
     pids_limit: 200
@@ -55,6 +59,10 @@ services:
       - /tmp:exec,size=256m         # Chromium temp files (exec flag required)
       - /app/.next/cache:size=256m  # Next.js render cache
 
+    # Local upload fallback (used when Cloudinary is not configured) - persists across deploys
+    volumes:
+      - ats_uploads:/app/public/uploads
+
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
 
@@ -64,7 +72,7 @@ services:
 
     environment:
       NODE_ENV:     production
-      NODE_OPTIONS: "--max-old-space-size=768"
+      NODE_OPTIONS: "--max-old-space-size=1024"
 
     networks:
       - ats_network

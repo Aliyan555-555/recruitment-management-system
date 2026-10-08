@@ -5,10 +5,8 @@ declare global {
   var prisma: PrismaClient | undefined
 }
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set")
-}
-
+// A missing DATABASE_URL is reported once at boot by instrumentation.ts (lib/env.ts).
+// Throwing here would take down every route and the auth handler at import time.
 export const prisma =
   global.prisma ??
   new PrismaClient({

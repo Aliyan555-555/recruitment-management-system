@@ -7,6 +7,7 @@ export const createEducationEntry = (): EducationEntry => ({
   educationLevelId: "",
   degreeTitle: "",
   institute: "",
+  instituteId: "",
   majorSubject: "",
   grade: "",
   passingYear: "",

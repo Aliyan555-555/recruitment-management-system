@@ -5,13 +5,14 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const levels = await prisma.userEducationLevel.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ rank: "asc" }, { name: "asc" }],
     });
 
     return NextResponse.json({
       levels: levels.map((level) => ({
         id: level.id.toString(),
         name: level.name,
+        rank: level.rank,
       })),
     });
   } catch (error) {

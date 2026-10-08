@@ -110,7 +110,7 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [stepError, setStepError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string }>>([])
+  const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string; rank?: number }>>([])
   const [jobDetails, setJobDetails] = useState<{ title: string; company: string } | null>(null)
 
   const [personalInfo, setPersonalInfo] = useState<PersonalInfoState>(createPersonalInfoState)
@@ -197,10 +197,14 @@ export default function RegisterPage() {
   //   return defaultDegreeOptions.map((option) => ({ value: option, label: option }))
   // }, [educationLevels])
 
-  const degreeOptions = educationLevels.map((level) => ({
-    value: level.id,
-    label: level.name ?? level.id,
-  }))
+  // "No formal education" (rank 0) is only meaningful as a job minimum, not as a candidate entry
+  const degreeOptions = educationLevels
+    .filter((level) => (level.rank ?? 1) > 0)
+    .map((level) => ({
+      value: level.id,
+      label: level.name ?? level.id,
+      rank: level.rank ?? 40,
+    }))
 
   const handlePersonalInfoChange = (updates: Partial<PersonalInfoState>) => {
     setPersonalInfo((prev) => ({ ...prev, ...updates }))
@@ -279,7 +283,12 @@ export default function RegisterPage() {
           if (!isEducationEntryStarted(entry)) {
             return
           }
-          const { error } = educationEntrySchemaJoi.validate(entry, { abortEarly: false, allowUnknown: true })
+          const rank = degreeOptions.find((o) => o.value === entry.educationLevelId)?.rank ?? 40
+          const { error } = educationEntrySchemaJoi.validate(entry, {
+            abortEarly: false,
+            allowUnknown: true,
+            context: { requireMajor: rank >= 30 },
+          })
           if (error) {
             Object.assign(errors, mapJoiErrors(error.details, `education.${index}`))
           } else {
@@ -287,11 +296,8 @@ export default function RegisterPage() {
           }
         })
 
-        if (!educationEntries.some(isEducationEntryStarted)) {
-          errors.education = "Please add at least one education entry."
-        } else if (!hasCompleteEntry) {
-          errors.education = "Please complete all required fields in at least one education entry."
-        }
+        // Education is optional; a started entry must be complete (checked per field above)
+        void hasCompleteEntry
 
         if (Object.keys(errors).length) {
           applyFieldErrors(["education"], errors)
@@ -434,6 +440,7 @@ export default function RegisterPage() {
           educationLevelId: entry.educationLevelId,
           degreeTitle: entry.degreeTitle.trim(),
           institute: entry.institute.trim(),
+          instituteId: entry.instituteId || undefined,
           majorSubject: entry.majorSubject || undefined,
           grade: entry.grade || undefined,
           passingYear: entry.passingYear || undefined,

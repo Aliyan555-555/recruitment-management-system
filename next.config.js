@@ -8,6 +8,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   experimental: {
+    instrumentationHook: true,
     serverActions: {
       bodySizeLimit: '2mb',
     },

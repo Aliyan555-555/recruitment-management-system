@@ -1,6 +1,6 @@
 import { getEnabledQuickTest } from "@/lib/services/quick-test-service"
 import { prisma } from "@/lib/prisma"
-import { getAiModelName } from "@/lib/ai/ai-config"
+import { getAiConfig, getAiModelName } from "@/lib/ai/ai-config"
 import { checkRateLimit } from "@/lib/rate-limit"
 import {
   eligibilityFromApplication,
@@ -18,10 +18,21 @@ import {
   computeDeterministicMatch,
   JobRequirementBundle,
 } from "@/lib/ai-shortlist/deterministic"
+import {
+  CandidateFilterFacts,
+  computeCandidateFacts,
+  evaluateFilters,
+  sanitizeFilters,
+  ShortlistFilters,
+} from "@/lib/ai-shortlist/filters"
+import { loadInstituteRefs } from "@/lib/services/candidate-filter-facts"
 import { combineShortlistScore } from "@/lib/ai-shortlist/scoring"
 import { evaluateCandidateForJob } from "@/lib/ai/shortlist-evaluator"
 import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 import { notifyAiShortlistComplete } from "@/lib/notifications"
+
+export const AI_NOT_CONFIGURED_MESSAGE =
+  "AI is not set up yet, so candidates cannot be scored. An admin must add an AI token under Settings → AI Configuration (or set AI_INFERENCE_TOKEN in the server environment)."
 
 async function loadActionableShortlistApplications(jobId: bigint) {
   const applications = await prisma.jobsApplied.findMany({
@@ -44,7 +55,8 @@ async function loadActionableShortlistApplications(jobId: bigint) {
 
 export async function startShortlistRun(
   jobId: bigint,
-  adminUserId: bigint
+  adminUserId: bigint,
+  rawFilters?: unknown
 ): Promise<
   | { success: true; run: any }
   | { success: false; error: string; code: string; retryAfterSeconds?: number }
@@ -63,6 +75,11 @@ export async function startShortlistRun(
       code: "RATE_LIMITED",
       retryAfterSeconds: Math.max(0, Math.ceil((rateCheck.resetTime - Date.now()) / 1000)),
     }
+  }
+
+  // Fail fast with a clear message instead of creating a run where every candidate fails
+  if (!(await getAiConfig()).token) {
+    return { success: false, error: AI_NOT_CONFIGURED_MESSAGE, code: "AI_NOT_CONFIGURED" }
   }
 
   const job = await prisma.job.findUnique({
@@ -120,6 +137,8 @@ export async function startShortlistRun(
   }
 
   const nowBigInt = BigInt(nowSec)
+  const filters = sanitizeFilters(rawFilters)
+  const filtersJson = Object.keys(filters).length > 0 ? (filters as any) : undefined
   const run = resumeFromRunId
     ? await prisma.aiShortlistRun.update({
         where: { id: resumeFromRunId },
@@ -128,6 +147,7 @@ export async function startShortlistRun(
           totalCandidates: candidateApps.length,
           startedAt: nowBigInt,
           completedAt: null,
+          filters: filtersJson ?? null,
         },
       })
     : await prisma.aiShortlistRun.create({
@@ -137,6 +157,7 @@ export async function startShortlistRun(
           status: "RUNNING",
           totalCandidates: candidateApps.length,
           aiModel: await getAiModelName(),
+          filters: filtersJson,
           startedAt: nowBigInt,
           createdAt: nowBigInt,
         },
@@ -152,7 +173,44 @@ export async function startShortlistRun(
   return { success: true, run }
 }
 
-export async function processShortlistRun(runId: bigint): Promise<void> {
+/**
+ * Scores candidates that were excluded by hard filters (admin relaxed a filter chip and
+ * explicitly asked for AI scoring). Already-scored candidates are never re-scored.
+ */
+export async function scoreRemainingCandidates(
+  jobId: bigint,
+  runId: bigint,
+  candidateIds: bigint[]
+): Promise<{ success: true; count: number } | { success: false; error: string; code: string }> {
+  const run = await prisma.aiShortlistRun.findFirst({ where: { id: runId, jobId } })
+  if (!run) return { success: false, error: "Run not found", code: "RUN_NOT_FOUND" }
+  if (!(await getAiConfig()).token) {
+    return { success: false, error: AI_NOT_CONFIGURED_MESSAGE, code: "AI_NOT_CONFIGURED" }
+  }
+  if (run.status === "RUNNING")
+    return { success: false, error: "This run is still in progress.", code: "RUN_IN_PROGRESS" }
+
+  const pending = await prisma.aiCandidateShortlistResult.findMany({
+    where: { runId, candidateId: { in: candidateIds }, status: "FILTERED_OUT" },
+    select: { candidateId: true },
+  })
+  if (pending.length === 0)
+    return { success: false, error: "No unscored candidates selected.", code: "NOTHING_TO_SCORE" }
+
+  await prisma.aiShortlistRun.update({
+    where: { id: runId },
+    data: { status: "RUNNING", startedAt: BigInt(Math.floor(Date.now() / 1000)), completedAt: null },
+  })
+  void processShortlistRun(runId, { candidateIds: pending.map((p) => p.candidateId) }).catch((err) => {
+    console.error(`Error scoring remaining candidates (runId: ${runId}):`, err)
+  })
+  return { success: true, count: pending.length }
+}
+
+export async function processShortlistRun(
+  runId: bigint,
+  opts?: { candidateIds?: bigint[] }
+): Promise<void> {
   const run = await prisma.aiShortlistRun.findUnique({
     where: { id: runId },
     include: {
@@ -208,10 +266,11 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
         userId: true,
         degreeTitle: true,
         institute: true,
+        instituteId: true,
         majorSubject: true,
         grade: true,
         passingYear: true,
-        educationLevel: { select: { name: true } },
+        educationLevel: { select: { name: true, rank: true } },
       },
     }),
     prisma.userExperience.findMany({
@@ -230,6 +289,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
       where: { userId: { in: candidateIds } },
       select: {
         userId: true,
+        dateOfBirth: true,
         bio: true,
         certifications: true,
         achievements: true,
@@ -330,9 +390,58 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
     select: { candidateId: true },
   })
   const completedIdSet = new Set(alreadyCompleted.map((r) => r.candidateId.toString()))
-  const pendingApplications = applications.filter(
-    (app) => !completedIdSet.has(app.userId.toString())
-  )
+  const requestedIds = opts?.candidateIds
+    ? new Set(opts.candidateIds.map((id) => id.toString()))
+    : null
+
+  // Hard filters: deterministic facts for everyone, and filtered-out candidates skip the AI
+  // entirely. Targeted scoring (opts.candidateIds) bypasses filtering by design.
+  const activeFilters = (run.filters ?? {}) as ShortlistFilters
+  const instituteRefs = await loadInstituteRefs()
+  const factsMap = new Map<string, CandidateFilterFacts>()
+  for (const app of applications) {
+    const key = app.userId.toString()
+    factsMap.set(
+      key,
+      computeCandidateFacts({
+        dateOfBirth: profilesMap.get(key)?.dateOfBirth,
+        educations: (edusMap.get(key) ?? []).map((e) => ({
+          ...e,
+          levelRank: e.educationLevel?.rank ?? null,
+          levelName: e.educationLevel?.name ?? null,
+        })),
+      }, instituteRefs)
+    )
+  }
+
+  const pendingApplications: typeof applications = []
+  for (const app of applications) {
+    const key = app.userId.toString()
+    if (completedIdSet.has(key)) continue
+    if (requestedIds) {
+      if (requestedIds.has(key)) pendingApplications.push(app)
+      continue
+    }
+    if (evaluateFilters(factsMap.get(key), activeFilters).bucket === "FILTERED_OUT") {
+      const nowTs = BigInt(Math.floor(Date.now() / 1000))
+      await prisma.aiCandidateShortlistResult.upsert({
+        where: { runId_candidateId: { runId: run.id, candidateId: app.userId } },
+        create: {
+          runId: run.id,
+          jobId: run.jobId,
+          candidateId: app.userId,
+          applicationId: app.id,
+          status: "FILTERED_OUT",
+          filterFacts: factsMap.get(key) as any,
+          createdAt: nowTs,
+          updatedAt: nowTs,
+        },
+        update: { status: "FILTERED_OUT", filterFacts: factsMap.get(key) as any, updatedAt: nowTs },
+      })
+      continue
+    }
+    pendingApplications.push(app)
+  }
 
   // Run evaluation with concurrency limit
   await runWithConcurrency(pendingApplications, AI_SHORTLIST_CONCURRENCY, async (app) => {
@@ -397,6 +506,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
           strengths: aiEvaluation.strengths,
           concerns: aiEvaluation.concerns,
           aiReasoning: aiEvaluation.reasoning,
+          filterFacts: factsMap.get(userIdStr) as any,
           createdAt: nowTs,
           updatedAt: nowTs,
         },
@@ -419,6 +529,7 @@ export async function processShortlistRun(runId: bigint): Promise<void> {
           strengths: aiEvaluation.strengths,
           concerns: aiEvaluation.concerns,
           aiReasoning: aiEvaluation.reasoning,
+          filterFacts: factsMap.get(userIdStr) as any,
           updatedAt: nowTs,
         },
       })

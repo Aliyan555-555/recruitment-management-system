@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { resolveInstituteForSave } from "@/lib/institutes-server"
 
 const formatEducationResponse = (education: any) => ({
   id: education.id.toString(),
@@ -51,13 +52,15 @@ export async function PUT(
       return NextResponse.json({ error: "Education not found" }, { status: 404 })
     }
 
+    const inst = await resolveInstituteForSave(body.instituteId, body.institute)
+
     const education = await prisma.userEducation.update({
       where: { id: educationId },
       data: {
         degreeTitle: body.degreeTitle.trim(),
         educationLevelId: BigInt(body.educationLevelId),
-        institute: body.institute?.trim() || null,
-        instituteId: body.instituteId ? BigInt(body.instituteId) : null,
+        institute: inst.institute,
+        instituteId: inst.instituteId,
         majorSubject: body.majorSubject?.trim() || null,
         grade: body.grade?.trim() || null,
         passingYear: body.passingYear?.trim() || null,

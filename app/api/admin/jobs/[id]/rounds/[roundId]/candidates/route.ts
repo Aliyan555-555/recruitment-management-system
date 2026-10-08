@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/rbac";
+import { admitToRound, rejectFromRound } from "@/lib/services/pipeline-gate";
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates - Get candidates for a round
 export async function GET(
@@ -198,33 +199,15 @@ export async function POST(
           );
         }
 
-        // Update pipeline steps to IN_PROGRESS status
-        await prisma.candidatePipelineStep.updateMany({
-          where: {
+        // Same end state as the job-level shortlist (see lib/services/pipeline-gate.ts)
+        await prisma.$transaction((tx) =>
+          admitToRound(tx, {
+            jobId,
+            userIds: candidateIds.map((id) => BigInt(id)),
             workflowStepId: roundId,
-            pipeline: {
-              jobId: jobId,
-              candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-            },
-            status: "PENDING", // Only update PENDING candidates
-          },
-          data: {
-            status: "IN_PROGRESS",
-            startedAt: now,
-          },
-        });
-
-        // Update application status
-        await prisma.jobsApplied.updateMany({
-          where: {
-            jobId: jobId,
-            userId: { in: candidateIds.map((id) => BigInt(id)) },
-          },
-          data: {
-            status: "SHORTLISTED",
-            statusUpdatedAt: now,
-          },
-        });
+            now,
+          }),
+        );
         break;
 
       case "reject":
@@ -252,34 +235,14 @@ export async function POST(
           );
         }
 
-        // Update pipeline steps to REJECTED
-        await prisma.candidatePipelineStep.updateMany({
-          where: {
+        await prisma.$transaction((tx) =>
+          rejectFromRound(tx, {
+            jobId,
+            userIds: candidateIds.map((id) => BigInt(id)),
             workflowStepId: roundId,
-            pipeline: {
-              jobId: jobId,
-              candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-            },
-            status: { in: ["PENDING", "IN_PROGRESS"] },
-          },
-          data: {
-            status: "REJECTED",
-            completedAt: now,
-          },
-        });
-
-        // Update overall pipeline status
-        await prisma.candidatePipeline.updateMany({
-          where: {
-            jobId: jobId,
-            candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-          },
-          data: {
-            overallStatus: "REJECTED",
-            completedAt: now,
-            lockState: "LOCKED_REJECTED",
-          },
-        });
+            now,
+          }),
+        );
         break;
 
       case "move_next":

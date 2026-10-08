@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { parseAndValidateSkillNames } from "@/lib/skills"
+import { HiringCriteriaInput, parseHiringCriteria } from "@/lib/job-criteria"
 import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
 
 interface WorkflowStepInput {
@@ -67,6 +68,7 @@ interface UpdateJobRequest {
   skills?: Array<string | { skillName: string; priority?: "REQUIRED" | "PREFERRED" }>
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
+  hiringCriteria?: HiringCriteriaInput
   workflowSteps?: WorkflowStepInput[]
   quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
@@ -106,10 +108,14 @@ export async function GET(
             educationLevel: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                rank: true
               }
             }
           }
+        },
+        allowedInstitutes: {
+          select: { institute: { select: { id: true, name: true } } }
         },
         quickTest: true,
         workflow: {
@@ -158,6 +164,23 @@ export async function GET(
         minimumSalary: job.minimumSalary,
         benefits: job.benefits,
         successCriteria: job.successCriteria || null,
+        hiringCriteria: {
+          minEducation: job.educationRequirements[0]
+            ? {
+                id: job.educationRequirements[0].educationLevel.id.toString(),
+                name: job.educationRequirements[0].educationLevel.name,
+                rank: job.educationRequirements[0].educationLevel.rank
+              }
+            : null,
+          minAge: job.minAge,
+          maxAge: job.maxAge,
+          minCgpa: job.minCgpa,
+          cgpaScale: job.cgpaScale,
+          institutes: job.allowedInstitutes.map(a => ({
+            id: a.institute.id.toString(),
+            name: a.institute.name
+          }))
+        },
         locations: job.locations.map(loc => ({
           id: loc.id.toString(),
           city: loc.city,
@@ -432,6 +455,22 @@ export async function PUT(
       }
     }
 
+    let parsedCriteria: ReturnType<typeof parseHiringCriteria> | undefined
+    if (body.hiringCriteria !== undefined) {
+      parsedCriteria = parseHiringCriteria(body.hiringCriteria)
+      if (!parsedCriteria.valid) {
+        return NextResponse.json({ error: parsedCriteria.error }, { status: 400 })
+      }
+      if (parsedCriteria.data.instituteIds.length > 0) {
+        const found = await prisma.institute.count({
+          where: { id: { in: parsedCriteria.data.instituteIds }, deletedAt: null }
+        })
+        if (found !== parsedCriteria.data.instituteIds.length) {
+          return NextResponse.json({ error: "One or more selected institutes do not exist" }, { status: 400 })
+        }
+      }
+    }
+
     // Update job using transaction
     const updatedJob = await prisma.$transaction(async (tx) => {
       // Update job basic info
@@ -455,6 +494,12 @@ export async function PUT(
       if (body.minimumSalary !== undefined) updateData.minimumSalary = body.minimumSalary
       if (body.benefits !== undefined) updateData.benefits = body.benefits
       if (body.successCriteria !== undefined) updateData.successCriteria = body.successCriteria || null
+      if (parsedCriteria && parsedCriteria.valid) {
+        updateData.minAge = parsedCriteria.data.minAge
+        updateData.maxAge = parsedCriteria.data.maxAge
+        updateData.minCgpa = parsedCriteria.data.minCgpa
+        updateData.cgpaScale = parsedCriteria.data.cgpaScale
+      }
       if (body.organizationAlias !== undefined) updateData.organizationAlias = body.organizationAlias
 
       const job = await tx.job.update({
@@ -498,6 +543,15 @@ export async function PUT(
               skillName: skill.skillName,
               priority: skill.priority as any
             }))
+          })
+        }
+      }
+
+      if (parsedCriteria && parsedCriteria.valid) {
+        await tx.jobAllowedInstitute.deleteMany({ where: { jobId: jobId } })
+        if (parsedCriteria.data.instituteIds.length > 0) {
+          await tx.jobAllowedInstitute.createMany({
+            data: parsedCriteria.data.instituteIds.map((instituteId) => ({ jobId: jobId, instituteId }))
           })
         }
       }

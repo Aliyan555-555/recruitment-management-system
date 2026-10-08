@@ -1,0 +1,31 @@
+// Starter list of institutes (name + aliases). Used by seeds; mirrored in the
+// 20261008100000_job_hiring_criteria migration. Candidates' free-text institutes are
+// also matched against these names/aliases at read time (see lib/institutes.ts).
+export const STARTER_INSTITUTES: { name: string; aliases: string[] }[] = [
+  { name: "NED University of Engineering and Technology", aliases: ["NED", "NEDUET", "NED University", "NED Karachi"] },
+  { name: "University of Karachi", aliases: ["Karachi University", "KU", "Jamia Karachi", "Uni of Karachi"] },
+  { name: "FAST National University of Computer and Emerging Sciences", aliases: ["FAST", "FAST NUCES", "NUCES", "FAST University"] },
+  { name: "Institute of Business Administration Karachi", aliases: ["IBA", "IBA Karachi"] },
+  { name: "Lahore University of Management Sciences", aliases: ["LUMS"] },
+  { name: "National University of Sciences and Technology", aliases: ["NUST"] },
+  { name: "GIK Institute of Engineering Sciences and Technology", aliases: ["GIKI", "GIK Institute"] },
+  { name: "COMSATS University Islamabad", aliases: ["COMSATS", "CUI", "COMSATS Institute of Information Technology", "CIIT"] },
+  { name: "Institute of Space Technology", aliases: ["IST", "Institute of Space Technology Islamabad"] },
+  { name: "Dawood University of Engineering and Technology", aliases: ["DUET", "Dawood UET"] },
+  { name: "Mehran University of Engineering and Technology", aliases: ["MUET", "Mehran University"] },
+  { name: "University of Engineering and Technology Lahore", aliases: ["UET Lahore", "UET"] },
+  { name: "University of Engineering and Technology Peshawar", aliases: ["UET Peshawar"] },
+  { name: "Sir Syed University of Engineering and Technology", aliases: ["SSUET", "Sir Syed University"] },
+  { name: "Hamdard University", aliases: [] },
+  { name: "Iqra University", aliases: [] },
+  { name: "Bahria University", aliases: [] },
+  { name: "Air University", aliases: [] },
+  { name: "Aga Khan University", aliases: ["AKU"] },
+  { name: "Habib University", aliases: [] },
+  { name: "Institute of Business Management", aliases: ["IoBM", "IOBM"] },
+  { name: "Szabist", aliases: ["SZABIST", "Shaheed Zulfikar Ali Bhutto Institute of Science and Technology"] },
+  { name: "University of the Punjab", aliases: ["Punjab University", "PU Lahore"] },
+  { name: "Quaid-i-Azam University", aliases: ["QAU", "Quaid e Azam University"] },
+  { name: "University of Sindh", aliases: ["Sindh University", "Jamshoro University"] },
+  { name: "Karachi Institute of Economics and Technology", aliases: ["KIET"] },
+]

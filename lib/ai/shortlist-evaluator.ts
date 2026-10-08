@@ -75,7 +75,7 @@ CRITICAL EVALUATION GUIDELINES:
 7. Return ONLY valid JSON format. ${strict ? "Do NOT include markdown fences, comments, or extra text." : ""}`
 
   const userPrompt = `Job & Candidate Evaluation Payload:
-${JSON.stringify(payload, null, 2)}
+${JSON.stringify(payload)}
 
 Return a JSON object adhering to this exact schema:
 {

@@ -50,6 +50,8 @@ export default function AdminJobsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
   const menuRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  // Fixed-position coordinates so the menu is never clipped by the table's scroll container
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
 
   useEffect(() => {
     async function fetchJobs() {
@@ -82,12 +84,18 @@ export default function AdminJobsPage() {
       }
     }
 
+    const closeMenu = () => setOpenMenuId(null)
+
     if (openMenuId) {
       document.addEventListener("mousedown", handleClickOutside)
+      window.addEventListener("scroll", closeMenu, true)
+      window.addEventListener("resize", closeMenu)
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
+      window.removeEventListener("scroll", closeMenu, true)
+      window.removeEventListener("resize", closeMenu)
     }
   }, [openMenuId])
 
@@ -220,9 +228,9 @@ export default function AdminJobsPage() {
         return (
           <div className="text-center">
             <Link
-              href={`/admin/jobs/${row.original.id}/shortlist`}
+              href={`/admin/jobs/${row.original.id}/applicants`}
               className="text-sm text-primary hover:text-primary/80 font-medium hover:underline inline-flex items-center gap-1"
-              title="Candidate Shortlisting (Manual & AI)"
+              title="Review applicants (manual & AI)"
             >
               {counts ? (
                 <span className="whitespace-nowrap" title="Shortlisted / Needs review">
@@ -407,6 +415,15 @@ export default function AdminJobsPage() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const menuWidth = 224
+                  const menuHeight = job.jobType === "BULK" ? 230 : 190
+                  const top =
+                    rect.bottom + menuHeight + 8 > window.innerHeight
+                      ? Math.max(8, rect.top - menuHeight - 8)
+                      : rect.bottom + 8
+                  const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8))
+                  setMenuPos({ top, left })
                   setOpenMenuId(prev => (prev === job.id ? null : job.id))
                 }}
                 className="inline-flex items-center justify-center p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
@@ -418,7 +435,10 @@ export default function AdminJobsPage() {
               </button>
 
               {openMenuId === job.id && (
-                <div className="absolute right-0 z-50 mt-2 w-56 rounded-lg border border-border bg-popover shadow-xl">
+                <div
+                  className="fixed z-50 w-56 rounded-lg border border-border bg-popover shadow-xl"
+                  style={{ top: menuPos?.top ?? 0, left: menuPos?.left ?? 0 }}
+                >
                   <div className="py-1">
                     <Link
                       href={`/admin/jobs/${job.id}/edit`}
@@ -431,24 +451,14 @@ export default function AdminJobsPage() {
                       <span className="font-medium">Edit Job</span>
                     </Link>
                     <Link
-                      href={`/admin/jobs/${job.id}/shortlist`}
+                      href={`/admin/jobs/${job.id}/applicants`}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
                       onClick={() => setOpenMenuId(null)}
                     >
                       <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                       </svg>
-                      <span className="font-medium">Manual Shortlist</span>
-                    </Link>
-                    <Link
-                      href={`/admin/jobs/${job.id}/ai-shortlist`}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
-                      onClick={() => setOpenMenuId(null)}
-                    >
-                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <span className="font-medium">✨ AI Shortlist</span>
+                      <span className="font-medium">Review Applicants</span>
                     </Link>
                     {job.jobType === "BULK" && (
                       <Link
@@ -483,7 +493,7 @@ export default function AdminJobsPage() {
         )
       },
     },
-  ], [openMenuId, deletingId, menuRefs])
+  ], [openMenuId, deletingId, menuRefs, menuPos])
 
   if (loading) {
     return (

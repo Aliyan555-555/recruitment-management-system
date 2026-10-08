@@ -14,14 +14,18 @@ export async function PUT(
 
     const body = await request.json();
     const { name } = body;
+    const rank = body.rank === undefined || body.rank === "" ? undefined : Number(body.rank);
 
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
+    if (rank !== undefined && (!Number.isInteger(rank) || rank < 0 || rank > 1000)) {
+      return NextResponse.json({ error: "Rank must be a whole number from 0 to 1000" }, { status: 400 });
+    }
 
     const updatedLevel = await prisma.userEducationLevel.update({
       where: { id: BigInt(params.id) },
-      data: { name: name.trim() },
+      data: { name: name.trim(), ...(rank !== undefined ? { rank } : {}) },
     });
 
     return NextResponse.json({

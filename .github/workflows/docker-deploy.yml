@@ -3,8 +3,6 @@ name: ATS Docker CI/CD
 on:
   push:
     branches: ["main"]
-  pull_request:
-    branches: ["main"]
 
 # Prevents multiple deployments from stacking if multiple commits are pushed rapidly
 concurrency:
@@ -24,9 +22,20 @@ jobs:
       - name: Verify Docker dependencies on Server
         run: |
           docker --version
-          docker-compose --version
+          if docker compose version >/dev/null 2>&1; then
+            echo "Using Docker Compose v2 plugin"
+            docker compose version
+          else
+            echo "Using legacy docker-compose"
+            docker-compose --version
+          fi
 
       - name: Generate production environment configuration securely
+        env:
+          AI_SETTINGS_ENCRYPTION_KEY: ${{ secrets.AI_SETTINGS_ENCRYPTION_KEY }}
+          AI_INFERENCE_TOKEN: ${{ secrets.AI_INFERENCE_TOKEN }}
+          AI_INFERENCE_ENDPOINT: ${{ secrets.AI_INFERENCE_ENDPOINT }}
+          AI_INFERENCE_MODEL: ${{ secrets.AI_INFERENCE_MODEL }}
         run: |
           # Redirecting Secrets carefully to prevent logging them locally
           cat << 'EOF' > .env
@@ -52,27 +61,40 @@ jobs:
           CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
           EOF
+          # Optional AI settings: only written when set, because an empty value would
+          # override the app's fallbacks (e.g. NEXTAUTH_SECRET for the encryption key).
+          for name in AI_SETTINGS_ENCRYPTION_KEY AI_INFERENCE_TOKEN AI_INFERENCE_ENDPOINT AI_INFERENCE_MODEL; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              echo "$name=$value" >> .env
+            fi
+          done
           chmod 600 .env
 
       - name: Zero-Downtime Rebuild & Deployment
         run: |
           # The image is built fully BEFORE replacing the container, minimizing downtime dramatically
-          docker-compose build
-          docker-compose up -d --remove-orphans
+          if docker compose version >/dev/null 2>&1; then COMPOSE="docker compose"; else COMPOSE="docker-compose"; fi
+          $COMPOSE build
+          $COMPOSE up -d --remove-orphans
 
       - name: Post-Deployment Health Check Verification
         run: |
-          echo "Verifying server is healthy by waiting for Docker healthchecks..."
-          # Sleeps initially, then queries the Docker inspect engine to ensure the state isn't "unhealthy"
-          sleep 10
-          CONTAINER_NAME="ats_app_production"
-          if [ "$(docker inspect -f '{{.State.Health.Status}}' $CONTAINER_NAME)" == "unhealthy" ]; then
-            echo "Deployment FAILED health checks!"
-            exit 1
-          fi
+          echo "Waiting for the container healthcheck..."
+          CONTAINER_NAME="ats_app"
+          for i in $(seq 1 24); do
+            STATUS=$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "missing")
+            echo "Health status: $STATUS (check $i/24)"
+            if [ "$STATUS" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Deployment FAILED health checks!"
+          docker logs --tail 100 "$CONTAINER_NAME" || true
+          exit 1
 
       - name: Aggressive Space Reclamation
         run: |
           # Removes all unused images aggressively leaving only the immediate production layers
           docker image prune -af --filter "until=24h" || true
-          docker volume prune -f || true

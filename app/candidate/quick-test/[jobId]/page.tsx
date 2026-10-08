@@ -129,9 +129,16 @@ export default function CandidateQuickTestPage() {
     setStarting(true)
     try {
       const res = await fetch(`/api/jobs/${jobId}/quick-test/start`, { method: "POST" })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
 
-      if (!res.ok) {
+      if (!res.ok || !data) {
+        if (!data) {
+          throw new Error(
+            res.status === 504 || res.status === 502
+              ? "The server took too long to generate your test (timeout). Please try again."
+              : `The server returned an unexpected response (HTTP ${res.status}). Please try again.`
+          )
+        }
         if (data.code === "ALREADY_APPLIED") {
           router.replace(`/jobs/${jobId}`)
           return

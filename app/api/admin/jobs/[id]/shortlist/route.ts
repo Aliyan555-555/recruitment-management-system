@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { shortlistCandidates } from "@/lib/services/bulk-hiring-service"
+import { setMaybeFlag } from "@/lib/services/applicant-review-service"
+import {
+  JOB_CRITERIA_SELECT,
+  loadCandidateFilterFacts,
+  serializeJobCriteria,
+} from "@/lib/services/candidate-filter-facts"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
 import {
   eligibilityFromApplication,
@@ -73,6 +79,14 @@ export async function GET(
       quickTestAttempts.map((attempt) => [attempt.userId.toString(), attempt.scorePercent])
     )
 
+    const [filterFacts, jobCriteriaRow] = await Promise.all([
+      loadCandidateFilterFacts(applications.map((app) => app.userId)),
+      prisma.job.findUnique({ where: { id: jobId }, select: JOB_CRITERIA_SELECT }),
+    ])
+    const { criteria, defaultFilters } = jobCriteriaRow
+      ? serializeJobCriteria(jobCriteriaRow)
+      : { criteria: null, defaultFilters: {} }
+
     const classified = applications.map((app) => {
       const eligibility = eligibilityFromApplication(app)
       return { app, eligibility }
@@ -95,6 +109,8 @@ export async function GET(
 
     return NextResponse.json({
       counts,
+      criteria,
+      defaultFilters,
       applications: filtered.map(({ app, eligibility }) => ({
         id: app.id.toString(),
         candidateId: app.userId.toString(),
@@ -112,6 +128,7 @@ export async function GET(
         actionBlockedReason: eligibility.actionBlockedReason,
         statusLabel: eligibility.statusLabel,
         quickTestScore: quickTestScoreByUser.get(app.userId.toString()) ?? null,
+        filterFacts: filterFacts.get(app.userId.toString()) ?? null,
         profile: {
           name: `${app.user.firstname} ${app.user.lastname}`,
           email: app.user.email,
@@ -154,20 +171,34 @@ export async function POST(
       )
     }
 
-    if (action !== "select" && action !== "reject") {
+    if (!["select", "reject", "maybe", "unmaybe"].includes(action)) {
       return NextResponse.json(
-        { error: "action must be 'select' or 'reject'" },
+        { error: "action must be 'select', 'reject', 'maybe' or 'unmaybe'" },
         { status: 400 }
       )
     }
 
+    if (candidateIds.length > 500 || !candidateIds.every((id: unknown) => /^\d+$/.test(String(id)))) {
+      return NextResponse.json({ error: "Invalid candidateIds" }, { status: 400 })
+    }
     const candidateIdsBig = candidateIds.map((id: string) => BigInt(id))
+    const adminId = BigInt(user.id)
 
-    await shortlistCandidates(jobId, candidateIdsBig, action)
+    if (action === "maybe" || action === "unmaybe") {
+      await setMaybeFlag(jobId, candidateIdsBig, action === "maybe", adminId)
+    } else {
+      await shortlistCandidates(jobId, candidateIdsBig, action, adminId)
+    }
 
+    const messages: Record<string, string> = {
+      select: "shortlisted",
+      reject: "rejected",
+      maybe: "marked as maybe",
+      unmaybe: "moved back to review",
+    }
     return NextResponse.json({
       success: true,
-      message: `Candidates ${action === "select" ? "shortlisted" : "rejected"} successfully`
+      message: `Candidates ${messages[action]} successfully`
     })
   } catch (error: any) {
     if (error instanceof ShortlistIneligibleError) {

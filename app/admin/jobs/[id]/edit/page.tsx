@@ -14,6 +14,14 @@ import {
   type QuickTestFormValue,
 } from "@/components/admin/QuickTestConfigCard"
 
+import {
+  EMPTY_HIRING_CRITERIA,
+  HiringCriteriaFields,
+  hiringCriteriaFromJob,
+  hiringCriteriaPayload,
+  type HiringCriteriaForm,
+} from "@/components/admin/HiringCriteriaFields"
+
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
 
 interface FormErrors {
@@ -124,6 +132,7 @@ export default function EditJobPage() {
 
   const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
   const [quickTest, setQuickTest] = useState<QuickTestFormValue>(DEFAULT_QUICK_TEST_FORM)
+  const [hiringCriteria, setHiringCriteria] = useState<HiringCriteriaForm>(EMPTY_HIRING_CRITERIA)
   const [quickTestError, setQuickTestError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error"; message: string } | null>(null)
 
@@ -155,6 +164,8 @@ export default function EditJobPage() {
         }
         const data = await res.json()
         const job = data.job
+
+        setHiringCriteria(hiringCriteriaFromJob(job.hiringCriteria, job.educationRequirements?.[0]?.educationLevelId ?? null))
 
         if (job.quickTest) {
           setQuickTest({
@@ -651,7 +662,8 @@ export default function EditJobPage() {
         workflowSteps: transformedSteps,
         quickTest: toQuickTestPayload(quickTest),
         locations: locations,
-        educationRequirements: formData.minEducation ? [{ educationLevelName: formData.minEducation, isRequired: true }] : [],
+        educationRequirements: hiringCriteria.minEducationId ? [{ educationLevelId: hiringCriteria.minEducationId, isRequired: true }] : [],
+          hiringCriteria: hiringCriteriaPayload(hiringCriteria),
       }
 
       const response = await fetch(`/api/admin/jobs/${jobId}`, {
@@ -1081,34 +1093,6 @@ export default function EditJobPage() {
                 )}
               </div>
 
-              {/* Minimum Education */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Minimum Education
-                </label>
-                <select
-                  value={formData.minEducation}
-                  onChange={(e) => setFormData({ ...formData, minEducation: e.target.value })}
-                  className="w-full px-3 py-2 border border-input rounded-md"
-                >
-                  <option value="">Select minimum education</option>
-                  {educationLevels.length > 0 ? (
-                    educationLevels.map((level) => (
-                      <option key={level.id} value={level.name}>
-                        {level.name}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="High School Diploma">High School Diploma</option>
-                      <option value="Associate Degree">Associate Degree</option>
-                      <option value="Bachelor's Degree">Bachelor&apos;s Degree</option>
-                      <option value="Master's Degree">Master&apos;s Degree</option>
-                      <option value="Doctorate / PhD">Doctorate / PhD</option>
-                    </>
-                  )}
-                </select>
-              </div>
 
               {/* Description */}
               <div className="col-span-2">
@@ -1232,6 +1216,12 @@ export default function EditJobPage() {
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Hiring Criteria */}
+          <div className="bg-card rounded-lg shadow p-6 border border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Hiring Criteria</h3>
+            <HiringCriteriaFields value={hiringCriteria} onChange={setHiringCriteria} />
           </div>
 
           {/* Locations - Same as create page */}
@@ -1414,7 +1404,10 @@ export default function EditJobPage() {
                         }`}
                     >
                       <option value="">Select type</option>
-                      {stepTypeOptions.map(opt => {
+                      {stepTypeOptions
+                        // "Test" is no longer offered for new steps; keep it only where a job already uses it
+                        .filter(opt => opt.value !== "TEST" || step.stepType === "TEST")
+                        .map(opt => {
                         const isSelectedInOtherStep = workflowSteps.some((s, i) => i !== index && s.stepType === opt.value)
                         return (
                           <option

@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EducationEntry } from "@/app/register/types"
+import { InstituteSelect } from "@/components/InstituteSelect"
 
-type DegreeOption = { value: string; label: string }
+type DegreeOption = { value: string; label: string; rank?: number }
 
 type EducationStepProps = {
   entries: EducationEntry[]
@@ -28,8 +29,15 @@ const EducationStep = ({
   clearFieldError,
   getFieldError,
 }: EducationStepProps) => {
+  // Entries without a chosen level behave like degree-level (rank 40) so the stricter rules apply
+  const levelRank = (entry: EducationEntry) =>
+    degreeOptions.find((o) => o.value === entry.educationLevelId)?.rank ?? 40
+
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Education is optional. Add your qualifications if you have them, or continue to the next step.
+      </p>
       {entries.map((entry, index) => (
         <Card key={entry.id} className="border-2 border-dashed">
           <CardHeader className="flex flex-row items-center justify-between">
@@ -90,12 +98,14 @@ const EducationStep = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Name of institution *</Label>
-                <Input
-                  value={entry.institute}
-                  onChange={(e) => {
+                <Label>{levelRank(entry) < 30 ? "School / College name *" : "Name of institution *"}</Label>
+                <InstituteSelect
+                  freeText={levelRank(entry) < 30}
+                  value={{ instituteId: entry.instituteId, institute: entry.institute }}
+                  onChange={(v) => {
                     clearFieldError(`education.${index}.institute`)
-                    onEntryChange(entry.id, "institute", e.target.value)
+                    onEntryChange(entry.id, "instituteId", v.instituteId)
+                    onEntryChange(entry.id, "institute", v.institute)
                   }}
                 />
                 {getFieldError(`education.${index}.institute`) && (
@@ -105,7 +115,7 @@ const EducationStep = ({
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Major subject *</Label>
+                <Label>{levelRank(entry) >= 30 ? "Major subject *" : "Major subject (optional)"}</Label>
                 <Input
                   value={entry.majorSubject}
                   placeholder="e.g., Computer Science"
@@ -126,6 +136,7 @@ const EducationStep = ({
               <div className="space-y-2">
                 <Label>Grade / CGPA</Label>
                 <Input
+                  placeholder="e.g. 3.5/4 or 85%"
                   value={entry.grade}
                   onChange={(e) => onEntryChange(entry.id, "grade", e.target.value)}
                 />
