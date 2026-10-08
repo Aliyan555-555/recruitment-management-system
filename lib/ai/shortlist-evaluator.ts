@@ -13,10 +13,6 @@ export class ShortlistEvaluationError extends Error {
   }
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 const mandatoryChecklistItemSchema = z.object({
   requirement: z.string().min(1),
   priority: z.enum(["REQUIRED", "PREFERRED"]),
@@ -63,37 +59,23 @@ async function requestEvaluation(
   strict: boolean,
   omitResponseFormat = false
 ): Promise<string> {
-  const systemInstruction = `You are an expert HR evaluation assistant. Evaluate the candidate against the specified job requirements based on the provided JSON payload.
+  // The job block and schema are identical for every candidate in a run, so they live in the system
+  // prompt (a stable prefix that providers can cache); the user prompt carries only the candidate.
+  const systemInstruction = `You are an expert HR evaluation assistant. Score the candidate against the job below using the candidate JSON you receive.
 
-CRITICAL EVALUATION GUIDELINES:
-1. Reason holistically about candidate qualifications from their explicit skills, work experience titles/descriptions, education degrees/majors, bio, and achievements.
-2. In evaluating skillsScore (0-100), consider both explicit skill matches AND practical skills demonstrated across their work experience history and bio. For example, if a candidate has worked as a "Senior React & Node Developer", recognize their React and Node competencies even if not separately tagged in their skills list.
-3. Do not fabricate facts or assume qualifications not supported by the candidate profile. Any field marked "Not Provided" or empty must be treated as unknown.
-4. Evaluate skillsScore, educationScore, experienceScore, and successCriteriaScore on a scale of 0-100.
-5. Provide confidence (0-100) based on how complete and detailed the candidate profile data is.
-6. Provide a mandatoryChecklist item for each key requirement (skills, education, minimum experience, success criteria).
-7. Return ONLY valid JSON format. ${strict ? "Do NOT include markdown fences, comments, or extra text." : ""}`
+JOB:
+${JSON.stringify(payload.job)}
 
-  const userPrompt = `Job & Candidate Evaluation Payload:
-${JSON.stringify(payload)}
+GUIDELINES:
+- Reason holistically from skills, work experience titles, education, bio and achievements (e.g. a "Senior React & Node Developer" implies React/Node skills even if untagged).
+- Never invent facts. "Not Provided"/empty means unknown.
+- skillsScore, educationScore, experienceScore, successCriteriaScore: 0-100. confidence: 0-100 based on how complete the profile is.
+- mandatoryChecklist: one item per key requirement (skills, education, minimum experience, success criteria).
+- Be concise: notes under 15 words, at most 5 items in each list, reasoning under 400 characters.
+- Return ONLY a JSON object ${strict ? "with no markdown fences, comments or extra text, " : ""}shaped exactly like:
+{"skillsScore":n,"educationScore":n,"experienceScore":n,"successCriteriaScore":n,"confidence":n,"educationSatisfied":bool|null,"mandatoryChecklist":[{"requirement":s,"priority":"REQUIRED"|"PREFERRED","met":bool,"note":s}],"matchedRequirements":[s],"missingRequirements":[s],"strengths":[s],"concerns":[s],"reasoning":s}`
 
-Return a JSON object adhering to this exact schema:
-{
-  "skillsScore": number (0-100),
-  "educationScore": number (0-100),
-  "experienceScore": number (0-100),
-  "successCriteriaScore": number (0-100),
-  "confidence": number (0-100),
-  "educationSatisfied": boolean | null,
-  "mandatoryChecklist": [
-    { "requirement": string, "priority": "REQUIRED" | "PREFERRED", "met": boolean, "note": string }
-  ],
-  "matchedRequirements": string[],
-  "missingRequirements": string[],
-  "strengths": string[],
-  "concerns": string[],
-  "reasoning": string (max 2000 chars)
-}`
+  const userPrompt = JSON.stringify({ candidate: payload.candidate, deterministic: payload.deterministic })
 
   try {
     return await callAiChat({
@@ -128,8 +110,9 @@ function parseAndValidateEvaluation(raw: string): ShortlistEvaluation {
   }
 }
 
-const MAX_EVALUATION_ATTEMPTS = 3
-const RETRY_BASE_DELAY_MS = 1000
+// callAiChat already retries 429/5xx with backoff and falls back to another model, so this only
+// re-asks (once) when the model returned unparseable output; each retry re-sends the full prompt.
+const MAX_EVALUATION_ATTEMPTS = 2
 
 export async function evaluateCandidateForJob(
   payload: ShortlistAiPromptPayload
@@ -150,13 +133,8 @@ export async function evaluateCandidateForJob(
       const retryable = err instanceof ShortlistEvaluationError ? err.retryable : true
       const isLastAttempt = attempt === MAX_EVALUATION_ATTEMPTS
 
-      if (isLastAttempt) break
-
-      // Only back off for transient provider/rate-limit errors; retry parse/validation
-      // failures immediately since the model may simply produce different output.
-      if (retryable) {
-        await sleep(RETRY_BASE_DELAY_MS * attempt)
-      }
+      // Transient provider errors were already retried inside callAiChat; don't multiply them.
+      if (isLastAttempt || retryable) break
     }
   }
 

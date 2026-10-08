@@ -49,12 +49,15 @@ export function ShortlistFilterBar({
   onChange,
   counts,
   rightSlot,
+  compact = false,
 }: {
   filters: ShortlistFilters
   jobDefaults: ShortlistFilters
   onChange: (f: ShortlistFilters) => void
   counts?: FilterCounts
   rightSlot?: React.ReactNode
+  /** Borderless single-row layout (used under the applicant tabs). */
+  compact?: boolean
 }) {
   const [editing, setEditing] = useState<FilterKey | null>(null)
   const [adding, setAdding] = useState(false)
@@ -63,6 +66,9 @@ export function ShortlistFilterBar({
 
   const activeKeys = (Object.keys(LABELS) as FilterKey[]).filter((k) => filters[k] !== undefined)
   const missingKeys = (Object.keys(LABELS) as FilterKey[]).filter((k) => filters[k] === undefined)
+  // Job criteria that were removed: offer one-click restore with the original value
+  const restorable = missingKeys.filter((k) => jobDefaults[k] !== undefined)
+  const addable = missingKeys.filter((k) => !restorable.includes(k))
   const differsFromJob = JSON.stringify(filters) !== JSON.stringify(jobDefaults)
 
   const remove = (key: FilterKey) => {
@@ -89,9 +95,9 @@ export function ShortlistFilterBar({
   const num = (v: string): number | undefined => (v === "" ? undefined : Number(v))
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm">
+    <div className={compact ? "space-y-2" : "rounded-2xl border border-border bg-card p-4 space-y-3 shadow-sm"}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-muted-foreground mr-1">Filters</span>
+        <span className="text-xs font-semibold text-muted-foreground mr-1">{compact ? "Hiring criteria" : "Filters"}</span>
 
         {activeKeys.length === 0 && <span className="text-xs text-muted-foreground">No filters, showing everyone</span>}
 
@@ -116,7 +122,19 @@ export function ShortlistFilterBar({
           </span>
         ))}
 
-        {missingKeys.length > 0 && (
+        {restorable.map((key) => (
+          <button
+            key={key}
+            type="button"
+            title="Restore job criterion"
+            onClick={() => onChange({ ...filters, [key]: jobDefaults[key] })}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground border border-dashed border-border rounded-full px-3 py-1 line-through decoration-muted-foreground/40 hover:text-foreground hover:no-underline"
+          >
+            <Plus className="w-3 h-3" /> {chipLabel(key, jobDefaults)}
+          </button>
+        ))}
+
+        {addable.length > 0 && (
           <div className="relative">
             <button
               type="button"
@@ -127,7 +145,7 @@ export function ShortlistFilterBar({
             </button>
             {adding && (
               <ul className="absolute z-20 mt-1 w-44 rounded-lg border border-border bg-popover shadow-md text-xs">
-                {missingKeys.map((k) => (
+                {addable.map((k) => (
                   <li key={k}>
                     <button type="button" onClick={() => add(k)} className="w-full text-left px-3 py-2 hover:bg-muted">
                       {LABELS[k]}
@@ -152,7 +170,14 @@ export function ShortlistFilterBar({
           </button>
         )}
 
-        {rightSlot && <div className="ml-auto">{rightSlot}</div>}
+        {compact && counts && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{counts.match}</span> match
+            {counts.needsReview > 0 && <> &middot; <span className="font-semibold text-amber-600">{counts.needsReview}</span> need review</>}
+            {" "}&middot; <span className="font-semibold text-rose-600">{counts.filteredOut}</span> filtered out
+          </span>
+        )}
+        {rightSlot && <div className={compact && counts ? "" : "ml-auto"}>{rightSlot}</div>}
       </div>
 
       {editing === "minEducation" && filters.minEducation && (
@@ -213,7 +238,7 @@ export function ShortlistFilterBar({
         </div>
       )}
 
-      {counts && (
+      {!compact && counts && (
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{counts.match}</span> match
           {counts.needsReview > 0 && <> &middot; <span className="font-semibold text-amber-600">{counts.needsReview}</span> need review (missing data)</>}

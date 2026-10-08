@@ -273,17 +273,6 @@ export default function ApplicantsPage() {
         </div>
       </div>
 
-      <ShortlistFilterBar
-        filters={filters}
-        jobDefaults={data?.defaultFilters ?? {}}
-        onChange={setFilters}
-        counts={
-          decidedTab
-            ? undefined
-            : { match: current.match.length, needsReview: current.needsReview.length, filteredOut: current.filteredOut.length }
-        }
-      />
-
       <AiScreeningPanel
         jobId={jobId}
         aiRun={data?.aiRun ?? null}
@@ -329,6 +318,18 @@ export default function ApplicantsPage() {
           ))}
         </select>
       </div>
+
+      <ShortlistFilterBar
+        filters={filters}
+        jobDefaults={data?.defaultFilters ?? {}}
+        onChange={setFilters}
+        compact
+        counts={
+          decidedTab
+            ? undefined
+            : { match: current.match.length, needsReview: current.needsReview.length, filteredOut: current.filteredOut.length }
+        }
+      />
 
       {/* Split view */}
       <div className="grid gap-4 lg:grid-cols-[400px_1fr]">

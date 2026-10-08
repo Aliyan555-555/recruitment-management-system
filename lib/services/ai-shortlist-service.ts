@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { getEnabledQuickTest } from "@/lib/services/quick-test-service"
 import { prisma } from "@/lib/prisma"
 import { getAiConfig, getAiModelName } from "@/lib/ai/ai-config"
@@ -30,6 +31,13 @@ import { combineShortlistScore } from "@/lib/ai-shortlist/scoring"
 import { evaluateCandidateForJob } from "@/lib/ai/shortlist-evaluator"
 import { buildSkillPercentageMap } from "@/lib/assessments/skill-percentage"
 import { notifyAiShortlistComplete } from "@/lib/notifications"
+
+// Bump when the evaluator prompt/schema changes so cached results are not reused across versions.
+const EVALUATION_VERSION = "2"
+
+function payloadHash(payload: unknown): string {
+  return createHash("sha256").update(EVALUATION_VERSION).update(JSON.stringify(payload)).digest("hex")
+}
 
 export const AI_NOT_CONFIGURED_MESSAGE =
   "AI is not set up yet, so candidates cannot be scored. An admin must add an AI token under Settings → AI Configuration (or set AI_INFERENCE_TOKEN in the server environment)."
@@ -443,6 +451,25 @@ export async function processShortlistRun(
     pendingApplications.push(app)
   }
 
+  // Re-runs on an unchanged job + profile would pay for the same AI answer again. Load the latest
+  // COMPLETED result per candidate from earlier runs; if its payload hash matches, copy it instead.
+  const previousByCandidate = new Map<string, any>()
+  if (pendingApplications.length > 0) {
+    const previous = await prisma.aiCandidateShortlistResult.findMany({
+      where: {
+        jobId: run.jobId,
+        runId: { not: run.id },
+        status: "COMPLETED",
+        candidateId: { in: pendingApplications.map((a) => a.userId) },
+      },
+      orderBy: { updatedAt: "desc" },
+    })
+    for (const r of previous) {
+      const key = r.candidateId.toString()
+      if (!previousByCandidate.has(key)) previousByCandidate.set(key, r)
+    }
+  }
+
   // Run evaluation with concurrency limit
   await runWithConcurrency(pendingApplications, AI_SHORTLIST_CONCURRENCY, async (app) => {
     const userIdStr = app.userId.toString()
@@ -472,6 +499,42 @@ export async function processShortlistRun(
     try {
       const deterministicMatch = computeDeterministicMatch(jobBundle, candidateBundle)
       const promptPayload = buildAiPromptPayload(jobBundle, deterministicMatch, candidateBundle)
+      const hash = payloadHash(promptPayload)
+      const cacheFacts = { ...(factsMap.get(userIdStr) as object), payloadHash: hash }
+
+      const prev = previousByCandidate.get(userIdStr)
+      if ((prev?.filterFacts as any)?.payloadHash === hash) {
+        const nowTs = BigInt(Math.floor(Date.now() / 1000))
+        const data = {
+          status: "COMPLETED" as const,
+          errorMessage: null,
+          overallScore: prev.overallScore,
+          skillsScore: prev.skillsScore,
+          educationScore: prev.educationScore,
+          experienceScore: prev.experienceScore,
+          successCriteriaScore: prev.successCriteriaScore,
+          assessmentScore: prev.assessmentScore,
+          quickTestScore: prev.quickTestScore,
+          mandatoryRequirementsMet: prev.mandatoryRequirementsMet,
+          aiConfidence: prev.aiConfidence,
+          recommendation: prev.recommendation,
+          matchedRequirements: prev.matchedRequirements,
+          missingRequirements: prev.missingRequirements,
+          mandatoryChecklist: (prev.mandatoryChecklist ?? undefined) as any,
+          strengths: prev.strengths,
+          concerns: prev.concerns,
+          aiReasoning: prev.aiReasoning,
+          filterFacts: cacheFacts as any,
+          updatedAt: nowTs,
+        }
+        await prisma.aiCandidateShortlistResult.upsert({
+          where: { runId_candidateId: { runId: run.id, candidateId: app.userId } },
+          create: { runId: run.id, jobId: run.jobId, candidateId: app.userId, applicationId: app.id, createdAt: nowTs, ...data },
+          update: data,
+        })
+        return
+      }
+
       const aiEvaluation = await evaluateCandidateForJob(promptPayload)
       const combined = combineShortlistScore(deterministicMatch, aiEvaluation)
 
@@ -506,7 +569,7 @@ export async function processShortlistRun(
           strengths: aiEvaluation.strengths,
           concerns: aiEvaluation.concerns,
           aiReasoning: aiEvaluation.reasoning,
-          filterFacts: factsMap.get(userIdStr) as any,
+          filterFacts: cacheFacts as any,
           createdAt: nowTs,
           updatedAt: nowTs,
         },
@@ -529,7 +592,7 @@ export async function processShortlistRun(
           strengths: aiEvaluation.strengths,
           concerns: aiEvaluation.concerns,
           aiReasoning: aiEvaluation.reasoning,
-          filterFacts: factsMap.get(userIdStr) as any,
+          filterFacts: cacheFacts as any,
           updatedAt: nowTs,
         },
       })

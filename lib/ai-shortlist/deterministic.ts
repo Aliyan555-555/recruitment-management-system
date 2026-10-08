@@ -101,7 +101,6 @@ export interface ShortlistAiPromptPayload {
   }
   candidate: {
     name: string
-    email: string
     skills: Array<{ skillName: string; verifiedLevel: string; assessmentScore: string }>
     education: string[]
     experience: string[]
@@ -297,7 +296,7 @@ export function buildAiPromptPayload(
       : ["Not Specified"]
 
   // Candidate summary bounds
-  const candSkillsSummary = candidate.skills.slice(0, 15).map((cs) => {
+  const candSkillsSummary = candidate.skills.slice(0, 12).map((cs) => {
     let scoreStr = "Not Assessed"
     if (cs.lastAssessmentId && candidate.assessmentPercentageMap) {
       const p = candidate.assessmentPercentageMap.get(cs.lastAssessmentId.toString())
@@ -312,7 +311,7 @@ export function buildAiPromptPayload(
 
   const candEduSummary =
     candidate.educations.length > 0
-      ? candidate.educations.slice(0, 5).map((e) =>
+      ? candidate.educations.slice(0, 4).map((e) =>
           `${e.degreeTitle}${e.levelName ? ` (${e.levelName})` : ""}${
             e.institute ? ` at ${e.institute}` : ""
           }${e.majorSubject ? `, Major: ${e.majorSubject}` : ""}${
@@ -323,7 +322,7 @@ export function buildAiPromptPayload(
 
   const candExpSummary =
     candidate.experiences.length > 0
-      ? candidate.experiences.slice(0, 10).map((exp) =>
+      ? candidate.experiences.slice(0, 6).map((exp) =>
           `${exp.jobTitle}${exp.company ? ` at ${exp.company}` : ""}${
             exp.location ? ` (${exp.location})` : ""
           } [${exp.startDate ?? "N/A"} - ${exp.isCurrent ? "Present" : exp.endDate ?? "N/A"}]`
@@ -334,7 +333,7 @@ export function buildAiPromptPayload(
     job: {
       title: job.title,
       company: job.company,
-      description: truncateString(job.description, 1000),
+      description: truncateString(job.description, 700),
       successCriteria: truncateString(job.successCriteria, 500),
       minimumExperience: truncateString(job.minimumExperience, 200),
       certification: truncateString(job.certification, 200),
@@ -344,11 +343,10 @@ export function buildAiPromptPayload(
     },
     candidate: {
       name: `${candidate.firstname} ${candidate.lastname}`.trim(),
-      email: candidate.email,
       skills: candSkillsSummary,
       education: candEduSummary,
       experience: candExpSummary,
-      bio: truncateString(candidate.profileDetail?.bio, 500),
+      bio: truncateString(candidate.profileDetail?.bio, 400),
       certifications: truncateString(candidate.profileDetail?.certifications, 300),
       achievements: truncateString(candidate.profileDetail?.achievements, 300),
       noticePeriod: truncateString(candidate.profileDetail?.noticePeriod, 100),
