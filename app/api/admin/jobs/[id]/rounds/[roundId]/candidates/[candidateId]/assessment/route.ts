@@ -257,7 +257,6 @@ export async function POST(
     }
 
     const { totalScore, maxScore, scorePercentage, recommendation } = calculateScore(formData)
-    const recommendedToHire = recommendation === "HIRE"
 
     // Create or update stage evaluation
     const evaluation = await prisma.stageEvaluation.upsert({
@@ -283,11 +282,12 @@ export async function POST(
       }
     })
 
-    // Update pipeline step status to COMPLETED
+    // Scoring finished: the step is ready for a decision. Advancing or rejecting stays an explicit admin action
+    // on the Results page (a NO_HIRE must not silently dead-end the pipeline).
     await prisma.candidatePipelineStep.update({
       where: { id: pipelineStep.id },
       data: {
-        status: recommendedToHire ? "COMPLETED" : "REJECTED",
+        status: "COMPLETED",
         completedAt: BigInt(Math.floor(Date.now() / 1000))
       }
     })

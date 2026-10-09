@@ -1,3 +1,4 @@
+import { parseStepMetadata, readStepConfig, toPublicStep } from "@/lib/workflow/step-config"
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
@@ -42,26 +43,24 @@ export async function GET(
     }
 
     const workflowSteps = job.workflow?.steps.map((step) => {
-      const metadata = step.stepMetadata as Record<string, any> | null
-      const candidateInstructions = metadata?.candidateInstructions as string | undefined
-      const interviewMode = metadata?.interviewMode as string | undefined
+      const cfg = readStepConfig(step)
+      const meta = parseStepMetadata(step.stepMetadata)
 
       let timeline: string | undefined
-      if (metadata?.durationMins) {
-        timeline = `${metadata.durationMins} min interview`
-      } else if (metadata?.weightage) {
-        timeline = `Weightage: ${metadata.weightage}%`
-      } else if (interviewMode) {
-        timeline = `${interviewMode} interview`
+      if (cfg.isInterview) {
+        timeline = `${cfg.durationMins} min ${cfg.interviewMode ? cfg.interviewMode.toLowerCase() + " " : ""}interview`
+      } else if (meta.weightage) {
+        timeline = `Weightage: ${meta.weightage}%`
       }
 
       return {
         id: step.id.toString(),
         title: step.stepName,
         order: step.stepOrder,
-        description: candidateInstructions || metadata?.stepType || "Interview stage",
+        description: cfg.candidateInstructions || cfg.stepType || "Interview stage",
         timeline,
-        metadata
+        // Public endpoint: only non-sensitive fields (no meeting links, interviewers or staff notes)
+        metadata: toPublicStep(step),
       }
     }) || []
 

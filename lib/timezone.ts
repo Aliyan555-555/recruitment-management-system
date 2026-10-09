@@ -112,8 +112,7 @@ export function createPKTDate(year: number, month: number, day: number, hour = 0
  */
 export function isPastPKT(date: Date | string): boolean {
   const dateObj = typeof date === 'string' ? new Date(date) : date
-  const now = nowPKT()
-  return dateObj.getTime() < now.getTime()
+  return dateObj.getTime() < Date.now()
 }
 
 /**
@@ -145,3 +144,145 @@ export function formatTimeRemaining(ms: number): string {
   return parts.join(" ") || "0s"
 }
 
+
+
+// ---------------------------------------------------------------------------
+// Zone-aware helpers (dependency-free, Intl based). Used by interview scheduling.
+// The organization timezone is stored in OrganizationSettings.timezone.
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_ORG_TIMEZONE = PKT_TIMEZONE
+
+export interface ZonedParts {
+  year: number
+  month: number // 1-12
+  day: number
+  hour: number
+  minute: number
+  second: number
+  weekday: number // 0=Sunday .. 6=Saturday
+}
+
+const partsFormatters = new Map<string, Intl.DateTimeFormat>()
+
+function getPartsFormatter(timeZone: string): Intl.DateTimeFormat {
+  let f = partsFormatters.get(timeZone)
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      weekday: 'short',
+    })
+    partsFormatters.set(timeZone, f)
+  }
+  return f
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Wall-clock parts of an instant in the given timezone. */
+export function getZonedParts(date: Date, timeZone: string = DEFAULT_ORG_TIMEZONE): ZonedParts {
+  const out: Record<string, string> = {}
+  for (const p of getPartsFormatter(timeZone).formatToParts(date)) out[p.type] = p.value
+  return {
+    year: Number(out.year),
+    month: Number(out.month),
+    day: Number(out.day),
+    hour: Number(out.hour) % 24,
+    minute: Number(out.minute),
+    second: Number(out.second),
+    weekday: WEEKDAYS.indexOf(out.weekday),
+  }
+}
+
+function zoneOffsetMs(utcMs: number, timeZone: string): number {
+  const p = getZonedParts(new Date(utcMs), timeZone)
+  const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second)
+  return asUtc - Math.floor(utcMs / 1000) * 1000
+}
+
+/** Convert a wall-clock time in `timeZone` to the matching UTC instant. */
+export function zonedWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string = DEFAULT_ORG_TIMEZONE
+): Date {
+  const guess = Date.UTC(year, month - 1, day, hour, minute)
+  const off1 = zoneOffsetMs(guess, timeZone)
+  let utc = guess - off1
+  const off2 = zoneOffsetMs(utc, timeZone)
+  if (off2 !== off1) utc = guess - off2
+  return new Date(utc)
+}
+
+/** "YYYY-MM-DD" of an instant in the given timezone. */
+export function zonedDateKey(date: Date, timeZone: string = DEFAULT_ORG_TIMEZONE): string {
+  const p = getZonedParts(date, timeZone)
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`
+}
+
+/** Parse "YYYY-MM-DD" into numeric parts (throws on invalid input). */
+export function parseDateKey(key: string): { year: number; month: number; day: number } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key)
+  if (!m) throw new Error(`Invalid date key: ${key}`)
+  const year = Number(m[1])
+  const month = Number(m[2])
+  const day = Number(m[3])
+  const check = new Date(Date.UTC(year, month - 1, day))
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== day) {
+    throw new Error(`Invalid date key: ${key}`)
+  }
+  return { year, month, day }
+}
+
+/** Day of week (0=Sunday) of a "YYYY-MM-DD" calendar date (zone independent). */
+export function dateKeyWeekday(key: string): number {
+  const { year, month, day } = parseDateKey(key)
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+}
+
+/** Add whole calendar days to a "YYYY-MM-DD" key. */
+export function addDaysToDateKey(key: string, days: number): string {
+  const { year, month, day } = parseDateKey(key)
+  const d = new Date(Date.UTC(year, month - 1, day + days))
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+/** UTC instant for `minuteOfDay` (0-1440) on the calendar date `dateKey` in `timeZone`. */
+export function dateKeyMinuteToUtc(dateKey: string, minuteOfDay: number, timeZone: string = DEFAULT_ORG_TIMEZONE): Date {
+  const { year, month, day } = parseDateKey(dateKey)
+  return zonedWallTimeToUtc(year, month, day, Math.floor(minuteOfDay / 60), minuteOfDay % 60, timeZone)
+}
+
+/** Human formatting in an explicit timezone, e.g. "Mon, 12 Oct 2026, 10:30". */
+export function formatInZone(
+  date: Date | string,
+  timeZone: string = DEFAULT_ORG_TIMEZONE,
+  options: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }
+): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleString('en-GB', { timeZone, ...options })
+}
+
+/** "10:30" of an instant in the timezone. */
+export function formatTimeInZone(date: Date | string, timeZone: string = DEFAULT_ORG_TIMEZONE): string {
+  return formatInZone(date, timeZone, { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+/** Short zone label such as "PKT" / "GMT+5". */
+export function zoneLabel(timeZone: string = DEFAULT_ORG_TIMEZONE, at: Date = new Date()): string {
+  if (timeZone === 'Asia/Karachi') return 'PKT'
+  const part = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'short' })
+    .formatToParts(at)
+    .find((p) => p.type === 'timeZoneName')
+  return part?.value ?? timeZone
+}

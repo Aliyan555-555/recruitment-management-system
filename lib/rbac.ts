@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 
-export type UserRole = "ADMIN" | "CANDIDATE"
+export type UserRole = "ADMIN" | "INTERVIEWER" | "CANDIDATE"
 
 /**
  * Require a specific role(s) for the current user
@@ -41,7 +41,16 @@ export async function requireCandidate() {
 }
 
 /**
- * Check if user has admin or interviewer role
+ * Check if user has interviewer role
+ */
+export async function requireInterviewer() {
+  return requireRole(["INTERVIEWER"])
+}
+
+/**
+ * Admin-only. Kept as a separate name for the existing admin assessment/results routes.
+ * Interviewers deliberately do NOT pass this check: they use requireInterviewer() on
+ * /api/interviewer/* routes, which scope every query to the interviewer's own slots.
  */
 export async function requireStaff() {
   return requireRole(["ADMIN"])
@@ -75,6 +84,13 @@ export function isAdmin(userRole: UserRole): boolean {
 }
 
 
+
+/**
+ * Check if user is interviewer
+ */
+export function isInterviewer(userRole: UserRole): boolean {
+  return userRole === "INTERVIEWER"
+}
 
 /**
  * Check if user is candidate

@@ -4,33 +4,15 @@ import { prisma } from "@/lib/prisma"
 import { generateJobCode } from "@/lib/utils"
 import { parseAndValidateSkillNames } from "@/lib/skills"
 import { HiringCriteriaInput, parseHiringCriteria } from "@/lib/job-criteria"
+import {
+  buildStepColumns,
+  buildStepMetadata,
+  normalizeStep,
+  syncStepInterviewers,
+  validateWorkflow,
+  type WorkflowStepPayload,
+} from "@/lib/workflow/step-persistence"
 import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
-
-// Helper function to convert stepType to human-readable stepName
-function getStepNameFromType(stepType: string): string {
-  const stepTypeMap: Record<string, string> = {
-    "TEST": "Test",
-    "SCREENING_INTERVIEW": "Screening Interview",
-    "FOCUS_GROUP": "Focus Group",
-    "FINAL_INTERVIEW": "Final Interview",
-    "OFFER": "Offer"
-  }
-  return stepTypeMap[stepType] || stepType
-}
-
-interface WorkflowStepInput {
-  stepName?: string // Optional, for backward compatibility/display
-  stepType: string // Required: TEST, SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
-  stepOrder: number
-  interviewerId?: string
-  // Extended fields stored in stepMetadata
-  durationMins?: number
-  weightage?: number
-  scoreThreshold?: number
-  interviewMode?: string
-  meetingLink?: string
-  interviewerIds?: string[] // Multi-select interviewer IDs
-}
 
 interface JobLocationInput {
   city: string
@@ -70,7 +52,7 @@ interface CreateJobRequest {
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   hiringCriteria?: HiringCriteriaInput
-  workflowSteps: WorkflowStepInput[]
+  workflowSteps: WorkflowStepPayload[]
   quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
 
@@ -94,104 +76,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: quickTestResult.error }, { status: 400 })
     }
 
-    // Validate workflow steps
-    if (!body.workflowSteps || body.workflowSteps.length === 0) {
-      return NextResponse.json(
-        { error: "Workflow must have at least one step" },
-        { status: 400 }
-      )
-    }
-
-    // Validate step orders
-    const stepOrders = body.workflowSteps.map(s => s.stepOrder).sort()
-    for (let i = 0; i < stepOrders.length; i++) {
-      if (stepOrders[i] !== i + 1) {
-        return NextResponse.json(
-          { error: "Step orders must be sequential starting from 1" },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Validate that Offer step exists and is last
-    const offerStepIndex = body.workflowSteps.findIndex(s => s.stepType === "OFFER")
-    if (offerStepIndex === -1) {
-      return NextResponse.json(
-        { error: "Offer step is mandatory and must be the last step in the workflow" },
-        { status: 400 }
-      )
-    }
-    if (offerStepIndex !== body.workflowSteps.length - 1) {
-      return NextResponse.json(
-        { error: `Step ${body.workflowSteps[offerStepIndex].stepOrder}: Offer step must be the last step in the workflow` },
-        { status: 400 }
-      )
-    }
-
-    // Validate step types are valid
-    const validStepTypes = ["TEST", "SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW", "OFFER"]
-    for (const step of body.workflowSteps) {
-      if (!step.stepType || !validStepTypes.includes(step.stepType)) {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Invalid step type. Must be one of: ${validStepTypes.join(", ")}` },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Validate required fields for each step
-    for (const step of body.workflowSteps) {
-      // stepName is optional now, but we'll use stepType for validation
-      if (!step.stepType || step.stepType.trim() === "") {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Step Type is required` },
-          { status: 400 }
-        )
-      }
-
-      // Validate meeting link is required for Remote interviews
-      if (step.interviewMode === "Remote" && (!step.meetingLink || step.meetingLink.trim() === "")) {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Meeting Link is required for Remote interviews` },
-          { status: 400 }
-        )
-      }
-
-      // Validate meeting link is a valid URL if provided
-      if (step.meetingLink && step.meetingLink.trim() !== "") {
-        try {
-          new URL(step.meetingLink)
-        } catch {
-          return NextResponse.json(
-            { error: `Step ${step.stepOrder}: Meeting Link must be a valid URL` },
-            { status: 400 }
-          )
-        }
-      }
-
-      // Validate weightage is between 0-100 if provided
-      if (step.weightage !== undefined && (step.weightage < 0 || step.weightage > 100)) {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Weightage must be between 0 and 100` },
-          { status: 400 }
-        )
-      }
-
-      // Validate score threshold is between 0-100 if provided
-      if (step.scoreThreshold !== undefined && (step.scoreThreshold < 0 || step.scoreThreshold > 100)) {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Score Threshold must be between 0 and 100` },
-          { status: 400 }
-        )
-      }
-
-      // Validate duration is positive if provided
-      if (step.durationMins !== undefined && step.durationMins < 0) {
-        return NextResponse.json(
-          { error: `Step ${step.stepOrder}: Duration must be a positive number` },
-          { status: 400 }
-        )
-      }
+    // Validate workflow steps (order, offer-last, per-step interview settings)
+    const workflowError = validateWorkflow(body.workflowSteps as WorkflowStepPayload[])
+    if (workflowError) {
+      return NextResponse.json({ error: workflowError }, { status: 400 })
     }
 
     // Generate unique job code
@@ -328,49 +216,27 @@ export async function POST(req: NextRequest) {
         })
       }
 
-      // Create workflow
+      // Create workflow + steps (typed columns) and the interviewer pool of each step
       const workflow = await tx.jobWorkflow.create({
-        data: {
-          jobId: newJob.id,
-          createdAt: now,
-          updatedAt: now,
-          steps: {
-            create: body.workflowSteps.map(step => {
-              // Use first interviewerId from interviewerIds array if provided, otherwise use single interviewerId
-              const primaryInterviewerId = step.interviewerIds && step.interviewerIds.length > 0
-                ? step.interviewerIds[0]
-                : step.interviewerId
-
-              // Build stepMetadata JSON with extended fields
-              const stepMetadata: any = {}
-              
-              if (step.stepType) stepMetadata.stepType = step.stepType
-              if (step.durationMins !== undefined) stepMetadata.durationMins = step.durationMins
-              if (step.weightage !== undefined) stepMetadata.weightage = step.weightage
-              if (step.scoreThreshold !== undefined) stepMetadata.scoreThreshold = step.scoreThreshold
-              if (step.interviewMode) stepMetadata.interviewMode = step.interviewMode
-              if (step.meetingLink) stepMetadata.meetingLink = step.meetingLink
-              if (step.interviewerIds && step.interviewerIds.length > 0) stepMetadata.interviewerIds = step.interviewerIds
-              if (primaryInterviewerId) stepMetadata.interviewerId = primaryInterviewerId
-
-              // Auto-populate stepName from stepType
-              const stepName = getStepNameFromType(step.stepType)
-
-              return {
-                stepName: stepName, // Auto-populated from stepType
-                stepType: step.stepType as any, // Store stepType in database field
-                stepOrder: step.stepOrder,
-                isRequired: true, // Default: all steps are required
-                isSkippable: false, // Default: steps are not skippable
-                status: 'ACTIVE',
-                stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
-                createdAt: now,
-                updatedAt: now
-              }
-            })
-          }
-        }
+        data: { jobId: newJob.id, createdAt: now, updatedAt: now },
       })
+      const orderedSteps = [...(body.workflowSteps as WorkflowStepPayload[])].sort((x, y) => x.stepOrder - y.stepOrder)
+      for (const raw of orderedSteps) {
+        const step = normalizeStep(raw)
+        const created = await tx.workflowStep.create({
+          data: {
+            workflowId: workflow.id,
+            ...buildStepColumns(step),
+            status: "ACTIVE",
+            stepMetadata: buildStepMetadata(step),
+            createdAt: now,
+            updatedAt: now,
+          },
+        })
+        if (step.interviewerIds.length > 0) {
+          await syncStepInterviewers(tx, created.id, step.interviewerIds, now)
+        }
+      }
 
       if (quickTestResult.value) {
         await upsertJobQuickTest(tx, newJob.id, quickTestResult.value)

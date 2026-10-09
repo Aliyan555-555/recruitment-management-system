@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
+import { readStepConfig } from "@/lib/workflow/step-config"
 
 export async function GET(
   req: NextRequest,
@@ -48,6 +49,12 @@ export async function GET(
                     stepOrder: true,
                     isRequired: true,
                     isSkippable: true,
+                    interviewMode: true,
+                    durationMins: true,
+                    panelSize: true,
+                    bufferMins: true,
+                    capacityPerSlot: true,
+                    stepType: true,
                     stepMetadata: true
                   }
                 }
@@ -95,11 +102,23 @@ export async function GET(
 
     const workflowSteps = pipeline.job.workflow?.steps ?? []
 
+    // Meeting links / locations are only revealed once the candidate holds an active booking for that step.
+    const activeBookings = await prisma.slotBooking.findMany({
+      where: { applicationId: pipeline.applicationId, status: "RESERVED" },
+      select: {
+        id: true,
+        slot: { select: { id: true, stepId: true, startsAt: true, endsAt: true, mode: true, meetingLink: true, location: true } },
+      },
+    })
+    const bookingByStep = new Map(activeBookings.map((b) => [b.slot.stepId.toString(), b]))
+
     const steps = workflowSteps.map((workflowStep) => {
       const pipelineStep = pipeline.steps.find(
         (step) => step.workflowStepId === workflowStep.id
       )
       const metadata = (workflowStep.stepMetadata as any) || {}
+      const cfg = readStepConfig(workflowStep)
+      const booking = bookingByStep.get(workflowStep.id.toString())
 
       return {
         id: pipelineStep ? pipelineStep.id.toString() : `workflow-${workflowStep.id.toString()}`,
@@ -111,11 +130,22 @@ export async function GET(
         feedback: pipelineStep?.feedback ?? null,
         startedAt: pipelineStep?.startedAt?.toString(),
         completedAt: pipelineStep?.completedAt?.toString(),
-        stepType: metadata.stepType,
-        durationMins: metadata.durationMins,
-        interviewMode: metadata.interviewMode,
-        meetingLink: metadata.meetingLink,
-        candidateInstructions: metadata.candidateInstructions,
+        stepType: cfg.stepType,
+        isInterview: cfg.isInterview,
+        durationMins: cfg.isInterview ? cfg.durationMins : undefined,
+        interviewMode: cfg.isInterview ? cfg.interviewMode : undefined,
+        booking: booking
+          ? {
+              id: booking.id.toString(),
+              slotId: booking.slot.id.toString(),
+              startsAt: booking.slot.startsAt.toISOString(),
+              endsAt: booking.slot.endsAt.toISOString(),
+              mode: booking.slot.mode ?? cfg.interviewMode,
+              meetingLink: booking.slot.meetingLink ?? cfg.meetingLink,
+              location: booking.slot.location ?? cfg.location,
+            }
+          : null,
+        candidateInstructions: cfg.candidateInstructions ?? undefined,
         attachments: metadata.attachments?.filter((att: any) => att.access?.includes("CANDIDATE")) || [],
         interviews: pipelineStep
           ? pipelineStep.interviews.map((interview) => ({

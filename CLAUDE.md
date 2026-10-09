@@ -53,6 +53,14 @@ Three broad domains:
 - `lib/api-client.ts` — client-side fetch wrapper (`ApiClient.get/post/put/patch`) that auto-redirects to `/login` on 401/403; prefer it over raw `fetch` in client components for consistency with the rest of the app.
 - Uploaded files (avatars, org logos, CVs) go to Cloudinary when `CLOUDINARY_*` env vars are set, otherwise fall back to local `public/uploads/` (served via `app/uploads/[...path]`) — see `lib/cloudinary.ts`.
 
+### Interview scheduling (interviewer role, availability, slots, bookings)
+
+- Interview steps (`SCREENING_INTERVIEW`, `FOCUS_GROUP`, `FINAL_INTERVIEW`) are configured with real `WorkflowStep` columns (`interviewMode`, `durationMins`, `panelSize`, `bufferMins`, `capacityPerSlot` = candidates per slot). The interviewer pool is `StepInterviewer`. Read step settings only through `lib/workflow/step-config.ts` (`readStepConfig`); never read `stepMetadata` ad hoc and never expose it on public endpoints (`toPublicStep`).
+- Interviewers set `InterviewerAvailability` (weekly or one-off windows, minutes from midnight in the org timezone) and `InterviewerTimeOff`. Admin publishes slots for a round; the generator in `lib/scheduling/` creates `InterviewSlot` + `SlotInterviewer` rows. Candidates book; only admins reschedule/cancel.
+- Capacity is enforced atomically with `InterviewSlot.bookedCount` (conditional UPDATE), and one active booking per candidate per step is enforced by `SlotBooking.activeKey` (UNIQUE, NULL once cancelled). Do not count `bookings` rows for capacity.
+- Timezone: organization timezone lives in `OrganizationSettings.timezone` (default `Asia/Karachi`). Use the zone helpers in `lib/timezone.ts` (`zonedWallTimeToUtc`, `getZonedParts`, ...), never browser-local time.
+- `requireStaff()` is ADMIN only. Interviewer API routes use `requireInterviewer()` and must scope every query to slots the interviewer sits on (`SlotInterviewer`).
+
 ### AI skill assessments
 
 `lib/ai/assessment-generator.ts` calls GitHub Models / Azure AI Inference (`AI_INFERENCE_TOKEN`, configurable endpoint/model) to generate assessment questions. Attempt/cooldown rules live in `lib/assessments/attempt-rules.ts`, scoring in `lib/assessments/scoring.ts` — both have unit tests (`*.test.ts`); extend those tests when changing assessment logic. `lib/ai-shortlist/scoring.ts` and `lib/ai-shortlist/deterministic.ts` are also covered by unit tests — extend those when changing shortlisting logic.

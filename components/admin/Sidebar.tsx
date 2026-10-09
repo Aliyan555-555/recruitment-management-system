@@ -13,6 +13,8 @@ import {
   ChevronRight,
   LogOut,
   Sparkles,
+  UserCog,
+  CalendarDays,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -36,6 +38,16 @@ const navItems = [
     href: "/admin/assessments",
     label: "Skill Assessments",
     icon: Sparkles
+  },
+  {
+    href: "/admin/calendar",
+    label: "Calendar",
+    icon: CalendarDays
+  },
+  {
+    href: "/admin/interviewers",
+    label: "Interviewers",
+    icon: UserCog
   },
   {
     href: "/admin/users",

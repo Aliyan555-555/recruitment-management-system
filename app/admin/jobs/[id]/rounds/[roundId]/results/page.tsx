@@ -31,6 +31,10 @@ interface CandidateResult {
   interviewer?: string
   assessedAt?: string
   movedToNext?: boolean
+  evaluatorCount?: number
+  isSplit?: boolean
+  hireVotes?: number
+  noHireVotes?: number
 }
 
 interface WorkflowStep {
@@ -204,6 +208,30 @@ export default function ResultsPage() {
     )
   }
 
+  const rejectSelected = async () => {
+    if (selectedIds.length === 0) return
+    if (!window.confirm(`Reject ${selectedIds.length} candidate${selectedIds.length === 1 ? "" : "s"}? This closes their application.`)) return
+    try {
+      setBulkLoading(true)
+      const res = await fetch(`/api/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", candidateIds: selectedIds })
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        alert(err?.error || "Failed to reject candidates")
+      }
+      setSelectedIds([])
+      await fetchResults()
+    } catch (error) {
+      console.error("Error rejecting candidates:", error)
+      alert("Error rejecting candidates")
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
   const moveToNextRound = async () => {
     if (selectedIds.length === 0) return
     try {
@@ -344,6 +372,13 @@ export default function ResultsPage() {
               {filteredCandidates.length} shown · {selectedIds.length} selected
             </div>
             <button
+              onClick={rejectSelected}
+              disabled={selectedIds.length === 0 || bulkLoading}
+              className="px-4 py-2 border border-destructive/50 text-destructive rounded-lg text-sm font-semibold hover:bg-destructive/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Reject selected
+            </button>
+            <button
               onClick={moveToNextRound}
               disabled={selectedIds.length === 0 || bulkLoading}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -444,7 +479,13 @@ export default function ResultsPage() {
                       ? `${candidate.scorePercentage}%`
                       : "-"}
                   </td>
-                  <td className="px-4 py-3 text-sm">{recommendationBadge(candidate.recommendation)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    {recommendationBadge(candidate.recommendation)}
+                    {candidate.isSplit && <div className="mt-1 text-xs text-amber-600">Split decision ({candidate.hireVotes}-{candidate.noHireVotes})</div>}
+                    {(candidate.evaluatorCount ?? 0) > 1 && !candidate.isSplit && (
+                      <div className="mt-1 text-xs text-muted-foreground">{candidate.hireVotes} of {candidate.evaluatorCount} recommend</div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={statusBadge(candidate.status)}>{candidate.status}</span>
                   </td>

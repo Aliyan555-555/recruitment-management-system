@@ -1,36 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
+import {
+  buildStepColumns,
+  buildStepMetadata,
+  normalizeStep,
+  syncStepInterviewers,
+  validateWorkflow,
+  type WorkflowStepPayload,
+} from "@/lib/workflow/step-persistence"
+import { parseStepMetadata, readStepConfig } from "@/lib/workflow/step-config"
 import { requireAdmin } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 import { parseAndValidateSkillNames } from "@/lib/skills"
 import { HiringCriteriaInput, parseHiringCriteria } from "@/lib/job-criteria"
 import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
-
-interface WorkflowStepInput {
-  stepName: string
-  stepOrder: number
-  isRequired: boolean
-  isSkippable: boolean
-  interviewerId?: string
-  stepType?: string
-  skipReason?: string
-  durationMins?: number
-  weightage?: number
-  scoreThreshold?: number
-  interviewMode?: string
-  meetingLink?: string
-  interviewerIds?: string[]
-  routeVisibility?: string[]
-  evaluationCriteria?: string[]
-  candidateInstructions?: string
-  interviewerInstructions?: string
-  attachments?: Array<{
-    id: string
-    fileName: string
-    fileSize: number
-    fileType: string
-    access: string[]
-  }>
-}
 
 interface JobLocationInput {
   city: string
@@ -69,7 +51,7 @@ interface UpdateJobRequest {
   locations?: JobLocationInput[]
   educationRequirements?: JobEducationRequirementInput[]
   hiringCriteria?: HiringCriteriaInput
-  workflowSteps?: WorkflowStepInput[]
+  workflowSteps?: WorkflowStepPayload[]
   quickTest?: { enabled: boolean; questionCount?: number; timeLimitMinutes?: number }
 }
 
@@ -123,7 +105,8 @@ export async function GET(
             steps: {
               orderBy: {
                 stepOrder: 'asc'
-              }
+              },
+              include: { interviewers: { select: { interviewerId: true } } }
             }
           }
         },
@@ -214,6 +197,7 @@ export async function GET(
           updatedAt: job.workflow.updatedAt.toString(),
           steps: job.workflow.steps.map(s => {
             const metadata = (s.stepMetadata as any) || {}
+            const cfg = readStepConfig(s)
             return {
               id: s.id.toString(),
               workflowId: s.workflowId.toString(),
@@ -224,20 +208,22 @@ export async function GET(
               status: s.status,
               createdAt: s.createdAt.toString(),
               updatedAt: s.updatedAt.toString(),
-              interviewer: null,
-              // Include stepMetadata fields
-              stepType: metadata.stepType,
+              stepType: cfg.stepType,
               skipReason: metadata.skipReason,
-              durationMins: metadata.durationMins,
+              durationMins: cfg.isInterview ? cfg.durationMins : undefined,
+              interviewMode: cfg.interviewMode,
+              panelSize: cfg.panelSize,
+              groupSize: cfg.groupSize,
+              bufferMins: cfg.bufferMins,
               weightage: metadata.weightage,
               scoreThreshold: metadata.scoreThreshold,
-              interviewMode: metadata.interviewMode,
-              meetingLink: metadata.meetingLink,
-              interviewerIds: metadata.interviewerIds || [],
+              meetingLink: cfg.meetingLink,
+              location: cfg.location,
+              interviewerIds: s.interviewers.map(i => i.interviewerId.toString()),
               routeVisibility: metadata.routeVisibility || [],
               evaluationCriteria: metadata.evaluationCriteria || [],
-              candidateInstructions: metadata.candidateInstructions,
-              interviewerInstructions: metadata.interviewerInstructions,
+              candidateInstructions: cfg.candidateInstructions,
+              interviewerInstructions: cfg.interviewerInstructions,
               attachments: metadata.attachments || []
             }
           })
@@ -331,7 +317,10 @@ export async function PUT(
           include: {
             steps: {
               select: {
-                id: true
+                id: true,
+                stepType: true,
+                stepOrder: true,
+                stepMetadata: true
               }
             }
           }
@@ -351,67 +340,35 @@ export async function PUT(
       )
     }
 
-    // Check if workflow steps are being updated and if any are in use
+    // Workflow validation. Candidates already in the pipeline => settings may change, structure may not.
+    let workflowStructureLocked = false
     if (body.workflowSteps && existingJob.workflow) {
-      // Check if any workflow steps are being used in candidate pipelines
+      const workflowError = validateWorkflow(body.workflowSteps as WorkflowStepPayload[])
+      if (workflowError) {
+        return NextResponse.json({ error: workflowError }, { status: 400 })
+      }
+
       const workflowStepIds = existingJob.workflow.steps.map(s => s.id)
       const stepsInUse = await prisma.candidatePipelineStep.findFirst({
-        where: {
-          workflowStepId: { in: workflowStepIds }
-        }
+        where: { workflowStepId: { in: workflowStepIds } },
+        select: { id: true },
       })
-      
-      if (stepsInUse) {
-        return NextResponse.json(
-          { error: "Cannot update workflow steps that are already in use by candidate pipelines" },
-          { status: 400 }
-        )
-      }
+      workflowStructureLocked = !!stepsInUse
 
-      // Validate workflow steps
-      if (body.workflowSteps.length === 0) {
-        return NextResponse.json(
-          { error: "Workflow must have at least one step" },
-          { status: 400 }
-        )
-      }
-
-      // Validate step orders
-      const stepOrders = body.workflowSteps.map(s => s.stepOrder).sort()
-      for (let i = 0; i < stepOrders.length; i++) {
-        if (stepOrders[i] !== i + 1) {
+      if (workflowStructureLocked) {
+        const existingById = new Map(existingJob.workflow.steps.map(s => [s.id.toString(), s]))
+        const incoming = body.workflowSteps as WorkflowStepPayload[]
+        const sameStructure =
+          incoming.length === existingById.size &&
+          incoming.every(step => {
+            const current = step.id ? existingById.get(String(step.id)) : undefined
+            return !!current && (current.stepType ?? parseStepMetadata(current.stepMetadata).stepType) === step.stepType && current.stepOrder === step.stepOrder
+          })
+        if (!sameStructure) {
           return NextResponse.json(
-            { error: "Step orders must be sequential starting from 1" },
+            { error: "Candidates are already in this workflow. You can change round settings, but not add, remove or reorder rounds." },
             { status: 400 }
           )
-        }
-      }
-
-      // Validate required fields for each step
-      for (const step of body.workflowSteps) {
-        if (!step.stepName || step.stepName.trim() === "") {
-          return NextResponse.json(
-            { error: `Step ${step.stepOrder}: Step Name is required` },
-            { status: 400 }
-          )
-        }
-
-        if (step.interviewMode === "Remote" && (!step.meetingLink || step.meetingLink.trim() === "")) {
-          return NextResponse.json(
-            { error: `Step ${step.stepOrder}: Meeting Link is required for Remote interviews` },
-            { status: 400 }
-          )
-        }
-
-        if (step.meetingLink && step.meetingLink.trim() !== "") {
-          try {
-            new URL(step.meetingLink)
-          } catch {
-            return NextResponse.json(
-              { error: `Step ${step.stepOrder}: Meeting Link must be a valid URL` },
-              { status: 400 }
-            )
-          }
         }
       }
     }
@@ -596,64 +553,45 @@ export async function PUT(
         }
       }
 
-      // Update workflow if provided
+      // Update workflow in place so slots, interviewer pools and bookings survive edits
       if (body.workflowSteps !== undefined && existingJob.workflow) {
-        // Delete existing workflow steps (only if not in use, which we checked above)
-        await tx.workflowStep.deleteMany({
-          where: { workflowId: existingJob.workflow.id }
-        })
+        const workflowId = existingJob.workflow.id
+        const existingSteps = new Map(existingJob.workflow.steps.map(st => [st.id.toString(), st]))
+        const incoming = [...(body.workflowSteps as WorkflowStepPayload[])].sort((x, y) => x.stepOrder - y.stepOrder)
+        const keepIds = new Set<string>()
 
-        // Create new workflow steps
-        for (const step of body.workflowSteps) {
-          const primaryInterviewerId = step.interviewerIds && step.interviewerIds.length > 0
-            ? step.interviewerIds[0]
-            : step.interviewerId
-
-          // Build stepMetadata JSON
-          const stepMetadata: any = {}
-          
-          if (step.stepType) stepMetadata.stepType = step.stepType
-          if (step.skipReason) stepMetadata.skipReason = step.skipReason
-          if (step.durationMins !== undefined) stepMetadata.durationMins = step.durationMins
-          if (step.weightage !== undefined) stepMetadata.weightage = step.weightage
-          if (step.scoreThreshold !== undefined) stepMetadata.scoreThreshold = step.scoreThreshold
-          if (step.interviewMode) stepMetadata.interviewMode = step.interviewMode
-          if (step.meetingLink) stepMetadata.meetingLink = step.meetingLink
-          if (step.interviewerIds && step.interviewerIds.length > 0) stepMetadata.interviewerIds = step.interviewerIds
-          if (step.routeVisibility && step.routeVisibility.length > 0) stepMetadata.routeVisibility = step.routeVisibility
-          if (step.evaluationCriteria && step.evaluationCriteria.length > 0) stepMetadata.evaluationCriteria = step.evaluationCriteria
-          if (step.candidateInstructions) stepMetadata.candidateInstructions = step.candidateInstructions
-          if (step.interviewerInstructions) stepMetadata.interviewerInstructions = step.interviewerInstructions
-          if (step.attachments && step.attachments.length > 0) {
-            stepMetadata.attachments = step.attachments.map(att => ({
-              id: att.id,
-              fileName: att.fileName,
-              fileSize: att.fileSize,
-              fileType: att.fileType,
-              access: att.access
-            }))
-          }
-
-          await tx.workflowStep.create({
-            data: {
-              workflowId: existingJob.workflow.id,
-              stepName: step.stepName,
-              stepOrder: step.stepOrder,
-              isRequired: step.isRequired,
-              isSkippable: step.isSkippable,
-              status: 'ACTIVE',
-              stepMetadata: Object.keys(stepMetadata).length > 0 ? stepMetadata : null,
-              createdAt: now,
-              updatedAt: now
-            }
-          })
+        // Park existing orders first so reordering cannot trip any ordering constraint
+        for (const st of existingJob.workflow.steps) {
+          await tx.workflowStep.update({ where: { id: st.id }, data: { stepOrder: st.stepOrder + 1000 } })
         }
 
-        // Update workflow updatedAt
-        await tx.jobWorkflow.update({
-          where: { id: existingJob.workflow.id },
-          data: { updatedAt: now }
-        })
+        for (const raw of incoming) {
+          const step = normalizeStep(raw)
+          const current = raw.id ? existingSteps.get(String(raw.id)) : undefined
+          const columns = buildStepColumns(step)
+          let stepId: bigint
+          if (current) {
+            keepIds.add(current.id.toString())
+            await tx.workflowStep.update({
+              where: { id: current.id },
+              data: { ...columns, status: 'ACTIVE', stepMetadata: buildStepMetadata(step, current.stepMetadata), updatedAt: now },
+            })
+            stepId = current.id
+          } else {
+            const created = await tx.workflowStep.create({
+              data: { workflowId, ...columns, status: 'ACTIVE', stepMetadata: buildStepMetadata(step), createdAt: now, updatedAt: now },
+            })
+            stepId = created.id
+          }
+          await syncStepInterviewers(tx, stepId, step.interviewerIds, now)
+        }
+
+        if (!workflowStructureLocked) {
+          const removed = existingJob.workflow.steps.filter(st => !keepIds.has(st.id.toString())).map(st => st.id)
+          if (removed.length > 0) await tx.workflowStep.deleteMany({ where: { id: { in: removed } } })
+        }
+
+        await tx.jobWorkflow.update({ where: { id: workflowId }, data: { updatedAt: now } })
       }
 
       if (quickTestResult.value) {

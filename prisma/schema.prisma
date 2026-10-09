@@ -63,6 +63,10 @@ model User {
   slotBookings            SlotBooking[]
   quickTestAttempts       QuickTestAttempt[]
   stageEvaluations        StageEvaluation[]
+  stepInterviewerAssignments StepInterviewer[]
+  slotInterviewerAssignments SlotInterviewer[]
+  interviewerAvailability    InterviewerAvailability[]
+  interviewerTimeOff         InterviewerTimeOff[]
   lois                    LetterOfIntent[]        @relation("CandidateLOIs")
   offerLetters            OfferLetter[]           @relation("CandidateOfferLetters")
 
@@ -546,7 +550,13 @@ model JobAllowedInstitute {
 
 enum UserRole {
   ADMIN
+  INTERVIEWER
   CANDIDATE
+}
+
+enum InterviewMode {
+  REMOTE
+  ONSITE
 }
 
 enum UserStatus {
@@ -648,12 +658,17 @@ model WorkflowStep {
   updatedAt        BigInt     @map("updated_at")
   evaluationSchema Json?
   capacityPerSlot  Int?
+  interviewMode    InterviewMode? @map("interview_mode")
+  durationMins     Int?       @map("duration_mins")
+  panelSize        Int        @default(1) @map("panel_size")
+  bufferMins       Int        @default(0) @map("buffer_mins")
   stepMetadata     Json?      @map("step_metadata") // Stores durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
 
   workflow      JobWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   pipelineSteps CandidatePipelineStep[]
   slots         InterviewSlot[]
   batches       Batch[]
+  interviewers  StepInterviewer[]
 
   @@index([workflowId])
   @@map("workflow_step")
@@ -666,15 +681,87 @@ model InterviewSlot {
   startsAt      DateTime
   endsAt        DateTime
   capacity      Int      @default(1)
+  bookedCount   Int      @default(0) @map("booked_count")
   isBlocked     Boolean  @default(false)
+  mode          InterviewMode?
+  meetingLink   String?  @map("meeting_link") @db.VarChar(500)
+  location      String?  @db.VarChar(500)
+  createdBy     BigInt?  @map("created_by")
   createdAt     BigInt   @map("created_at")
   updatedAt     BigInt   @map("updated_at")
 
-  step        WorkflowStep  @relation(fields: [stepId], references: [id], onDelete: Cascade)
-  bookings    SlotBooking[]
+  step         WorkflowStep      @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  bookings     SlotBooking[]
+  interviewers SlotInterviewer[]
 
   @@index([stepId])
+  @@index([stepId, startsAt])
   @@map("interview_slot")
+}
+
+// ============================================
+// Interview scheduling
+// ============================================
+
+/// Interviewers eligible to run a workflow step (the "pool").
+model StepInterviewer {
+  id            BigInt @id @default(autoincrement())
+  stepId        BigInt @map("step_id")
+  interviewerId BigInt @map("interviewer_id")
+  createdAt     BigInt @map("created_at")
+
+  step        WorkflowStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  interviewer User         @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, interviewerId])
+  @@index([interviewerId])
+  @@map("step_interviewer")
+}
+
+/// Interviewers actually seated on a slot (1 for screening, panelSize for focus group).
+model SlotInterviewer {
+  id            BigInt @id @default(autoincrement())
+  slotId        BigInt @map("slot_id")
+  interviewerId BigInt @map("interviewer_id")
+
+  slot        InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  interviewer User          @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([slotId, interviewerId])
+  @@index([interviewerId])
+  @@map("slot_interviewer")
+}
+
+/// Weekly recurring window (dayOfWeek 0=Sun..6=Sat) OR one-off window (date).
+/// Minutes are measured from midnight in the organization timezone.
+model InterviewerAvailability {
+  id            BigInt    @id @default(autoincrement())
+  interviewerId BigInt    @map("interviewer_id")
+  dayOfWeek     Int?      @map("day_of_week")
+  date          DateTime? @db.Date
+  startMinute   Int       @map("start_minute")
+  endMinute     Int       @map("end_minute")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     BigInt    @map("created_at")
+
+  interviewer User @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@index([interviewerId])
+  @@map("interviewer_availability")
+}
+
+model InterviewerTimeOff {
+  id            BigInt   @id @default(autoincrement())
+  interviewerId BigInt   @map("interviewer_id")
+  startsAt      DateTime @map("starts_at")
+  endsAt        DateTime @map("ends_at")
+  reason        String?  @db.VarChar(255)
+  createdAt     BigInt   @map("created_at")
+
+  interviewer User @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+
+  @@index([interviewerId, startsAt])
+  @@map("interviewer_time_off")
 }
 
 // Concurrency-safe bookings per slot
@@ -683,16 +770,29 @@ model SlotBooking {
   slotId        BigInt        @map("slot_id")
   candidateId   BigInt        @map("candidate_id")
   applicationId BigInt        @map("application_id")
+  pipelineStepId BigInt?      @map("pipeline_step_id")
   status        BookingStatus @default(RESERVED)
+  /// "{workflowStepId}:{candidateId}" while the booking is active, NULL once cancelled/completed.
+  /// UNIQUE => a candidate holds at most one active booking per interview step.
+  activeKey     String?       @unique @map("active_key") @db.VarChar(64)
+  cancelledAt   BigInt?       @map("cancelled_at")
+  cancelledBy   BigInt?       @map("cancelled_by")
+  cancelReason  String?       @map("cancel_reason") @db.VarChar(500)
+  remindedDayAt  BigInt?      @map("reminded_day_at")
+  remindedHourAt BigInt?      @map("reminded_hour_at")
+  icsSequence   Int           @default(0) @map("ics_sequence")
   createdAt     BigInt        @map("created_at")
   updatedAt     BigInt        @map("updated_at")
 
-  slot        InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
-  candidate   User          @relation(fields: [candidateId], references: [id], onDelete: Cascade)
-  application JobsApplied   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  slot         InterviewSlot          @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  candidate    User                   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  application  JobsApplied            @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  pipelineStep CandidatePipelineStep? @relation(fields: [pipelineStepId], references: [id], onDelete: SetNull)
 
-  @@unique([slotId, candidateId])
   @@index([slotId])
+  @@index([candidateId])
+  @@index([pipelineStepId])
+  @@index([status])
   @@map("slot_booking")
 }
 
@@ -789,6 +889,7 @@ model CandidatePipelineStep {
   batch            Batch?            @relation(fields: [batchId], references: [id], onDelete: SetNull)
   interviews       Interview[]
   stageEvaluations StageEvaluation[]
+  slotBookings     SlotBooking[]
   lois             LetterOfIntent[]
   offerLetters     OfferLetter[]
 
@@ -1019,6 +1120,7 @@ model OrganizationSettings {
   description  String? @db.Text
   socialLinks  Json?   @map("social_links")
   locations    Json?   @map("locations")
+  timezone     String  @default("Asia/Karachi") @db.VarChar(64)
   updatedAt    BigInt  @map("updated_at")
 
   @@map("organization_settings")

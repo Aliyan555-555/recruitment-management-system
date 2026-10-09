@@ -98,7 +98,8 @@ export async function rejectFromRound(
     where: {
       ...(input.workflowStepId ? { workflowStepId: input.workflowStepId } : {}),
       pipeline: { jobId: input.jobId, candidateId: { in: input.userIds } },
-      status: { in: ["PENDING", "IN_PROGRESS"] },
+      // a round-scoped rejection (admin decision after scoring) also covers a COMPLETED step of that round
+      status: { in: input.workflowStepId ? ["PENDING", "IN_PROGRESS", "COMPLETED"] : ["PENDING", "IN_PROGRESS"] },
     },
     data: { status: "REJECTED", completedAt: now },
   })

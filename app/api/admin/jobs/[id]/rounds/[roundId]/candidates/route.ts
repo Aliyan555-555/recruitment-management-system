@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aggregateEvaluations } from "@/lib/evaluations/scoring";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/rbac";
 import { admitToRound, rejectFromRound } from "@/lib/services/pipeline-gate";
+import { advanceFromRound, RoundAdvanceError } from "@/lib/services/round-advance";
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates - Get candidates for a round
 export async function GET(
@@ -108,7 +110,16 @@ export async function GET(
     });
 
     const candidates = pipelineSteps.map((step) => {
-      const evaluation = step.stageEvaluations[0]; // Get first evaluation
+      // all interviewers' submitted scorecards count (average score, majority recommendation)
+      const submittedEvals = step.stageEvaluations.filter((e) => e.submittedAt !== null);
+      const evaluation = submittedEvals[0] ?? step.stageEvaluations[0];
+      const agg = aggregateEvaluations(
+        step.stageEvaluations.map((e) => ({
+          submittedAt: e.submittedAt,
+          recommendation: e.recommendation,
+          formData: e.formData,
+        })),
+      );
 
       return {
         id: step.pipeline.candidate.id.toString(),
@@ -121,13 +132,15 @@ export async function GET(
         status: step.status,
         applicationStatus: step.pipeline.application.status, // Include application status
         pipelineStepId: step.id.toString(),
-        assessmentStatus: evaluation?.submittedAt
-          ? "completed"
-          : evaluation
-            ? "in_progress"
-            : "pending",
-        assessmentScore: evaluation?.score,
-        recommendation: evaluation?.recommendation,
+        assessmentStatus:
+          step.status === "COMPLETED" || (submittedEvals.length > 0 && submittedEvals.length === step.stageEvaluations.length)
+            ? "completed"
+            : step.stageEvaluations.length > 0
+              ? "in_progress"
+              : "pending",
+        assessmentScore: submittedEvals.length > 0 ? agg.score : evaluation?.score,
+        recommendation: agg.recommendation ?? evaluation?.recommendation,
+        scorecardsSubmitted: submittedEvals.length,
         interviewer: evaluation?.evaluator
           ? `${evaluation.evaluator.firstname} ${evaluation.evaluator.lastname}`
           : undefined,
@@ -210,26 +223,37 @@ export async function POST(
         );
         break;
 
-      case "reject":
-        // Validate that candidates are in PENDING or IN_PROGRESS status before rejecting
-        const pendingStepsForReject =
-          await prisma.candidatePipelineStep.findMany({
-            where: {
-              workflowStepId: roundId,
-              pipeline: {
-                jobId: jobId,
-                candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-              },
-              status: { in: ["PENDING", "IN_PROGRESS"] },
-            },
-            select: { id: true },
-          });
+      case "reject": {
+        // A candidate can be rejected while waiting (PENDING / IN_PROGRESS) or after scoring (COMPLETED),
+        // as long as they are still at this round.
+        const roundForReject = await prisma.workflowStep.findUnique({
+          where: { id: roundId },
+          select: { stepOrder: true },
+        });
+        if (!roundForReject) {
+          return NextResponse.json({ error: "Round not found" }, { status: 404 });
+        }
 
-        if (pendingStepsForReject.length !== candidateIds.length) {
+        const rejectableSteps = await prisma.candidatePipelineStep.findMany({
+          where: {
+            workflowStepId: roundId,
+            pipeline: {
+              jobId: jobId,
+              candidateId: { in: candidateIds.map((id) => BigInt(id)) },
+              overallStatus: "IN_PROGRESS",
+              lockState: "NONE",
+              currentStepOrder: roundForReject.stepOrder,
+            },
+            status: { in: ["PENDING", "IN_PROGRESS", "COMPLETED"] },
+          },
+          select: { id: true },
+        });
+
+        if (rejectableSteps.length !== candidateIds.length) {
           return NextResponse.json(
             {
               error:
-                "Some candidates are not in PENDING or IN_PROGRESS status and cannot be rejected",
+                "Some selected candidates are no longer in this round and cannot be rejected here",
             },
             { status: 400 },
           );
@@ -244,118 +268,36 @@ export async function POST(
           }),
         );
         break;
+      }
 
       case "move_next":
-        // Complete current step
-        await prisma.candidatePipelineStep.updateMany({
-          where: {
+      case "skip_round": {
+        const result = await prisma.$transaction((tx) =>
+          advanceFromRound(tx, {
+            jobId,
             workflowStepId: roundId,
-            pipeline: {
-              jobId: jobId,
-              candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-            },
-          },
-          data: {
-            status: "COMPLETED",
-            completedAt: now,
-          },
-        });
+            candidateIds: candidateIds.map((id: string) => BigInt(id)),
+            actorId: BigInt(user.id),
+            mode: action === "skip_round" ? "SKIP" : "COMPLETE",
+            now,
+          }),
+        );
 
-        // Get next workflow step
-        const currentStep = await prisma.workflowStep.findUnique({
-          where: { id: roundId },
-          select: { stepOrder: true, workflowId: true },
-        });
-
-        let nextStepId: string | null = null;
-
-        if (currentStep) {
-          const candidateIdsBigInt = candidateIds.map((id: string) =>
-            BigInt(id),
+        if (result.advanced === 0) {
+          return NextResponse.json(
+            { error: "None of the selected candidates are currently in this round." },
+            { status: 409 },
           );
-
-          const nextStep = await prisma.workflowStep.findFirst({
-            where: {
-              workflowId: currentStep.workflowId,
-              stepOrder: { gt: currentStep.stepOrder },
-            },
-            orderBy: { stepOrder: "asc" },
-          });
-
-          if (nextStep) {
-            nextStepId = nextStep.id.toString();
-
-            // Update pipeline current step
-            await prisma.candidatePipeline.updateMany({
-              where: {
-                jobId: jobId,
-                candidateId: { in: candidateIdsBigInt },
-              },
-              data: {
-                currentStepOrder: nextStep.stepOrder,
-              },
-            });
-
-            // Ensure a pipeline step exists for the next step for each candidate
-            const pipelines = await prisma.candidatePipeline.findMany({
-              where: {
-                jobId: jobId,
-                candidateId: { in: candidateIdsBigInt },
-              },
-              select: { id: true, candidateId: true },
-            });
-
-            for (const pipeline of pipelines) {
-              const existingNextStep =
-                await prisma.candidatePipelineStep.findFirst({
-                  where: {
-                    workflowStepId: nextStep.id,
-                    pipelineId: pipeline.id,
-                  },
-                });
-
-              if (existingNextStep) {
-                await prisma.candidatePipelineStep.update({
-                  where: { id: existingNextStep.id },
-                  data: {
-                    status: "PENDING",
-                    startedAt: now,
-                    completedAt: null,
-                  },
-                });
-              } else {
-                await prisma.candidatePipelineStep.create({
-                  data: {
-                    workflowStepId: nextStep.id,
-                    pipelineId: pipeline.id,
-                    status: "PENDING",
-                    startedAt: now,
-                    stepOrder: nextStep.stepOrder,
-                  },
-                });
-              }
-            }
-          } else {
-            // No next step - mark pipeline as completed
-            await prisma.candidatePipeline.updateMany({
-              where: {
-                jobId: jobId,
-                candidateId: { in: candidateIds.map((id) => BigInt(id)) },
-              },
-              data: {
-                overallStatus: "COMPLETED",
-                completedAt: now,
-              },
-            });
-          }
         }
 
         return NextResponse.json({
           success: true,
           action,
-          count: candidateIds.length,
-          nextStepId,
+          count: result.advanced,
+          ignored: result.ignored,
+          nextStepId: result.nextStepId,
         });
+      }
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
@@ -367,6 +309,9 @@ export async function POST(
       count: candidateIds.length,
     });
   } catch (error) {
+    if (error instanceof RoundAdvanceError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("Error performing action:", error);
     return NextResponse.json(
       { error: "Internal server error" },

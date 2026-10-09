@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { useParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
-import { InterviewTimer } from "@/components/InterviewTimer"
+import { BookInterviewCard } from "@/components/candidate/BookInterviewCard"
 import { Navbar } from "@/components/Navbar"
 import DOMPurify from "isomorphic-dompurify"
 
@@ -41,7 +41,7 @@ interface PipelineDetail {
     stepType?: string
     durationMins?: number
     interviewMode?: string
-    meetingLink?: string
+    booking?: { id: string; startsAt: string; endsAt: string; mode: string | null; meetingLink: string | null; location: string | null } | null
     candidateInstructions?: string
     attachments?: Array<{
       id: string
@@ -73,133 +73,29 @@ export default function ApplicationDetailPage() {
   const { data: session, status: authStatus } = useSession()
   const [pipeline, setPipeline] = useState<PipelineDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [availableSlots, setAvailableSlots] = useState<any[]>([])
-  const [loadingSlots, setLoadingSlots] = useState(false)
-  const [bookingSlot, setBookingSlot] = useState<string | null>(null)
-  const [bookedSlot, setBookedSlot] = useState<any>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const fetchAvailableSlots = useCallback(async (pipelineId: string) => {
-    setLoadingSlots(true)
+  const loadPipeline = useCallback(async () => {
     try {
-      const res = await fetch(`/api/candidate/pipelines/${pipelineId}/pending-stage`)
+      const res = await fetch(`/api/applications/${params.id}`)
       if (res.ok) {
         const data = await res.json()
-        setAvailableSlots(data.slots || [])
+        setPipeline(data.pipeline)
       } else {
-        setAvailableSlots([])
+        setPipeline(null)
       }
     } catch (error) {
-      console.error("Error fetching slots:", error)
-      setAvailableSlots([])
+      console.error("Error fetching pipeline:", error)
+      setPipeline(null)
     } finally {
-      setLoadingSlots(false)
+      setLoading(false)
     }
-  }, [])
-
-  const fetchBookedSlot = useCallback(async (pipelineId: string, pipelineData?: PipelineDetail | null) => {
-    const pipelineToUse = pipelineData ?? pipeline
-    if (!pipelineToUse) return
-
-    try {
-      const res = await fetch("/api/interviews/upcoming")
-      if (res.ok) {
-        const data = await res.json()
-        const currentStep = pipelineToUse.steps.find(s => s.stepOrder === pipelineToUse.currentStep)
-        if (currentStep) {
-          const booking = data.upcoming?.find((u: any) => {
-            return u.applicationId === pipelineToUse.applicationId || u.stepName === currentStep.stepName
-          })
-          if (booking) {
-            setBookedSlot(booking)
-            return
-          }
-        }
-        setBookedSlot(null)
-      } else {
-        setBookedSlot(null)
-      }
-    } catch (error) {
-      console.error("Error fetching booked slot:", error)
-      setBookedSlot(null)
-    }
-  }, [pipeline])
-
-  const hydrateSlots = useCallback((pipelineData: PipelineDetail | null) => {
-    if (!pipelineData || pipelineData.status !== "IN_PROGRESS" || pipelineData.lockState === "LOCKED_REJECTED") {
-      setAvailableSlots([])
-      setBookedSlot(null)
-      return
-    }
-
-    fetchAvailableSlots(pipelineData.id)
-    fetchBookedSlot(pipelineData.id, pipelineData)
-  }, [fetchAvailableSlots, fetchBookedSlot])
+  }, [params.id])
 
   useEffect(() => {
     if (authStatus !== "authenticated") return
-
-    const loadPipeline = async () => {
-      try {
-        const res = await fetch(`/api/applications/${params.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          setPipeline(data.pipeline)
-          hydrateSlots(data.pipeline)
-        } else {
-          setPipeline(null)
-          setAvailableSlots([])
-          setBookedSlot(null)
-        }
-      } catch (error) {
-        console.error("Error fetching pipeline:", error)
-        setPipeline(null)
-        setAvailableSlots([])
-        setBookedSlot(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadPipeline()
-  }, [authStatus, params.id, hydrateSlots])
-
-  const handleBookSlot = async (slotId: string) => {
-    if (!pipeline) return
-
-    setBookingSlot(slotId)
-    try {
-      // Find the application ID from the pipeline
-      const res = await fetch(`/api/candidate/slots/${slotId}/book`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          applicationId: pipeline.applicationId
-        })
-      })
-
-      if (res.ok) {
-        alert("Slot booked successfully!")
-        // Refresh pipeline and slots
-        const pipelineRes = await fetch(`/api/applications/${params.id}`)
-        if (pipelineRes.ok) {
-          const data = await pipelineRes.json()
-          setPipeline(data.pipeline)
-          hydrateSlots(data.pipeline)
-        } else {
-          hydrateSlots(pipeline)
-        }
-      } else {
-        const data = await res.json()
-        alert(data.error || "Failed to book slot")
-      }
-    } catch (error) {
-      console.error("Error booking slot:", error)
-      alert("Failed to book slot")
-    } finally {
-      setBookingSlot(null)
-    }
-  }
+  }, [authStatus, loadPipeline])
 
   const handleLOIAction = async (loiId: string, action: 'ACCEPTED' | 'REJECTED') => {
     if (!confirm(`Are you sure you want to ${action === 'ACCEPTED' ? 'accept' : 'reject'} this Letter of Intent?`)) return
@@ -318,25 +214,6 @@ export default function ApplicationDetailPage() {
     }
   }
 
-  const getBookedSlotForStep = (step: PipelineDetail["steps"][number]) => {
-    if (!bookedSlot) return null
-
-    if (bookedSlot.stepOrder === step.stepOrder) {
-      return bookedSlot
-    }
-
-    if (bookedSlot.stepName && bookedSlot.stepName === step.stepName) {
-      return bookedSlot
-    }
-
-    if (pipeline?.currentStep === step.stepOrder && bookedSlot.applicationId === pipeline.applicationId) {
-      return bookedSlot
-    }
-
-    return null
-  }
-
-  console.log(pipeline)
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-background">
       <Navbar />
@@ -428,7 +305,7 @@ export default function ApplicationDetailPage() {
 
           <div className="space-y-6">
             {pipeline.steps.map((step, index) => {
-              const matchedSlot = getBookedSlotForStep(step)
+              const matchedSlot = step.booking
               const shouldShowStartingDate = matchedSlot && step.status !== "COMPLETED" && step.status !== "REJECTED"
 
               const loi = step.lois?.[0]
@@ -594,16 +471,16 @@ export default function ApplicationDetailPage() {
                               <span className="font-medium">Mode:</span> {step.interviewMode}
                             </p>
                           )}
-                          {step.interviewMode === "Remote" && step.meetingLink && (
+                          {step.booking?.meetingLink && (
                             <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                               <p className="text-sm font-medium text-blue-900 mb-1">Meeting Link:</p>
                               <a
-                                href={step.meetingLink}
+                                href={step.booking.meetingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:underline break-all"
                               >
-                                {step.meetingLink}
+                                {step.booking.meetingLink}
                               </a>
                             </div>
                           )}
@@ -667,60 +544,10 @@ export default function ApplicationDetailPage() {
           </div>
         </div>
 
-        {/* Timer for Booked Slot */}
-        {bookedSlot && (
+        {/* Interview booking */}
+        {pipeline.status === "IN_PROGRESS" && pipeline.lockState !== "LOCKED_REJECTED" && (
           <div className="mt-6">
-            <InterviewTimer
-              slotStartTime={bookedSlot.startsAt}
-              slotEndTime={bookedSlot.endsAt}
-              stepName={bookedSlot.stepName}
-              meetingLink={bookedSlot.meetingLink}
-            />
-          </div>
-        )}
-
-        {/* Slot Booking Section */}
-        {pipeline.status === "IN_PROGRESS" && !bookedSlot && availableSlots.length > 0 && (
-          <div className="mt-6 bg-card rounded-lg shadow p-6 border border-border">
-            <h2 className="text-lg font-semibold text-foreground mb-4">
-              📅 Book Interview Slot
-            </h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Available time slots for: <span className="font-medium">{pipeline.steps.find(s => s.stepOrder === pipeline.currentStep)?.stepName}</span>
-            </p>
-
-            {loadingSlots ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {availableSlots.map((slot) => (
-                  <div key={slot.id} className="border border-border rounded-lg p-4 hover:border-primary transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {new Date(slot.startsAt).toLocaleDateString()}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(slot.startsAt).toLocaleTimeString()} - {new Date(slot.endsAt).toLocaleTimeString()}
-                        </p>
-                      </div>
-                      <span className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">
-                        {slot.capacity - slot.booked} available
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleBookSlot(slot.id)}
-                      disabled={bookingSlot === slot.id || slot.capacity - slot.booked === 0}
-                      className="w-full mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      {bookingSlot === slot.id ? "Booking..." : "Book This Slot"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <BookInterviewCard pipelineId={pipeline.id} onChanged={loadPipeline} />
           </div>
         )}
 

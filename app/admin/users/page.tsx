@@ -32,8 +32,6 @@ interface User {
   country: string | null
   stats: {
     pipelines: number
-    assignedSteps: number
-    activeAssignments: number
   }
   createdAt: string
 }
@@ -266,12 +264,6 @@ export default function AdminUsersPage() {
                         <Briefcase className="h-3 w-3 inline mr-1" />
                         {user.institution} {user.department && `• ${user.department}`}
                       </p>
-                    )}
-                    {user.role === "INTERVIEWER" && (
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>Assignments: {user.stats.activeAssignments}</span>
-                        <span>Steps: {user.stats.assignedSteps}</span>
-                      </div>
                     )}
                     {user.role === "CANDIDATE" && (
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">

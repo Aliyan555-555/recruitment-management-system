@@ -1,49 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAdmin } from "@/lib/rbac"
-
-const DEFAULT_SKILL_MAX: Record<string, number> = {
-  appearance: 10,
-  education: 10,
-  intellectual: 10,
-  leadership: 10,
-  principles: 10,
-  itSkills: 10,
-  communication: 10,
-  commitment: 10,
-  assertiveness: 10,
-  versatility: 10,
-  professionalKnowledge: 25,
-  experience: 25
-}
-
-function calculateScore(formData: any, storedScore?: number | null) {
-  if (!formData) {
-    const maxScore = Object.values(DEFAULT_SKILL_MAX).reduce((sum, v) => sum + v, 0)
-    const totalScore = storedScore ?? 0
-    const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
-    return { totalScore, maxScore, scorePercentage, recommendation: null as string | null }
-  }
-
-  let totalScore = 0
-  let maxScore = 0
-
-  Object.entries(DEFAULT_SKILL_MAX).forEach(([key, defaultMax]) => {
-    const rating = Number(formData?.skills?.[key]?.rating ?? 0)
-    const max = Number(formData?.skills?.[key]?.max ?? defaultMax)
-    totalScore += rating
-    maxScore += max
-  })
-
-  const scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
-  const recommendedToHire =
-    formData.recommendedToHire === "Recommended" ||
-    formData.recommendedToHire === "yes" ||
-    formData.recommendedToHire === "HIRE"
-  const recommendation = recommendedToHire ? "HIRE" : "NO_HIRE"
-
-  return { totalScore, maxScore, scorePercentage, recommendation }
-}
+import { aggregateEvaluations } from "@/lib/evaluations/scoring"
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/results - Get results for a round
 export async function GET(
@@ -112,39 +70,20 @@ export async function GET(
     })
 
     const candidates = pipelineSteps.map(step => {
-      const evaluation = step.stageEvaluations[0]
-      const formData = evaluation?.formData as any
-      
-      let totalScore = 0
-      let maxScore = 0
-      let scorePercentage = 0
-      let recommendation: string | null = null
-
-      if (isFocusGroup && formData?.focusGroup) {
-        // For focus group, aggregate internal and external scores
-        const internal = formData.focusGroup.internal
-        const external = formData.focusGroup.external
-        
-        const internalScore = internal?.score || 0
-        const internalMax = internal?.maxScore || 0
-        const externalScore = external?.score || 0
-        const externalMax = external?.maxScore || 0
-        
-        totalScore = internalScore + externalScore
-        maxScore = internalMax + externalMax
-        scorePercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
-        
-        // Both assessments must be completed for focus group
-        const bothCompleted = internal?.submittedAt && external?.submittedAt
-        recommendation = bothCompleted ? (scorePercentage >= 50 ? "HIRE" : "NO_HIRE") : null
-      } else {
-        // For other assessment types, use the existing calculateScore function
-        const result = calculateScore(formData, evaluation?.score)
-        totalScore = result.totalScore
-        maxScore = result.maxScore
-        scorePercentage = result.scorePercentage
-        recommendation = evaluation?.recommendation || result.recommendation
-      }
+      // Every interviewer's submitted scorecard counts; the result is their average + majority vote
+      const submittedEvals = step.stageEvaluations.filter(e => e.submittedAt !== null)
+      const agg = aggregateEvaluations(
+        step.stageEvaluations.map(e => ({
+          submittedAt: e.submittedAt,
+          recommendation: e.recommendation,
+          formData: e.formData,
+        }))
+      )
+      const evaluation = submittedEvals[0] ?? step.stageEvaluations[0]
+      const totalScore = agg.score
+      const maxScore = agg.maxScore
+      const scorePercentage = agg.scorePercentage
+      const recommendation: string | null = agg.recommendation
 
       const status =
         step.status === "COMPLETED"
@@ -173,6 +112,10 @@ export async function GET(
           lastname: evaluation.evaluator.lastname
         } : null,
         assessedAt: evaluation?.submittedAt?.toString(),
+        evaluatorCount: submittedEvals.length,
+        isSplit: agg.isSplit,
+        hireVotes: agg.hireVotes,
+        noHireVotes: agg.noHireVotes,
       }
     })
 

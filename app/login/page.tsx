@@ -78,12 +78,9 @@ export default function LoginPage() {
           }, 2000)
           return
         } else if (userRole === "INTERVIEWER") {
-          setError("Interviewer users must use the Interviewer Login page.")
-          await signOut({ redirect: false })
+          router.push("/interviewer/dashboard")
+          router.refresh()
           setIsLoading(false)
-          setTimeout(() => {
-            router.push("/interviewer/login")
-          }, 2000)
           return
         }
         router.refresh()

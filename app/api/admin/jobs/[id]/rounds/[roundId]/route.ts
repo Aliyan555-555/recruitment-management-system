@@ -59,6 +59,7 @@ export async function GET(
         stepName: workflowStep.stepName,
         stepType: workflowStep.stepType,
         stepOrder: workflowStep.stepOrder,
+        isRequired: workflowStep.isRequired,
         job: {
           id: workflowStep.workflow.job.id.toString(),
           title: workflowStep.workflow.job.title,

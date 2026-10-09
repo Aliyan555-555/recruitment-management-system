@@ -1,137 +1,73 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { requireAdmin } from "@/lib/rbac"
+import { getOrgTimeZone } from "@/lib/scheduling/org-settings"
 
+/** Interview slots in a date range across all jobs (admin agenda). */
 export async function GET(req: NextRequest) {
+  const admin = await requireAdmin()
+  if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const start = new Date(searchParams.get("startDate") ?? "")
+  const end = new Date(searchParams.get("endDate") ?? "")
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return NextResponse.json({ error: "Choose a valid date range" }, { status: 400 })
+  }
+  if (end.getTime() - start.getTime() > 93 * 24 * 3600 * 1000) {
+    return NextResponse.json({ error: "Choose at most 3 months at a time" }, { status: 400 })
+  }
+  const interviewerParam = searchParams.get("interviewerId")
+  const interviewerId = interviewerParam && /^\d+$/.test(interviewerParam) ? BigInt(interviewerParam) : null
+
   try {
-    const session = await auth()
-
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      )
-    }
-
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Forbidden - Admin access required" },
-        { status: 403 }
-      )
-    }
-
-    const { searchParams } = new URL(req.url)
-    const startDate = searchParams.get("startDate")
-    const endDate = searchParams.get("endDate")
-
-    const where: any = {}
-    if (startDate && endDate) {
-      where.startsAt = {
-        gte: new Date(startDate),
-        lte: new Date(endDate)
-      }
-    }
-
-    // Fetch all interview slots with related data
-    const slots = await (prisma as any).interviewSlot.findMany({
-      where,
-      include: {
-        interviewer: {
-          select: {
-            id: true,
-            firstname: true,
-            lastname: true,
-            email: true
-          }
+    const [timeZone, slots] = await Promise.all([
+      getOrgTimeZone(),
+      prisma.interviewSlot.findMany({
+        where: {
+          startsAt: { gte: start, lt: end },
+          ...(interviewerId ? { interviewers: { some: { interviewerId } } } : {}),
         },
-        step: {
-          include: {
-            workflow: {
-              include: {
-                job: {
-                  select: {
-                    id: true,
-                    title: true,
-                    company: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        bookings: {
-          where: {
-            status: "RESERVED"
+        orderBy: { startsAt: "asc" },
+        take: 1500,
+        include: {
+          interviewers: { include: { interviewer: { select: { id: true, firstname: true, lastname: true } } } },
+          step: { include: { workflow: { include: { job: { select: { id: true, title: true } } } } } },
+          bookings: {
+            where: { status: { in: ["RESERVED", "COMPLETED", "NO_SHOW"] } },
+            include: { candidate: { select: { id: true, firstname: true, lastname: true } } },
           },
-          include: {
-            candidate: {
-              select: {
-                id: true,
-                firstname: true,
-                lastname: true,
-                email: true
-              }
-            },
-            application: {
-              include: {
-                job: {
-                  select: {
-                    title: true,
-                    company: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        startsAt: "asc"
-      }
-    })
+        },
+      }),
+    ])
 
     return NextResponse.json({
-      slots: slots.map((slot: any) => {
-        const metadata = (slot.step?.stepMetadata as any) || {}
-        return {
-          id: slot.id.toString(),
-          stepId: slot.stepId.toString(),
-          stepName: slot.step?.stepName || "Unknown Step",
-          startsAt: slot.startsAt.toISOString(),
-          endsAt: slot.endsAt.toISOString(),
-          capacity: slot.capacity,
-          isBlocked: slot.isBlocked,
-          interviewer: slot.interviewer ? {
-            id: slot.interviewer.id.toString(),
-            name: `${slot.interviewer.firstname} ${slot.interviewer.lastname}`,
-            email: slot.interviewer.email
-          } : null,
-          job: slot.step?.workflow?.job ? {
-            id: slot.step.workflow.job.id.toString(),
-            title: slot.step.workflow.job.title,
-            company: slot.step.workflow.job.company
-          } : null,
-          bookings: slot.bookings.map((booking: any) => ({
-            id: booking.id.toString(),
-            candidate: {
-              id: booking.candidate.id.toString(),
-              name: `${booking.candidate.firstname} ${booking.candidate.lastname}`,
-              email: booking.candidate.email
-            },
-            status: booking.status,
-            bookedAt: booking.createdAt.toString()
-          })),
-          meetingLink: metadata.meetingLink,
-          interviewMode: metadata.interviewMode
-        }
-      })
+      timeZone,
+      slots: slots.map((s) => ({
+        id: s.id.toString(),
+        stepId: s.stepId.toString(),
+        stepName: s.step.stepName,
+        jobId: s.step.workflow.job.id.toString(),
+        jobTitle: s.step.workflow.job.title,
+        startsAt: s.startsAt.toISOString(),
+        endsAt: s.endsAt.toISOString(),
+        capacity: s.capacity,
+        bookedCount: s.bookedCount,
+        isBlocked: s.isBlocked,
+        mode: s.mode,
+        interviewers: s.interviewers.map((i) => ({
+          id: i.interviewer.id.toString(),
+          name: `${i.interviewer.firstname} ${i.interviewer.lastname}`,
+        })),
+        candidates: s.bookings.map((b) => ({
+          id: b.candidate.id.toString(),
+          name: `${b.candidate.firstname} ${b.candidate.lastname}`,
+          status: b.status,
+        })),
+      })),
     })
-  } catch (error: any) {
-    console.error("Error fetching calendar slots:", error)
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch calendar data" },
-      { status: 500 }
-    )
+  } catch (error) {
+    console.error("Calendar error:", error)
+    return NextResponse.json({ error: "Failed to load calendar" }, { status: 500 })
   }
 }
-

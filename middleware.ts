@@ -4,6 +4,7 @@ import { getToken } from "next-auth/jwt"
 // Define user roles
 enum UserRole {
   ADMIN = "ADMIN",
+  INTERVIEWER = "INTERVIEWER",
   CANDIDATE = "CANDIDATE"
 }
 
@@ -96,6 +97,14 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     redirectTo: '/admin/login'
   },
   
+  // Interviewer portal
+  {
+    pattern: /^\/interviewer/,
+    allowedRoles: [UserRole.INTERVIEWER],
+    requireAuth: true,
+    redirectTo: '/login'
+  },
+
   // Candidate Profile
   {
     pattern: /^\/candidate\/profile/,
@@ -372,6 +381,8 @@ export async function middleware(request: NextRequest) {
       
       if (userRole === UserRole.ADMIN) {
         redirectUrl = '/admin/dashboard'
+      } else if (userRole === UserRole.INTERVIEWER) {
+        redirectUrl = '/interviewer/dashboard'
       } else if (userRole === UserRole.CANDIDATE) {
         redirectUrl = '/candidate/profile'
       }

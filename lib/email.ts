@@ -23,11 +23,13 @@ const createTransporter = () => {
   })
 }
 
-interface EmailOptions {
+export interface EmailOptions {
   to: string
   subject: string
   html: string
   from?: string
+  /** Calendar invite delivered as a text/calendar alternative (renders the Accept/Decline UI in mail clients) */
+  icalEvent?: { method: 'REQUEST' | 'CANCEL' | 'PUBLISH'; content: string; filename?: string }
 }
 
 /**
@@ -52,6 +54,15 @@ export async function sendEmail(options: EmailOptions): Promise<{ success: boole
       to: options.to,
       subject: options.subject,
       html: options.html,
+      ...(options.icalEvent
+        ? {
+            icalEvent: {
+              method: options.icalEvent.method,
+              content: options.icalEvent.content,
+              filename: options.icalEvent.filename || 'invite.ics',
+            },
+          }
+        : {}),
     }
 
     const info = await transporter.sendMail(mailOptions)

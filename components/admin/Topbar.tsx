@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ModeToggle } from "@/components/ui/mode-toggle"
 import { AdminSearchBar } from "./AdminSearchBar"
+import { NotificationBell } from "@/components/NotificationBell"
 
 export function Topbar() {
   const { data } = useSession()
@@ -33,6 +34,7 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
+          <NotificationBell />
           <ModeToggle />
 
 

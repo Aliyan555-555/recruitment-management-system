@@ -1,5 +1,13 @@
 "use client"
 
+import {
+  WorkflowStepsEditor,
+  newEditorStep,
+  toWorkflowPayload,
+  validateEditorSteps,
+  type EditorStep,
+  type StepErrors,
+} from "@/components/admin/WorkflowStepsEditor"
 import { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -54,19 +62,6 @@ interface FormErrors {
   }
 }
 
-interface WorkflowStep {
-  stepName?: string // Kept for backward compatibility/display
-  stepType: string // Required: SCREENING_INTERVIEW, FOCUS_GROUP, FINAL_INTERVIEW, OFFER
-  stepOrder: number
-  interviewerId?: string
-  durationMins?: number
-  weightage?: number
-  scoreThreshold?: number
-  interviewMode?: string
-  meetingLink?: string
-  interviewerIds?: string[]
-}
-
 export default function CreateJobPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -80,13 +75,6 @@ export default function CreateJobPage() {
   useEffect(() => {
     setTodayStr(new Date().toLocaleDateString('en-CA'))
   }, [])
-
-  const stepTypeOptions = useMemo(() => [
-    { value: "SCREENING_INTERVIEW", label: "Screening Interview" },
-    { value: "FOCUS_GROUP", label: "Focus Group" },
-    { value: "FINAL_INTERVIEW", label: "Final Interview" },
-    { value: "OFFER", label: "Offer" },
-  ], [])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -159,12 +147,8 @@ export default function CreateJobPage() {
   const [hiringCriteria, setHiringCriteria] = useState<HiringCriteriaForm>(EMPTY_HIRING_CRITERIA)
   const [quickTestError, setQuickTestError] = useState<string | null>(null)
 
-  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([
-    {
-      stepType: "",
-      stepOrder: 1,
-    }
-  ])
+  const [workflowSteps, setWorkflowSteps] = useState<EditorStep[]>([newEditorStep(1)])
+  const [stepErrors, setStepErrors] = useState<StepErrors>({})
 
   // Validation functions
   const validateTitle = (title: string): string | undefined => {
@@ -307,73 +291,6 @@ export default function CreateJobPage() {
     return undefined
   }
 
-  const validateWorkflowStep = (step: WorkflowStep, index: number): Record<string, string> => {
-    const stepErrors: Record<string, string> = {}
-
-    if (!step.stepType || step.stepType.trim() === "") {
-      stepErrors.stepType = "Step type is required"
-    }
-
-    // Validate that Offer step is the last step
-    if (step.stepType === "OFFER" && index < workflowSteps.length - 1) {
-      stepErrors.stepType = "Offer step must be the last step in the workflow"
-    }
-
-
-    // Interview mode is required for interview steps
-    if (["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType)) {
-      if (!step.interviewMode || step.interviewMode.trim() === "") {
-        stepErrors.interviewMode = "Interview mode is required"
-      }
-    }
-
-    if (step.interviewMode === "Remote") {
-      if (!step.meetingLink || step.meetingLink.trim() === "") {
-        stepErrors.meetingLink = "Meeting link is required for Remote interviews"
-      } else {
-        try {
-          const url = new URL(step.meetingLink)
-          if (!["http:", "https:", "zoom:", "teams:", "skype:"].some(protocol => url.protocol.startsWith(protocol))) {
-            stepErrors.meetingLink = "Please enter a valid meeting URL (http/https/zoom/teams/skype)"
-          }
-        } catch {
-          stepErrors.meetingLink = "Please enter a valid URL"
-        }
-      }
-    }
-
-    if (step.durationMins !== undefined && step.durationMins !== null) {
-      const duration = Number(step.durationMins)
-      if (isNaN(duration) || duration < 0) {
-        stepErrors.durationMins = "Duration must be a positive number"
-      } else if (duration > 1440) {
-        stepErrors.durationMins = "Duration cannot exceed 1440 minutes (24 hours)"
-      }
-    }
-
-    if (step.weightage !== undefined && step.weightage !== null) {
-      const weightage = Number(step.weightage)
-      if (isNaN(weightage) || weightage < 0 || weightage > 100) {
-        stepErrors.weightage = "Weightage must be between 0 and 100"
-      }
-    }
-
-
-    if (step.scoreThreshold !== undefined && step.scoreThreshold !== null) {
-      const threshold = Number(step.scoreThreshold)
-      if (isNaN(threshold) || threshold < 0 || threshold > 100) {
-        stepErrors.scoreThreshold = "Score threshold must be between 0 and 100"
-      }
-    }
-
-    // Interviewer assignment is now optional - can be assigned later
-    // if (!step.interviewerIds || step.interviewerIds.length === 0) {
-    //   stepErrors.interviewerIds = "At least one interviewer is required"
-    // }
-
-    return stepErrors
-  }
-
   const validateLocation = (location: { city: string; country: string }): string | undefined => {
     if (!location.city || location.city.trim() === "") {
       return "City is required"
@@ -435,32 +352,10 @@ export default function CreateJobPage() {
     }
 
     // Validate workflow steps
-    if (workflowSteps.length === 0) {
-      newErrors.workflowSteps = { 0: { stepType: "At least one workflow step is required" } }
-    } else {
-      // Check that Offer step exists and is last
-      const offerStepIndex = workflowSteps.findIndex(s => s.stepType === "OFFER")
-      if (offerStepIndex === -1) {
-        newErrors.workflowSteps = { _general: "Offer step is mandatory and must be the last step" }
-      } else if (offerStepIndex !== workflowSteps.length - 1) {
-        newErrors.workflowSteps = { [offerStepIndex]: { stepType: "Offer step must be the last step" } }
-      }
-
-      const stepErrors: Record<number, any> = {}
-      workflowSteps.forEach((step, index) => {
-        const errors = validateWorkflowStep(step, index)
-        if (Object.keys(errors).length > 0) {
-          stepErrors[index] = errors
-        }
-      })
-      if (Object.keys(stepErrors).length > 0) {
-        // Merge step errors with existing workflowSteps errors
-        if (newErrors.workflowSteps) {
-          newErrors.workflowSteps = { ...newErrors.workflowSteps, ...stepErrors }
-        } else {
-          newErrors.workflowSteps = stepErrors
-        }
-      }
+    const workflowStepErrors = validateEditorSteps(workflowSteps)
+    setStepErrors(workflowStepErrors)
+    if (Object.keys(workflowStepErrors).length > 0) {
+      newErrors.workflowSteps = { _general: "Fix the highlighted hiring rounds" }
     }
 
     setErrors(newErrors)
@@ -549,34 +444,6 @@ export default function CreateJobPage() {
     }
   }
 
-  const handleAddStep = () => {
-    setWorkflowSteps([
-      ...workflowSteps,
-      {
-        stepType: "",
-        stepOrder: workflowSteps.length + 1,
-      }
-    ])
-  }
-
-  const handleRemoveStep = (index: number) => {
-    if (workflowSteps.length > 1) {
-      const newSteps = workflowSteps.filter((_, i) => i !== index)
-      // Reorder steps
-      const reordered = newSteps.map((step, i) => ({
-        ...step,
-        stepOrder: i + 1
-      }))
-      setWorkflowSteps(reordered)
-    }
-  }
-
-  const handleStepChange = (index: number, field: string, value: any) => {
-    const newSteps = [...workflowSteps]
-    newSteps[index] = { ...newSteps[index], [field]: value }
-    setWorkflowSteps(newSteps)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -645,11 +512,7 @@ export default function CreateJobPage() {
 
     try {
       // Transform workflow steps
-      const transformedSteps = workflowSteps.map((step) => {
-        // Remove any client-only fields from payload
-        const { stepName, ...rest } = step as any
-        return rest
-      })
+      const transformedSteps = toWorkflowPayload(workflowSteps)
 
       const response = await fetch("/api/admin/jobs", {
         method: "POST",
@@ -1421,328 +1284,15 @@ export default function CreateJobPage() {
           {/* Quick Test (pre-application) */}
           <QuickTestConfigCard value={quickTest} onChange={setQuickTest} error={quickTestError} />
 
-          {/* Workflow Steps */}
-          <div className="bg-card rounded-lg shadow p-6 border border-border">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-foreground">Workflow Steps</h3>
-              <button
-                type="button"
-                onClick={handleAddStep}
-                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
-              >
-                + Add Step
-              </button>
-            </div>
-
-            {workflowSteps.map((step, index) => (
-              <div key={index} className="mb-4 p-4 border border-border rounded-md bg-card">
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium text-foreground">Step {step.stepOrder}</h4>
-                  {workflowSteps.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveStep(index)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Step Type <span className="text-destructive">*</span>
-                      {step.stepType === "OFFER" && (
-                        <span className="ml-2 text-xs text-primary">(Must be last step)</span>
-                      )}
-                    </label>
-                    <select
-                      required
-                      value={step.stepType}
-                      onChange={(e) => {
-                        const newStepType = e.target.value
-
-                        // Auto-set stepName from stepType for display
-                        const stepTypeLabel = stepTypeOptions.find(opt => opt.value === newStepType)?.label || newStepType
-
-                        // Batch update both fields to avoid race conditions/stale state
-                        const newSteps = [...workflowSteps]
-                        newSteps[index] = {
-                          ...newSteps[index],
-                          stepType: newStepType,
-                          stepName: stepTypeLabel
-                        }
-                        setWorkflowSteps(newSteps)
-
-                        // Clear error when step type is selected
-                        if (errors.workflowSteps?.[index]?.stepType && newStepType) {
-                          setErrors(prev => {
-                            const newErrors = { ...prev }
-                            if (newErrors.workflowSteps?.[index]) {
-                              delete newErrors.workflowSteps[index].stepType
-                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                delete newErrors.workflowSteps[index]
-                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                  delete newErrors.workflowSteps
-                                }
-                              }
-                            }
-                            return newErrors
-                          })
-                        }
-                      }}
-                      onBlur={() => {
-                        // Only validate if stepType is empty
-                        if (!step.stepType || step.stepType.trim() === "") {
-                          const stepErrors = validateWorkflowStep(step, index)
-                          if (stepErrors.stepType) {
-                            setErrors(prev => ({
-                              ...prev,
-                              workflowSteps: {
-                                ...prev.workflowSteps,
-                                [index]: {
-                                  ...prev.workflowSteps?.[index],
-                                  stepType: stepErrors.stepType
-                                }
-                              }
-                            }))
-                          }
-                        }
-                      }}
-                      data-error={errors.workflowSteps?.[index]?.stepType ? "true" : "false"}
-                      className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 outline-none hover:border-accent bg-background text-foreground `}
-                    // style={{
-                    //   color: 'var(--foreground)',
-                    //   backgroundColor: 'var(--background)'
-                    // }}
-                    >
-                      <option disabled value="" style={{ color: 'var(--muted-foreground)', backgroundColor: 'var(--background)' }}>Select step type</option>
-                      {stepTypeOptions.map(opt => {
-                        const isSelectedInOtherStep = workflowSteps.some((s, i) => i !== index && s.stepType === opt.value)
-                        return (
-                          <option
-                            key={opt.value}
-                            value={opt.value}
-                            disabled={(opt.value === "OFFER" && index < workflowSteps.length - 1) || isSelectedInOtherStep}
-                            style={{
-                              color: 'var(--foreground)',
-                              backgroundColor: 'var(--background)'
-                            }}
-                          >
-                            {opt.label} {isSelectedInOtherStep ? "(Already added)" : ""}
-                          </option>
-                        )
-                      })}
-                    </select>
-                    {errors.workflowSteps?.[index]?.stepType && (
-                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.workflowSteps[index].stepType}
-                      </p>
-                    )}
-                    {step.stepType === "OFFER" && index === workflowSteps.length - 1 && (
-                      <p className="mt-1 text-sm text-emerald-500 flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Offer step is correctly placed as the final step
-                      </p>
-                    )}
-                  </div>
-
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Duration (mins)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      max={1440}
-                      value={step.durationMins ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? undefined : Number(e.target.value)
-                        handleStepChange(index, "durationMins", value)
-                        // Clear error when value is valid
-                        if (errors.workflowSteps?.[index]?.durationMins) {
-                          const stepErrors = validateWorkflowStep({ ...step, durationMins: value }, index)
-                          if (!stepErrors.durationMins) {
-                            setErrors(prev => {
-                              const newErrors = { ...prev }
-                              if (newErrors.workflowSteps?.[index]) {
-                                delete newErrors.workflowSteps[index].durationMins
-                                if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                  delete newErrors.workflowSteps[index]
-                                  if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                    delete newErrors.workflowSteps
-                                  }
-                                }
-                              }
-                              return newErrors
-                            })
-                          }
-                        }
-                      }}
-                      onBlur={() => {
-                        const stepErrors = validateWorkflowStep(step, index)
-                        if (stepErrors.durationMins || errors.workflowSteps?.[index]?.durationMins) {
-                          setErrors(prev => ({
-                            ...prev,
-                            workflowSteps: {
-                              ...prev.workflowSteps,
-                              [index]: {
-                                ...prev.workflowSteps?.[index],
-                                durationMins: stepErrors.durationMins
-                              }
-                            }
-                          }))
-                        }
-                      }}
-                      data-error={errors.workflowSteps?.[index]?.durationMins ? "true" : "false"}
-                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.durationMins ? "border-destructive bg-destructive/10" : "border-input"
-                        }`}
-                      placeholder="e.g., 60"
-                    />
-                    {errors.workflowSteps?.[index]?.durationMins && (
-                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.workflowSteps[index].durationMins}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Interview Mode
-                      {["SCREENING_INTERVIEW", "FOCUS_GROUP", "FINAL_INTERVIEW"].includes(step.stepType) && (
-                        <span className="text-destructive ml-1">*</span>
-                      )}
-                    </label>
-                    <select
-                      value={step.interviewMode || ""}
-                      onChange={(e) => {
-                        handleStepChange(index, "interviewMode", e.target.value)
-
-                        // Clear error for interviewMode if selected
-                        if (errors.workflowSteps?.[index]?.interviewMode && e.target.value) {
-                          setErrors(prev => {
-                            const newErrors = { ...prev }
-                            if (newErrors.workflowSteps?.[index]) {
-                              delete newErrors.workflowSteps[index].interviewMode
-                              if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                delete newErrors.workflowSteps[index]
-                                if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                  delete newErrors.workflowSteps
-                                }
-                              }
-                            }
-                            return newErrors
-                          })
-                        }
-                      }}
-                      onBlur={() => {
-                        const stepErrors = validateWorkflowStep(step, index)
-                        if (stepErrors.interviewMode) {
-                          setErrors(prev => ({
-                            ...prev,
-                            workflowSteps: {
-                              ...prev.workflowSteps,
-                              [index]: {
-                                ...prev.workflowSteps?.[index],
-                                interviewMode: stepErrors.interviewMode
-                              }
-                            }
-                          }))
-                        }
-                      }}
-                      className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.interviewMode ? "border-destructive bg-destructive/10" : "border-input"}`}
-                    >
-                      <option disabled value="">Select mode</option>
-                      <option value="Onsite">Onsite</option>
-                      <option value="Remote">Remote</option>
-                    </select>
-                    {errors.workflowSteps?.[index]?.interviewMode && (
-                      <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.workflowSteps[index].interviewMode}
-                      </p>
-                    )}
-                  </div>
-
-                  {step.interviewMode === "Remote" && (
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Meeting Link <span className="text-destructive">*</span>
-                      </label>
-                      <input
-                        type="url"
-                        value={step.meetingLink || ""}
-                        onChange={(e) => {
-                          handleStepChange(index, "meetingLink", e.target.value)
-                          // Clear error when valid URL is entered
-                          if (errors.workflowSteps?.[index]?.meetingLink && e.target.value) {
-                            try {
-                              const url = new URL(e.target.value)
-                              if (["http:", "https:", "zoom:", "teams:", "skype:"].some(protocol => url.protocol.startsWith(protocol))) {
-                                setErrors(prev => {
-                                  const newErrors = { ...prev }
-                                  if (newErrors.workflowSteps?.[index]) {
-                                    delete newErrors.workflowSteps[index].meetingLink
-                                    if (Object.keys(newErrors.workflowSteps[index]).length === 0) {
-                                      delete newErrors.workflowSteps[index]
-                                      if (Object.keys(newErrors.workflowSteps || {}).length === 0) {
-                                        delete newErrors.workflowSteps
-                                      }
-                                    }
-                                  }
-                                  return newErrors
-                                })
-                              }
-                            } catch { }
-                          }
-                        }}
-                        onBlur={() => {
-                          const stepErrors = validateWorkflowStep(step, index)
-                          if (stepErrors.meetingLink || errors.workflowSteps?.[index]?.meetingLink) {
-                            setErrors(prev => ({
-                              ...prev,
-                              workflowSteps: {
-                                ...prev.workflowSteps,
-                                [index]: {
-                                  ...prev.workflowSteps?.[index],
-                                  meetingLink: stepErrors.meetingLink
-                                }
-                              }
-                            }))
-                          }
-                        }}
-                        data-error={errors.workflowSteps?.[index]?.meetingLink ? "true" : "false"}
-                        className={`w-full px-3 py-2 border rounded-md bg-background ${errors.workflowSteps?.[index]?.meetingLink ? "border-destructive bg-destructive/10" : "border-input"
-                          }`}
-                        placeholder="https://meet.google.com/... or zoom://..."
-                        required={step.interviewMode === "Remote"}
-                      />
-                      {errors.workflowSteps?.[index]?.meetingLink && (
-                        <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          {errors.workflowSteps[index].meetingLink}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Hiring rounds */}
+          <WorkflowStepsEditor
+            steps={workflowSteps}
+            onChange={(next) => {
+              setWorkflowSteps(next)
+              if (Object.keys(stepErrors).length > 0) setStepErrors(validateEditorSteps(next))
+            }}
+            errors={stepErrors}
+          />
 
           {/* Submit */}
           <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border pt-6 mt-8 -mx-4 px-4 pb-4">

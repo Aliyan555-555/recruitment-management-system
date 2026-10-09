@@ -3,6 +3,7 @@
 import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
 import { ModeToggle } from "@/components/ui/mode-toggle"
+import { NotificationBell } from "@/components/NotificationBell"
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
@@ -74,6 +75,8 @@ export function Navbar() {
                 return "Candidate"
             case "ADMIN":
                 return "Administrator"
+            case "INTERVIEWER":
+                return "Interviewer"
             default:
                 return "User"
         }
@@ -106,6 +109,7 @@ export function Navbar() {
                     </div>
 
                     <div className="flex items-center space-x-4">
+                        {session?.user && <NotificationBell />}
                         <ModeToggle />
                         {status === "loading" ? (
                             <div className="h-10 w-10 bg-muted animate-pulse rounded-full" />
@@ -150,8 +154,26 @@ export function Navbar() {
                                     </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
 
+                                    {session.user?.role === "INTERVIEWER" && (
+                                        <>
+                                            <DropdownMenuItem asChild className="cursor-pointer">
+                                                <Link href="/interviewer/dashboard" className="flex items-center">
+                                                    <User className="mr-2 h-4 w-4" />
+                                                    <span>Interviewer portal</span>
+                                                </Link>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                        </>
+                                    )}
+
                                     {session.user?.role === "CANDIDATE" && (
                                         <>
+                                            <DropdownMenuItem asChild className="cursor-pointer">
+                                                <Link href="/applications" className="flex items-center">
+                                                    <User className="mr-2 h-4 w-4" />
+                                                    <span>My applications</span>
+                                                </Link>
+                                            </DropdownMenuItem>
                                             <DropdownMenuItem
                                                 asChild
                                                 className="cursor-pointer"

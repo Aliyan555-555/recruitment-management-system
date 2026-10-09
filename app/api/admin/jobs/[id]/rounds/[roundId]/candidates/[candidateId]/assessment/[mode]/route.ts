@@ -250,7 +250,7 @@ export async function POST(
       assessorName: body?.assessorName || null,
       date: body?.date || null,
       groupNumber: body?.groupNumber || null,
-      submittedAt: BigInt(Math.floor(Date.now() / 1000)),
+      submittedAt: Math.floor(Date.now() / 1000), // plain number: BigInt cannot be stored in a JSON column
       score: totalScore,
       maxScore,
       scorePercentage

@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { isInterviewStepType } from "@/lib/workflow/step-config"
 
-export type RoundNavView = "applied" | "shortlisted" | "results" | "offers"
+export type RoundNavView = "applied" | "shortlisted" | "schedule" | "results" | "offers"
 
 interface RoundSubNavProps {
   jobId: string
@@ -27,6 +28,7 @@ export function RoundSubNav({
 }: RoundSubNavProps) {
   const base = `/admin/jobs/${jobId}/rounds/${roundId}`
   const isOffer = stepType === "OFFER"
+  const isInterview = isInterviewStepType(stepType)
 
   const links: Array<{ view: RoundNavView; label: string; href: string; count?: number }> = [
     {
@@ -41,6 +43,9 @@ export function RoundSubNav({
       href: `${base}/shortlisted`,
       count: counts.shortlisted,
     },
+    ...(isInterview
+      ? [{ view: "schedule" as RoundNavView, label: "Schedule", href: `${base}/schedule` }]
+      : []),
     {
       view: isOffer ? "offers" : "results",
       label: isOffer ? "Offers" : "Results",
