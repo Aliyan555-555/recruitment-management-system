@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/rbac";
 import { admitToRound, rejectFromRound } from "@/lib/services/pipeline-gate";
 import { advanceFromRound, RoundAdvanceError } from "@/lib/services/round-advance";
+import { notifyAdvancedToRound } from "@/lib/scheduling/notifications";
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates - Get candidates for a round
 export async function GET(
@@ -289,6 +290,9 @@ export async function POST(
             { status: 409 },
           );
         }
+
+        // they are already admitted to the next round: tell them to book (after the transaction committed)
+        void notifyAdvancedToRound(result.advancedPipelineIds);
 
         return NextResponse.json({
           success: true,

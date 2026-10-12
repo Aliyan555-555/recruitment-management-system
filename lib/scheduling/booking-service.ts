@@ -23,7 +23,7 @@ async function takeSeat(tx: Tx, slotId: bigint, minLeadMins: number): Promise<bo
     UPDATE "interview_slot"
     SET "booked_count" = "booked_count" + 1, "updated_at" = ${nowSeconds()}
     WHERE "id" = ${slotId}
-      AND "is_blocked" = false
+      AND "isBlocked" = false
       AND "booked_count" < "capacity"
       AND "startsAt" > (NOW() AT TIME ZONE 'UTC') + make_interval(mins => ${minLeadMins}::int)`
   return changed === 1

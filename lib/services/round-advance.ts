@@ -20,6 +20,8 @@ export interface AdvanceInput {
 
 export interface AdvanceResult {
   advanced: number
+  /** pipelines that moved on (for follow-up notifications after the transaction commits) */
+  advancedPipelineIds: bigint[]
   /** candidates that were not in this round (or whose pipeline is closed) and were left untouched */
   ignored: number
   nextStepId: string | null
@@ -28,6 +30,9 @@ export interface AdvanceResult {
 /**
  * Single place that moves candidates out of a round. Used by the Results page ("Move to next round")
  * and by "Skip round" for optional rounds. Runs inside the caller's transaction.
+ *
+ * Candidates who pass are admitted straight into the next round (step IN_PROGRESS): the admin's decision on
+ * the Results page is the shortlist for the next round, so there is no second "Needs Review" for them.
  *
  * Only pipelines that are currently AT this round and still open are touched, so a stale selection can never
  * rewind or double-advance a candidate.
@@ -85,11 +90,11 @@ export async function advanceFromRound(tx: Tx, input: AdvanceInput): Promise<Adv
       if (existing) {
         await tx.candidatePipelineStep.update({
           where: { id: existing.id },
-          data: { status: "PENDING", startedAt: input.now, completedAt: null },
+          data: { status: "IN_PROGRESS", startedAt: input.now, completedAt: null, skippedAt: null, skippedBy: null },
         })
       } else {
         await tx.candidatePipelineStep.create({
-          data: { pipelineId: pipeline.id, workflowStepId: nextStep.id, stepOrder: nextStep.stepOrder, status: "PENDING", startedAt: input.now },
+          data: { pipelineId: pipeline.id, workflowStepId: nextStep.id, stepOrder: nextStep.stepOrder, status: "IN_PROGRESS", startedAt: input.now },
         })
       }
     } else {
@@ -111,6 +116,7 @@ export async function advanceFromRound(tx: Tx, input: AdvanceInput): Promise<Adv
 
   return {
     advanced: pipelines.length,
+    advancedPipelineIds: pipelines.map((p) => p.id),
     ignored: input.candidateIds.length - pipelines.length,
     nextStepId: nextStep ? nextStep.id.toString() : null,
   }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSession } from "next-auth/react"
+import { NextStepBanner, useNextSteps } from "@/components/candidate/NextStepBanner"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/Navbar"
 import { JobsLandingHero } from "@/components/JobsLandingHero"
@@ -50,6 +51,7 @@ interface PublicJob {
 export default function HomePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
+  const nextSteps = useNextSteps(status === "authenticated" && session?.user?.role === "CANDIDATE")
   const { stats, recentApplications, upcomingInterviews, loading: dashboardLoading, error, fetchDashboardData } = useDashboardStore()
   const { jobs, loading: jobsLoading, fetchJobs } = useJobsStore()
 
@@ -393,6 +395,7 @@ export default function HomePage() {
               Here is what's happening with your job applications today.
             </p>
           </div>
+          <NextStepBanner data={nextSteps} className="mt-6" />
         </div>
       </div>
 

@@ -245,9 +245,9 @@ export default function ResultsPage() {
         const data = await res.json()
         setSelectedIds([])
 
-        // Redirect to next round's applied list if nextStepId is available
+        // Candidates are admitted to the next round directly, so open its "In Round" list
         if (data.nextStepId) {
-          router.push(`/admin/jobs/${params.id}/rounds/${data.nextStepId}/applied`)
+          router.push(`/admin/jobs/${params.id}/rounds/${data.nextStepId}/shortlisted`)
         } else {
           // If no next step, refresh the current page
           await fetchResults()

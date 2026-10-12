@@ -1,11 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { AlertTriangle, CalendarClock, CalendarPlus, CalendarX, Loader2, Lock, Trash2, Unlock, UserX } from "lucide-react"
 import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
 import { RoundSubNav } from "@/components/admin/RoundSubNav"
+import { RoundReadiness } from "@/components/admin/RoundReadiness"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -81,6 +82,8 @@ export default function RoundSchedulePage() {
   const [cancelReason, setCancelReason] = useState("")
   const [targetSlot, setTargetSlot] = useState("")
   const [acting, setActing] = useState(false)
+  const [readinessKey, setReadinessKey] = useState(0)
+  const publishRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const today = zonedDateKey(new Date(), timeZone)
@@ -96,6 +99,7 @@ export default function RoundSchedulePage() {
     setTimeZone(data.timeZone)
     const ov = await fetch(`/api/admin/steps/${roundId}/overview`)
     if (ov.ok) setOverview(await ov.json())
+    setReadinessKey((k) => k + 1)
   }, [roundId])
 
   useEffect(() => {
@@ -275,6 +279,13 @@ export default function RoundSchedulePage() {
       <JobPipelineHeaderLoader jobId={jobId} currentStageId={roundId} />
       <RoundSubNav jobId={jobId} roundId={roundId} stepType={stepType} activeView="schedule" counts={counts} />
 
+      <RoundReadiness
+        jobId={jobId}
+        roundId={roundId}
+        refreshKey={readinessKey}
+        onOpenSlots={() => publishRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      />
+
       {overview && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
@@ -333,6 +344,7 @@ export default function RoundSchedulePage() {
         </Card>
       )}
 
+      <div ref={publishRef} className="scroll-mt-24" />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

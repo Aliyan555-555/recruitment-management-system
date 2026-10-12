@@ -211,8 +211,11 @@ async function main() {
       for (const c of groupCandidates) {
         await prisma.$transaction((tx) => advanceFromRound(tx, { jobId: job.id, workflowStepId: screening.id, candidateIds: [c.id], actorId: admin.id, mode: "COMPLETE", now }))
       }
-      await prisma.$transaction((tx) => admitToRound(tx, { jobId: job.id, userIds: groupCandidates.map((c) => c.id), workflowStepId: focus.id }))
-      const { created: n } = await publishSlots(focus.id, from, to, admin.id)
+      // no second shortlist: moving on admits candidates straight into the next round
+      const admitted = await prisma.candidatePipelineStep.findMany({ where: { workflowStepId: focus.id, pipeline: { candidateId: { in: groupCandidates.map((c) => c.id) } } } })
+      assert.equal(admitted.length, groupCandidates.length)
+      assert.ok(admitted.every((s) => s.status === "IN_PROGRESS"), "next round step should be IN_PROGRESS right after Move next")
+      const { created: n } = await publishSlots(focus.id, addDaysToDateKey(today, 6), addDaysToDateKey(today, 7), admin.id) // days the screening slots do not use
       assert.ok(n > 0)
       const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { stepId: focus.id }, include: { interviewers: true }, orderBy: { startsAt: "asc" } })
       assert.equal(slot.interviewers.length, 2)

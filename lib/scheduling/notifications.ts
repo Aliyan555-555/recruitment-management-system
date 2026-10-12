@@ -294,3 +294,75 @@ export async function notifySlotsPublished(stepId: bigint): Promise<number> {
     return 0
   }
 }
+
+/**
+ * After the admin moves candidates on (Results page / skip round) they are already admitted to the next round.
+ * Interview round: email with a "Book my interview" button (or "slots open soon"). Other rounds: in-app notice.
+ */
+export async function notifyAdvancedToRound(pipelineIds: bigint[]): Promise<void> {
+  if (pipelineIds.length === 0) return
+  try {
+    const pipelines = await prisma.candidatePipeline.findMany({
+      where: { id: { in: pipelineIds }, overallStatus: "IN_PROGRESS" },
+      select: {
+        id: true,
+        currentStepOrder: true,
+        candidate: { select: { id: true, firstname: true, email: true } },
+        job: { select: { title: true, workflow: { select: { steps: true } } } },
+      },
+    })
+    const freeSeatsByStep = new Map<string, number>()
+
+    for (const p of pipelines) {
+      const step = p.job.workflow?.steps.find((s) => s.stepOrder === p.currentStepOrder)
+      if (!step) continue
+      const config = readStepConfig(step)
+      const link = appUrl(`/applications/${p.id}`)
+
+      if (!config.isInterview) {
+        await createNotification({
+          userId: p.candidate.id,
+          title: `You moved to the ${step.stepName} stage`,
+          message: `${p.job.title}: the team will be in touch with the next steps.`,
+          type: "COMPLETION",
+          entityType: "pipeline",
+          entityId: p.id,
+        }).catch((e) => console.error("Advance notification failed:", e))
+        continue
+      }
+
+      const key = step.id.toString()
+      if (!freeSeatsByStep.has(key)) {
+        const seats = await prisma.interviewSlot.aggregate({
+          where: { stepId: step.id, isBlocked: false, startsAt: { gt: new Date(Date.now() + 60 * 60_000) } },
+          _sum: { capacity: true, bookedCount: true },
+        })
+        freeSeatsByStep.set(key, Math.max(0, (seats._sum.capacity ?? 0) - (seats._sum.bookedCount ?? 0)))
+      }
+      const canBook = (freeSeatsByStep.get(key) ?? 0) > 0
+
+      await createNotification({
+        userId: p.candidate.id,
+        title: canBook ? `Book your ${step.stepName}` : `You moved to the ${step.stepName}`,
+        message: canBook ? `${p.job.title}: choose a time that suits you.` : `${p.job.title}: interview times will open soon.`,
+        type: "ASSIGNMENT",
+        entityType: "pipeline",
+        entityId: p.id,
+      }).catch((e) => console.error("Advance notification failed:", e))
+
+      await sendEmail({
+        to: p.candidate.email,
+        subject: canBook ? `Book your ${step.stepName} - ${p.job.title}` : `Next round: ${step.stepName} - ${p.job.title}`,
+        html: renderEmailLayout({
+          heading: canBook ? "Choose your interview time" : "You are through to the next round",
+          intro: canBook
+            ? `Hello ${p.candidate.firstname}, congratulations! You are through to the ${step.stepName} for ${p.job.title}. Pick the time that suits you best.`
+            : `Hello ${p.candidate.firstname}, congratulations! You are through to the ${step.stepName} for ${p.job.title}. We will email you as soon as interview times open.`,
+          cta: { label: canBook ? "Book my interview" : "View my application", url: link },
+        }),
+      })
+    }
+  } catch (error) {
+    console.error("notifyAdvancedToRound failed:", error)
+  }
+}
