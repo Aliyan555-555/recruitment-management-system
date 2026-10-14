@@ -4,6 +4,7 @@ import { createNotification } from "@/lib/notifications"
 import { getOrgTimeZone } from "@/lib/scheduling/org-settings"
 import { readStepConfig } from "@/lib/workflow/step-config"
 import { INTERNAL_BEHAVIORS } from "@/lib/constants/focus-group-behaviors"
+import { buildCandidateDossier } from "./candidate-dossier"
 import { isRecommended, scoreFormData, validatePanelForm, validateSkillsForm } from "./scoring"
 
 export class EvaluationError extends Error {
@@ -67,8 +68,15 @@ export async function getInterviewDetail(interviewerId: bigint, bookingId: bigin
   const mode = booking.slot.mode ?? config.interviewMode
   const latestEducation = booking.candidate.educations[0]
   const latestExperience = booking.candidate.experiences[0]
+  const dossier = await buildCandidateDossier({
+    candidateId: booking.candidateId,
+    applicationId: booking.applicationId,
+    jobId: booking.slot.step.workflow.job.id,
+    currentPipelineStepId: pipelineStepId,
+  })
 
   return {
+    dossier,
     timeZone,
     booking: {
       id: booking.id.toString(),

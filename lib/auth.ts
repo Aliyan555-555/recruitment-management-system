@@ -1,10 +1,15 @@
-import NextAuth from "next-auth"
+import NextAuth, { CredentialsSignin } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+/** Thrown when the database/auth backend fails, so the UI can say "try again" instead of "wrong password". */
+class ServiceUnavailableError extends CredentialsSignin {
+  code = "service_unavailable"
+}
+
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(1),
 })
 
@@ -25,8 +30,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const { email, password } = loginSchema.parse(credentials)
 
-          const user = await prisma.user.findUnique({
-            where: { email },
+          // Case-insensitive: stored emails may not be lowercase, and users type them any way they like
+          const user = await prisma.user.findFirst({
+            where: { email: { equals: email, mode: "insensitive" } },
             select: {
               id: true,
               email: true,
@@ -57,14 +63,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Update login timestamps
           const currentTime = BigInt(Math.floor(Date.now() / 1000))
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              lastLogin: user.lastLogin,
-              currentLogin: currentTime,
-              lastAccess: currentTime,
-            }
-          })
+          // Bookkeeping must never block a valid login
+          await prisma.user
+            .update({
+              where: { id: user.id },
+              data: { lastLogin: user.lastLogin, currentLogin: currentTime, lastAccess: currentTime },
+            })
+            .catch((err) => console.error("Failed to stamp login time:", err))
 
           return {
             id: user.id.toString(),
@@ -75,8 +80,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             avatar: (user as any).avatar || undefined,
           }
         } catch (error) {
-          console.error("Authentication error:", error)
-          return null
+          if (error instanceof z.ZodError) return null // malformed input = invalid credentials
+          console.error("Authentication error (backend failure):", error)
+          throw new ServiceUnavailableError()
         }
       }
     })

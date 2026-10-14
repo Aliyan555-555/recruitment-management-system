@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
             })
 
             if (result?.error) {
-                setError("Invalid email or password")
+                setError(result.code === "service_unavailable" ? "Sign-in is temporarily unavailable. Please try again in a moment." : "Invalid email or password")
                 setIsLoading(false)
                 return
             }

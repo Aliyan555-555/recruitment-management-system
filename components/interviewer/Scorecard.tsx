@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { SCREENING_SKILLS } from "@/lib/constants/screening-skills"
 import type { BehaviorDefinition } from "@/lib/constants/focus-group-behaviors"
-import { scoreFormData, validatePanelForm, validateSkillsForm } from "@/lib/evaluations/scoring"
+import { BEHAVIOR_MAX_RATING, scoreFormData, validatePanelForm, validateSkillsForm } from "@/lib/evaluations/scoring"
 import { cn } from "@/lib/utils"
 
 type FormKind = "SKILLS" | "PANEL"
@@ -174,24 +174,27 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
               <div key={def.name} className="space-y-2 rounded-lg border p-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium">{def.name}</p>
-                  <div className="flex gap-1" role="radiogroup" aria-label={def.name}>
-                    {[1, 2, 3, 4].map((n) => (
-                      <button
-                        key={n}
-                        type="button"
-                        role="radio"
-                        aria-checked={b?.rating === n}
-                        disabled={readOnly}
-                        onClick={() => setBehavior(index, { rating: n })}
-                        className={cn(
-                          "h-9 w-9 rounded-md border text-sm font-semibold transition-colors disabled:opacity-60",
-                          b?.rating === n ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent"
-                        )}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
+                  <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-sm font-semibold tabular-nums">
+                    {b?.rating ?? "–"} / {BEHAVIOR_MAX_RATING}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={BEHAVIOR_MAX_RATING}
+                  step={1}
+                  disabled={readOnly}
+                  value={b?.rating ?? 1}
+                  onChange={(e) => setBehavior(index, { rating: Number(e.target.value) })}
+                  onPointerDown={() => b?.rating === undefined && !readOnly && setBehavior(index, { rating: 1 })}
+                  aria-label={def.name}
+                  className={cn("w-full accent-primary", b?.rating === undefined && "opacity-50")}
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>1 Poor</span>
+                  <span>2 Fair</span>
+                  <span>3 Good</span>
+                  <span>4 Excellent</span>
                 </div>
                 <button type="button" className="flex items-center gap-1 text-xs text-muted-foreground" onClick={() => setOpen(expanded ? null : def.name)}>
                   <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
