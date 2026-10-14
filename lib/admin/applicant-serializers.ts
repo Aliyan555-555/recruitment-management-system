@@ -5,7 +5,7 @@ import type { ApplicantTab } from "./applicant-buckets"
 
 export interface ApplicantAiSummary {
   runId: string
-  status: string // COMPLETED | FAILED | FILTERED_OUT | PENDING
+  status: string // COMPLETED | FAILED | FILTERED_OUT | ATS_ONLY | PENDING
   overallScore: number | null
   recommendation: string | null // SHORTLIST | MAYBE | REJECT
   aiConfidence: number | null
@@ -13,6 +13,10 @@ export interface ApplicantAiSummary {
   experienceScore: number | null
   educationScore: number | null
   mandatoryRequirementsMet: boolean | null
+  /** Deterministic ATS score (0-100); set for everyone the run screened. */
+  atsScore: number | null
+  /** Why an ATS_ONLY candidate was not AI-scored (e.g. quota reached); null when simply below the cut-off. */
+  note: string | null
 }
 
 export interface ApplicantRow {
@@ -46,6 +50,10 @@ export interface ApplicantAiRun {
   totalCandidates: number
   completedCount: number
   failedCount: number
+  atsOnlyCount: number
+  filteredOutCount: number
+  aiCandidateLimit: number | null
+  aiRequestCount: number
   filters: ShortlistFilters | null
   startedAt: string
   completedAt: string | null
@@ -71,21 +79,36 @@ export function parseLooseDate(raw: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
-/** Total years of experience across roles (rounded to 0.5); null when no dates are usable. */
+/**
+ * Total years of experience across roles (rounded to 0.5); null when no dates are usable.
+ * Overlapping roles (e.g. a part-time job during a full-time one) are counted once.
+ */
 export function experienceYears(
   exps: { startDate: string | null; endDate: string | null; isCurrent: boolean }[],
   now: Date = new Date()
 ): number | null {
-  let months = 0
-  let any = false
+  const monthIndex = (d: Date) => d.getUTCFullYear() * 12 + d.getUTCMonth()
+  const ranges: [number, number][] = []
   for (const e of exps) {
     const start = parseLooseDate(e.startDate)
     const end = e.isCurrent ? now : parseLooseDate(e.endDate)
     if (!start || !end || end < start) continue
-    any = true
-    months += (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + (end.getUTCMonth() - start.getUTCMonth())
+    ranges.push([monthIndex(start), monthIndex(end)])
   }
-  return any ? Math.round((months / 12) * 2) / 2 : null
+  if (ranges.length === 0) return null
+  ranges.sort((a, b) => a[0] - b[0])
+  let months = 0
+  let [curStart, curEnd] = ranges[0]
+  for (const [s, e] of ranges.slice(1)) {
+    if (s <= curEnd) {
+      curEnd = Math.max(curEnd, e)
+    } else {
+      months += curEnd - curStart
+      ;[curStart, curEnd] = [s, e]
+    }
+  }
+  months += curEnd - curStart
+  return Math.round((months / 12) * 2) / 2
 }
 
 export function ageFromDob(dob: string | null | undefined, now: Date = new Date()): number | null {

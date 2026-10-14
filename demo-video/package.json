@@ -1,0 +1,16 @@
+{
+  "name": "rms-demo-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node record.mjs",
+    "build-video": "node build-video.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "mailparser": "^3.7.1",
+    "msedge-tts": "^2.0.9",
+    "playwright": "^1.48.2",
+    "smtp-server": "^3.13.6"
+  }
+}

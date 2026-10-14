@@ -11,7 +11,8 @@
     "seed": "tsx prisma/seed-production.ts",
     "seed:demo": "tsx prisma/seed.ts",
     "seed:candidates": "tsx prisma/seed-candidates.ts",
-    "test": "tsx --test lib/**/*.test.ts"
+    "test": "tsx --test lib/**/*.test.ts",
+    "tunnel": "node scripts/tunnel.js"
   },
   "prisma": {
     "seed": "tsx prisma/seed-production.ts"

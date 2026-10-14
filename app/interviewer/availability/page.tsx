@@ -2,21 +2,30 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { CalendarOff, ChevronLeft, ChevronRight, Copy, Loader2, RotateCcw, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { validateAvailability } from "@/lib/scheduling/availability-rules"
+import {
+  copyWeekForward,
+  effectiveDay,
+  mondayOf,
+  normalizeWindows,
+  resetDate,
+  setDateWindows,
+  weekDateKeys,
+  type DayWindow,
+} from "@/lib/scheduling/availability-calendar"
+import { addDaysToDateKey, dateKeyMinuteToUtc, dateKeyWeekday, parseDateKey, zonedDateKey } from "@/lib/timezone"
+import { WeekCalendar, type CalendarColumn } from "@/components/interviewer/WeekCalendar"
+import { cn } from "@/lib/utils"
 
-interface Window {
-  startMinute: number
-  endMinute: number
-}
-interface WeeklyWindow extends Window {
+interface WeeklyWindow extends DayWindow {
   dayOfWeek: number
 }
-interface OneOffWindow extends Window {
+interface OneOffWindow extends DayWindow {
   date: string
 }
 interface TimeOff {
@@ -28,50 +37,51 @@ interface TimeOff {
 
 // Monday first, stored as 0=Sunday .. 6=Saturday
 const DAYS = [
-  { dow: 1, label: "Monday" },
-  { dow: 2, label: "Tuesday" },
-  { dow: 3, label: "Wednesday" },
-  { dow: 4, label: "Thursday" },
-  { dow: 5, label: "Friday" },
-  { dow: 6, label: "Saturday" },
-  { dow: 0, label: "Sunday" },
+  { dow: 1, label: "Mon" },
+  { dow: 2, label: "Tue" },
+  { dow: 3, label: "Wed" },
+  { dow: 4, label: "Thu" },
+  { dow: 5, label: "Fri" },
+  { dow: 6, label: "Sat" },
+  { dow: 0, label: "Sun" },
 ]
+const SHORT_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-const toTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
-const fromTime = (t: string) => {
-  const [h, m] = t.split(":").map(Number)
-  return (h || 0) * 60 + (m || 0)
+const monthDay = (key: string) => {
+  const { month, day } = parseDateKey(key)
+  return `${MONTHS[month - 1]} ${day}`
 }
-const todayKey = () => new Date().toLocaleDateString("en-CA")
+const hoursLabel = (windows: DayWindow[]) => {
+  const h = windows.reduce((sum, w) => sum + (w.endMinute - w.startMinute), 0) / 60
+  return `${Number.isInteger(h) ? h : h.toFixed(1)}h`
+}
 
 async function readError(res: Response, fallback: string) {
   const body = await res.json().catch(() => null)
   return body?.error || fallback
 }
 
-function TimeRange({ value, onChange, onRemove }: { value: Window; onChange: (w: Window) => void; onRemove: () => void }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Input type="time" aria-label="From" className="w-32" value={toTime(value.startMinute)} onChange={(e) => onChange({ ...value, startMinute: fromTime(e.target.value) })} />
-      <span className="text-muted-foreground">to</span>
-      <Input type="time" aria-label="To" className="w-32" value={toTime(value.endMinute)} onChange={(e) => onChange({ ...value, endMinute: fromTime(e.target.value) })} />
-      <Button type="button" variant="ghost" size="icon" aria-label="Remove window" onClick={onRemove}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </div>
-  )
-}
-
 export default function AvailabilityPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [timeZone, setTimeZone] = useState("")
+  const [timeZone, setTimeZone] = useState("Asia/Karachi")
   const [weekly, setWeekly] = useState<WeeklyWindow[]>([])
   const [oneOff, setOneOff] = useState<OneOffWindow[]>([])
   const [timeOff, setTimeOff] = useState<TimeOff[]>([])
   const [dirty, setDirty] = useState(false)
   const [off, setOff] = useState({ start: "", end: "", reason: "" })
   const [addingOff, setAddingOff] = useState(false)
+  const [mode, setMode] = useState<"week" | "template">("week")
+  const [weekStart, setWeekStart] = useState<string | null>(null)
+  const [manual, setManual] = useState<{ kind: "date" | "weekly"; fromDate: string; toDate: string; start: string; end: string; days: number[] }>({
+    kind: "date",
+    fromDate: "",
+    toDate: "",
+    start: "09:00",
+    end: "17:00",
+    days: [],
+  })
 
   const apply = (data: any) => {
     setTimeZone(data.timeZone)
@@ -97,7 +107,9 @@ export default function AvailabilityPage() {
     load()
   }, [load])
 
-  const problem = validateAvailability({ weekly, oneOff }, todayKey())
+  const today = zonedDateKey(new Date(), timeZone)
+  const monday = weekStart ?? mondayOf(today)
+  const problem = validateAvailability({ weekly, oneOff }, today)
 
   const save = async () => {
     setSaving(true)
@@ -157,6 +169,126 @@ export default function AvailabilityPage() {
     setDirty(true)
   }
 
+  const changeTemplateDay = (dow: number, windows: DayWindow[]) =>
+    mutateWeekly([...weekly.filter((w) => w.dayOfWeek !== dow), ...normalizeWindows(windows).map((w) => ({ dayOfWeek: dow, ...w }))])
+  const changeDate = (key: string, windows: DayWindow[]) => mutateOneOff(setDateWindows(oneOff, key, windows))
+  const copyToNextWeek = () => {
+    mutateOneOff(copyWeekForward(weekly, oneOff, monday))
+    toast.success("Copied to next week")
+    setWeekStart(addDaysToDateKey(monday, 7))
+  }
+  const resetWeek = () => mutateOneOff(weekDateKeys(monday).reduce((acc, day) => resetDate(acc, day), oneOff))
+
+  const addManual = () => {
+    const toMin = (t: string) => {
+      const [h, m] = t.split(":").map(Number)
+      return (h || 0) * 60 + (m || 0)
+    }
+    const win = { startMinute: toMin(manual.start), endMinute: toMin(manual.end) }
+    if (!manual.start || !manual.end || win.endMinute - win.startMinute < 15) {
+      return toast.error("End time must be at least 15 minutes after the start time")
+    }
+
+    if (manual.kind === "weekly") {
+      if (manual.days.length === 0) return toast.error("Pick at least one day")
+      let next = weekly
+      for (const dow of manual.days) {
+        const existing = next.filter((w) => w.dayOfWeek === dow)
+        const rest = next.filter((w) => w.dayOfWeek !== dow)
+        next = [...rest, ...normalizeWindows([...existing, win]).map((w) => ({ dayOfWeek: dow, ...w }))]
+      }
+      mutateWeekly(next)
+      toast.success("Added to your weekly default")
+      return
+    }
+
+    if (!manual.fromDate || !manual.toDate || manual.toDate < manual.fromDate) return toast.error("Choose a valid date range")
+    if (manual.fromDate < today) return toast.error("Dates cannot be in the past")
+    const keys: string[] = []
+    for (let d = manual.fromDate; d <= manual.toDate && keys.length <= 92; d = addDaysToDateKey(d, 1)) {
+      if (manual.days.length === 0 || manual.days.includes(dateKeyWeekday(d))) keys.push(d)
+    }
+    if (keys.length === 0) return toast.error("No matching days in that range")
+    if (keys.length > 92) return toast.error("Choose a range of up to 3 months")
+    let next = oneOff
+    for (const key of keys) {
+      next = setDateWindows(next, key, [...effectiveDay(weekly, next, key).windows, win])
+    }
+    mutateOneOff(next)
+    setWeekStart(mondayOf(keys[0]))
+    setMode("week")
+    toast.success(`Added to ${keys.length} ${keys.length === 1 ? "date" : "dates"}`)
+  }
+
+  const blockedFor =(day: string): DayWindow[] => {
+    const dayStart = dateKeyMinuteToUtc(day, 0, timeZone).getTime()
+    const dayEnd = dateKeyMinuteToUtc(day, 24 * 60, timeZone).getTime()
+    return timeOff
+      .map((t) => ({ s: Date.parse(t.startsAt), e: Date.parse(t.endsAt) }))
+      .filter((t) => t.s < dayEnd && t.e > dayStart)
+      .map((t) => ({
+        startMinute: Math.max(0, Math.round((t.s - dayStart) / 60000)),
+        endMinute: Math.min(24 * 60, Math.round((t.e - dayStart) / 60000)),
+      }))
+  }
+
+  const weekDays = weekDateKeys(monday).map((key) => ({ key, ...effectiveDay(weekly, oneOff, key) }))
+  const weekTotal = hoursLabel(weekDays.flatMap((d) => d.windows))
+
+  const columns: CalendarColumn[] =
+    mode === "week"
+      ? weekDays.map((d) => ({
+          key: d.key,
+          title: SHORT_DAYS[dateKeyWeekday(d.key)],
+          subtitle: String(parseDateKey(d.key).day),
+          windows: d.windows,
+          inherited: d.source === "weekly",
+          disabled: d.key < today,
+          isToday: d.key === today,
+          blocked: blockedFor(d.key),
+          header:
+            d.key < today ? null : (
+              <div className="mt-1 flex h-5 items-center justify-center gap-1">
+                {d.source === "off" && (
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">Day off</span>
+                )}
+                {d.source === "custom" && (
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">Custom</span>
+                )}
+                {d.source !== "weekly" && (
+                  <button
+                    type="button"
+                    title="Back to weekly default"
+                    aria-label="Reset day"
+                    className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                    onClick={() => mutateOneOff(resetDate(oneOff, d.key))}
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                  </button>
+                )}
+                {d.source !== "off" && (
+                  <button
+                    type="button"
+                    title="Mark day off"
+                    aria-label="Mark day off"
+                    className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                    onClick={() => changeDate(d.key, [])}
+                  >
+                    <CalendarOff className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            ),
+        }))
+      : DAYS.map(({ dow, label }) => ({
+          key: String(dow),
+          title: label,
+          windows: weekly
+            .filter((w) => w.dayOfWeek === dow)
+            .map(({ startMinute, endMinute }) => ({ startMinute, endMinute }))
+            .sort((a, b) => a.startMinute - b.startMinute),
+        }))
+
   if (loading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
@@ -170,75 +302,174 @@ export default function AvailabilityPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Availability</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tell us when you can interview. Admins turn this into bookable slots. Times are in {timeZone}.
+          Tell us when you can interview. Set a default week, then adjust any specific week. Admins turn this into bookable slots.
         </p>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Weekly hours</CardTitle>
-          <CardDescription>Repeats every week. Leave a day empty if you are not available.</CardDescription>
-        </CardHeader>
-        <CardContent className="divide-y">
-          {DAYS.map(({ dow, label }) => {
-            const rows = weekly.map((w, index) => ({ w, index })).filter(({ w }) => w.dayOfWeek === dow)
-            return (
-              <div key={dow} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start">
-                <p className="w-28 pt-2 text-sm font-medium">{label}</p>
-                <div className="flex-1 space-y-2">
-                  {rows.length === 0 && <p className="pt-2 text-sm text-muted-foreground">Unavailable</p>}
-                  {rows.map(({ w, index }) => (
-                    <TimeRange
-                      key={index}
-                      value={w}
-                      onChange={(next) => mutateWeekly(weekly.map((x, i) => (i === index ? { ...x, ...next } : x)))}
-                      onRemove={() => mutateWeekly(weekly.filter((_, i) => i !== index))}
-                    />
-                  ))}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => mutateWeekly([...weekly, { dayOfWeek: dow, startMinute: 9 * 60, endMinute: 17 * 60 }])}
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add hours
-                  </Button>
-                </div>
+        <CardHeader className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Your calendar</CardTitle>
+              <CardDescription>
+                {mode === "week"
+                  ? "Drag on a day to add hours. Drag a block to move it, pull its edges to resize. Changes apply to the dates shown only."
+                  : "Your default week. It repeats every week unless you customise a specific week."}
+              </CardDescription>
+            </div>
+            <div className="inline-flex rounded-lg border bg-muted p-1 text-sm">
+              {(
+                [
+                  ["week", "Specific week"],
+                  ["template", "Weekly default"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setMode(value)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 font-medium transition-colors",
+                    mode === value ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {mode === "week" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" size="icon" aria-label="Previous week" onClick={() => setWeekStart(addDaysToDateKey(monday, -7))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" size="icon" aria-label="Next week" onClick={() => setWeekStart(addDaysToDateKey(monday, 7))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setWeekStart(mondayOf(today))}>
+                Today
+              </Button>
+              <p className="ml-1 text-sm font-semibold">
+                {monthDay(monday)} – {monthDay(addDaysToDateKey(monday, 6))}, {parseDateKey(addDaysToDateKey(monday, 6)).year}
+              </p>
+              <span className="text-sm text-muted-foreground">· {weekTotal} available</span>
+              <div className="ml-auto flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={copyToNextWeek}>
+                  <Copy className="mr-1.5 h-4 w-4" />
+                  Copy to next week
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={resetWeek}>
+                  <RotateCcw className="mr-1.5 h-4 w-4" />
+                  Reset week
+                </Button>
               </div>
-            )
-          })}
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <WeekCalendar
+            columns={columns}
+            onChange={(key, windows) => (mode === "week" ? changeDate(key, windows) : changeTemplateDay(Number(key), windows))}
+          />
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-sm bg-primary" /> {mode === "week" ? "Set for this week" : "Weekly default"}
+            </span>
+            {mode === "week" && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm border border-primary/30 bg-primary/10" /> From your weekly default
+              </span>
+            )}
+            {mode === "week" && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-3 w-3 rounded-sm bg-muted-foreground/30" /> Time off
+              </span>
+            )}
+            <span>Times in {timeZone}</span>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Extra dates</CardTitle>
-          <CardDescription>One-off availability on a specific date, in addition to your weekly hours.</CardDescription>
+          <CardTitle>Add manually</CardTitle>
+          <CardDescription>Prefer typing? Enter exact times instead of dragging on the calendar.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {oneOff.length === 0 && <p className="text-sm text-muted-foreground">No extra dates.</p>}
-          {oneOff.map((w, index) => (
-            <div key={index} className="flex flex-wrap items-center gap-2">
-              <Input
-                type="date"
-                aria-label="Date"
-                className="w-44"
-                min={todayKey()}
-                value={w.date}
-                onChange={(e) => mutateOneOff(oneOff.map((x, i) => (i === index ? { ...x, date: e.target.value } : x)))}
-              />
-              <TimeRange
-                value={w}
-                onChange={(next) => mutateOneOff(oneOff.map((x, i) => (i === index ? { ...x, ...next } : x)))}
-                onRemove={() => mutateOneOff(oneOff.filter((_, i) => i !== index))}
-              />
+        <CardContent className="space-y-4">
+          <div className="inline-flex rounded-lg border bg-muted p-1 text-sm">
+            {(
+              [
+                ["date", "On specific dates"],
+                ["weekly", "Every week"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setManual({ ...manual, kind: value })}
+                className={cn(
+                  "rounded-md px-3 py-1.5 font-medium transition-colors",
+                  manual.kind === value ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            {manual.kind === "date" && (
+              <>
+                <div className="space-y-1">
+                  <Label htmlFor="m-from-date">From date</Label>
+                  <Input id="m-from-date" type="date" min={today} value={manual.fromDate} onChange={(e) => setManual({ ...manual, fromDate: e.target.value, toDate: manual.toDate < e.target.value ? e.target.value : manual.toDate })} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="m-to-date">To date</Label>
+                  <Input id="m-to-date" type="date" min={manual.fromDate || today} value={manual.toDate} onChange={(e) => setManual({ ...manual, toDate: e.target.value })} />
+                </div>
+              </>
+            )}
+            <div className="space-y-1">
+              <Label htmlFor="m-start">Start time</Label>
+              <Input id="m-start" type="time" value={manual.start} onChange={(e) => setManual({ ...manual, start: e.target.value })} />
             </div>
-          ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => mutateOneOff([...oneOff, { date: todayKey(), startMinute: 9 * 60, endMinute: 12 * 60 }])}>
-            <Plus className="mr-1 h-4 w-4" />
-            Add a date
-          </Button>
+            <div className="space-y-1">
+              <Label htmlFor="m-end">End time</Label>
+              <Input id="m-end" type="time" value={manual.end} onChange={(e) => setManual({ ...manual, end: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label>{manual.kind === "date" ? "Only on these weekdays (leave empty for every day in range)" : "Days"}</Label>
+            <div className="flex flex-wrap gap-2">
+              {DAYS.map(({ dow, label }) => {
+                const on = manual.days.includes(dow)
+                return (
+                  <button
+                    key={dow}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setManual({ ...manual, days: on ? manual.days.filter((d) => d !== dow) : [...manual.days, dow] })}
+                    className={cn(
+                      "h-9 min-w-12 rounded-md border px-3 text-sm font-medium transition-colors",
+                      on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent"
+                    )}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button type="button" onClick={addManual}>
+              Add to calendar
+            </Button>
+            <p className="text-xs text-muted-foreground">Added hours appear on the calendar above. Save to apply.</p>
+          </div>
         </CardContent>
       </Card>
 

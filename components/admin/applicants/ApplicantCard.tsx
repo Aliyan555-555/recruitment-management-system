@@ -4,7 +4,7 @@ import { forwardRef } from "react"
 import { Briefcase, GraduationCap, StickyNote, BadgeCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ApplicantRow } from "@/lib/admin/applicant-serializers"
-import { AiRecBadge, initials, ScorePill } from "./badges"
+import { AiRecBadge, AtsPill, initials, ScorePill } from "./badges"
 
 interface Props {
   applicant: ApplicantRow
@@ -55,7 +55,7 @@ export const ApplicantCard = forwardRef<HTMLDivElement, Props>(function Applican
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {a.hasNote && <StickyNote className="h-3.5 w-3.5 text-amber-500" aria-label="Has note" />}
-            <ScorePill score={a.ai?.status === "COMPLETED" ? a.ai.overallScore : null} />
+            {a.ai?.status === "COMPLETED" ? <ScorePill score={a.ai.overallScore} /> : <AtsPill score={a.ai?.atsScore} />}
           </div>
         </div>
         {a.latestRole && (

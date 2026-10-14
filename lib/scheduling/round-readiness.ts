@@ -8,6 +8,7 @@ export type ReadinessAction =
   | { kind: "EDIT_JOB"; label: string }
   | { kind: "REMIND_AVAILABILITY"; label: string; interviewerIds: string[] }
   | { kind: "PUBLISH"; label: string }
+  | { kind: "ASSIGN_INTERVIEWERS"; label: string }
 
 export interface ReadinessItem {
   id: "setup" | "pool" | "availability" | "slots" | "seats"
@@ -54,7 +55,7 @@ export function evaluateReadiness(i: ReadinessInput): ReadinessResult {
   }
 
   // 2. interviewer pool
-  const assignAction: ReadinessAction = { kind: "EDIT_JOB", label: "Assign interviewers" }
+  const assignAction: ReadinessAction = { kind: "ASSIGN_INTERVIEWERS", label: "Select interviewers" }
   if (i.pool.length === 0) {
     items.push({ id: "pool", status: "todo", title: "No interviewers assigned to this round", action: assignAction })
   } else if (i.pool.length < i.panelSize) {

@@ -21,7 +21,7 @@ export async function POST(
     const adminUserId = BigInt(user.id)
 
     const body = await req.json().catch(() => ({}))
-    const result = await startShortlistRun(jobId, adminUserId, body?.filters)
+    const result = await startShortlistRun(jobId, adminUserId, body?.filters, body?.aiTopK)
 
     if (!result.success) {
       let status = 400

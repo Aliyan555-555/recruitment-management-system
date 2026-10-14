@@ -33,7 +33,7 @@ test("items link to the screen that fixes them and are sorted by priority", () =
     items.map((i) => i.id),
     ["decide-11", "seats-10", "availability", "review-10", "scorecards"]
   )
-  assert.equal(items[0].href, "/admin/jobs/1/rounds/11/results")
+  assert.equal(items[0].href, "/admin/jobs/1/rounds/11/candidates")
   assert.equal(items[0].title, "25 candidates ready for a decision")
   assert.equal(items[0].context, "Backend Engineer › Focus Group")
   assert.equal(items[1].href, "/admin/jobs/1/rounds/10/schedule")

@@ -125,7 +125,7 @@ export function ReviewMode({ jobId, queueIds, applicants, version, filters, firs
             <div className="flex flex-wrap justify-center gap-3">
               <button type="button" onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted">Back to list</button>
               {firstRound && tally.select > 0 && (
-                <Link href={`/admin/jobs/${jobId}/rounds/${firstRound.id}/applied`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                <Link href={`/admin/jobs/${jobId}/rounds/${firstRound.id}/candidates`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
                   Continue to {firstRound.stepName} →
                 </Link>
               )}

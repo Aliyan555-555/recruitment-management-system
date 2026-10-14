@@ -50,7 +50,8 @@ export interface NormalizedStep extends WorkflowStepPayload {
   panelSize: number
   groupSize: number
   bufferMins: number
-  interviewerIds: string[]
+  /** undefined = payload didn't mention the pool, so leave it untouched (pools are managed per round) */
+  interviewerIds?: string[]
 }
 
 export function isStepType(value: unknown): value is StepTypeValue {
@@ -87,7 +88,11 @@ export function normalizeStep(raw: WorkflowStepPayload): NormalizedStep {
     bufferMins: interview ? toInt(raw.bufferMins) ?? 0 : 0,
     meetingLink: mode === "REMOTE" ? cleanString(raw.meetingLink) : null,
     location: mode === "ONSITE" ? cleanString(raw.location) : null,
-    interviewerIds: interview ? Array.from(new Set((raw.interviewerIds ?? []).map(String).filter((id) => /^\d+$/.test(id)))) : [],
+    interviewerIds: !interview
+      ? []
+      : Array.isArray(raw.interviewerIds)
+        ? Array.from(new Set(raw.interviewerIds.map(String).filter((id) => /^\d+$/.test(id))))
+        : undefined,
   }
 }
 

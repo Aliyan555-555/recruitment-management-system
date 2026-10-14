@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client"
+import { closeRoundBookings } from "@/lib/scheduling/booking-service"
 
 type Tx = Prisma.TransactionClient
 
@@ -22,6 +23,8 @@ export interface AdvanceResult {
   advanced: number
   /** pipelines that moved on (for follow-up notifications after the transaction commits) */
   advancedPipelineIds: bigint[]
+  /** future interviews in this round that were cancelled because the candidate left it (notify interviewers) */
+  cancelledBookingIds: bigint[]
   /** candidates that were not in this round (or whose pipeline is closed) and were left untouched */
   ignored: number
   nextStepId: string | null
@@ -63,15 +66,14 @@ export async function advanceFromRound(tx: Tx, input: AdvanceInput): Promise<Adv
     orderBy: { stepOrder: "asc" },
   })
 
+  // leaving the round: a finished interview is marked done, a future one is cancelled and its seat freed
+  const cancelledBookingIds = await closeRoundBookings(tx, {
+    workflowStepId: input.workflowStepId,
+    candidateIds: pipelines.map((p) => p.candidateId),
+    actorId: input.actorId,
+  })
+
   for (const pipeline of pipelines) {
-    if (input.mode === "SKIP") {
-      const booked = await tx.slotBooking.count({
-        where: { candidateId: pipeline.candidateId, status: "RESERVED", slot: { stepId: input.workflowStepId } },
-      })
-      if (booked > 0) {
-        throw new RoundAdvanceError("A selected candidate still has an interview booked in this round. Cancel the booking first.", 409)
-      }
-    }
 
     await tx.candidatePipelineStep.updateMany({
       where: { pipelineId: pipeline.id, workflowStepId: input.workflowStepId },
@@ -117,6 +119,7 @@ export async function advanceFromRound(tx: Tx, input: AdvanceInput): Promise<Adv
   return {
     advanced: pipelines.length,
     advancedPipelineIds: pipelines.map((p) => p.id),
+    cancelledBookingIds,
     ignored: input.candidateIds.length - pipelines.length,
     nextStepId: nextStep ? nextStep.id.toString() : null,
   }

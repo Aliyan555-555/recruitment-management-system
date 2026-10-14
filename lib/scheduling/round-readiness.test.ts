@@ -62,3 +62,7 @@ test("no slots blocks; too few seats warns", () => {
   assert.equal(few.ready, true)
   assert.match(byId(few, "seats")!.title, /12 candidates waiting, only 2 free seats/)
 })
+
+test("an empty pool points the admin to the interviewer picker on the round", () => {
+  assert.equal(byId(evaluateReadiness({ ...base, pool: [] }), "pool")?.action?.kind, "ASSIGN_INTERVIEWERS")
+})

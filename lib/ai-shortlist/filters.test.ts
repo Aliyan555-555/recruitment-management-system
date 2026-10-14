@@ -7,6 +7,7 @@ import {
   filtersFromJob,
   parseDateOfBirth,
   parseGrade,
+  parseMinExperienceYears,
   sanitizeFilters,
 } from "./filters"
 
@@ -133,4 +134,53 @@ test("computeCandidateFacts finds highest education level", () => {
 test("filtersFromJob includes minimum education", () => {
   assert.deepEqual(filtersFromJob({ minEducation: { name: "Matric", rank: 10 } }).minEducation, { rank: 10, name: "Matric" })
   assert.equal(filtersFromJob({ minEducation: { name: "No formal education", rank: 0 } }).minEducation, undefined)
+})
+
+test("experience years knockout", () => {
+  const base = { dob: null, instituteIds: [], hasInstituteText: false, cgpa: null }
+  const f = { minExperienceYears: 2 }
+  assert.equal(evaluateFilters({ ...base, experienceYears: 3 }, f).bucket, "PASSED")
+  assert.equal(evaluateFilters({ ...base, experienceYears: 1 }, f).bucket, "FILTERED_OUT")
+  assert.equal(evaluateFilters({ ...base, experienceYears: 0 }, f).bucket, "FILTERED_OUT")
+  assert.equal(evaluateFilters({ ...base, experienceYears: null }, f).bucket, "NEEDS_REVIEW")
+  assert.equal(evaluateFilters(base, f).bucket, "NEEDS_REVIEW") // facts from before this filter existed
+})
+
+test("required skill coverage knockout", () => {
+  const base = { dob: null, instituteIds: [], hasInstituteText: false, cgpa: null }
+  const f = { minSkillCoverage: 50 }
+  assert.equal(evaluateFilters({ ...base, requiredSkillCoverage: 0.5 }, f).bucket, "PASSED")
+  assert.equal(evaluateFilters({ ...base, requiredSkillCoverage: 0.25 }, f).bucket, "FILTERED_OUT")
+  assert.equal(evaluateFilters({ ...base, requiredSkillCoverage: null }, f).bucket, "PASSED") // job has no required skills
+  assert.equal(evaluateFilters(base, f).bucket, "NEEDS_REVIEW")
+})
+
+test("computeCandidateFacts merges overlapping experience", () => {
+  const facts = computeCandidateFacts({
+    educations: [],
+    experiences: [
+      { startDate: "2020-01", endDate: "2022-01", isCurrent: false },
+      { startDate: "2021-01", endDate: "2023-01", isCurrent: false }, // overlaps the first role
+    ],
+  })
+  assert.equal(facts.experienceYears, 3)
+  assert.equal(computeCandidateFacts({ educations: [], experiences: [] }).experienceYears, 0)
+  assert.equal(computeCandidateFacts({ educations: [] }).experienceYears, undefined)
+})
+
+test("parseMinExperienceYears", () => {
+  assert.equal(parseMinExperienceYears("2 years"), 2)
+  assert.equal(parseMinExperienceYears("3+ yrs"), 3)
+  assert.equal(parseMinExperienceYears("2-4 years"), 2)
+  assert.equal(parseMinExperienceYears("18 months"), 1.5)
+  assert.equal(parseMinExperienceYears("Fresh graduates welcome"), null)
+  assert.equal(parseMinExperienceYears(null), null)
+})
+
+test("filtersFromJob adds experience and skill knockouts", () => {
+  const f = filtersFromJob({ minExperienceYears: 2, requiredSkillCount: 3 })
+  assert.equal(f.minExperienceYears, 2)
+  assert.equal(f.minSkillCoverage, 50)
+  assert.deepEqual(filtersFromJob({ minExperienceYears: null, requiredSkillCount: 0 }), {})
+  assert.deepEqual(sanitizeFilters({ minExperienceYears: "3", minSkillCoverage: 150 }), { minExperienceYears: 3 })
 })

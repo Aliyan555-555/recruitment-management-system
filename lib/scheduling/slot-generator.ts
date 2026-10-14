@@ -103,12 +103,16 @@ export function listDateKeys(fromDate: string, toDate: string): string[] {
   return keys
 }
 
-/** Availability windows (as UTC spans) of one interviewer on one calendar date. */
+/**
+ * Availability windows (as UTC spans) of one interviewer on one calendar date.
+ * Date-specific rules REPLACE the weekly template for that date (an empty 0-0 rule means "day off").
+ */
 function windowsForDate(rules: AvailabilityRule[], dateKey: string, timeZone: string): Span[] {
   const weekday = dateKeyWeekday(dateKey)
+  const hasOverride = rules.some((r) => r.date === dateKey)
   const spans: Span[] = []
   for (const r of rules) {
-    const matches = r.date ? r.date === dateKey : r.dayOfWeek === weekday
+    const matches = hasOverride ? r.date === dateKey : !r.date && r.dayOfWeek === weekday
     if (!matches || r.endMinute <= r.startMinute) continue
     spans.push([
       dateKeyMinuteToUtc(dateKey, r.startMinute, timeZone).getTime(),

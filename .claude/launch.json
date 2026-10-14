@@ -10,8 +10,9 @@
     {
       "name": "dev-e2e",
       "runtimeExecutable": "cmd",
-      "runtimeArgs": ["/c", "set DATABASE_URL=postgresql://e2e:e2e_local_only@localhost:55432/rms_e2e&& set DIRECT_URL=postgresql://e2e:e2e_local_only@localhost:55432/rms_e2e&& npm run dev -- -p 3001"],
-      "port": 3001
+      "runtimeArgs": ["/c", "set DATABASE_URL=postgresql://e2e:e2e_local_only@localhost:55432/rms_e2e&& set DIRECT_URL=postgresql://e2e:e2e_local_only@localhost:55432/rms_e2e&& set NEXTAUTH_URL=http://rms.localhost:3001&& set AUTH_URL=http://rms.localhost:3001&& set AUTH_TRUST_HOST=true&& npm run dev -- -p 3001"],
+      "port": 3001,
+      "url": "http://rms.localhost:3001"
     }
   ]
 }

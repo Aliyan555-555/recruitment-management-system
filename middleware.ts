@@ -97,12 +97,18 @@ const PROTECTED_ROUTES: RouteConfig[] = [
     redirectTo: '/admin/login'
   },
   
+  // Interviewer Login Page (public)
+  {
+    pattern: /^\/interviewer\/login/,
+    allowedRoles: [],
+    requireAuth: false
+  },
   // Interviewer portal
   {
     pattern: /^\/interviewer/,
     allowedRoles: [UserRole.INTERVIEWER],
     requireAuth: true,
-    redirectTo: '/login'
+    redirectTo: '/interviewer/login'
   },
 
   // Candidate Profile

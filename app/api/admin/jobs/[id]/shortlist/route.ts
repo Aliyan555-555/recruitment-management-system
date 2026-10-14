@@ -80,7 +80,7 @@ export async function GET(
     )
 
     const [filterFacts, jobCriteriaRow] = await Promise.all([
-      loadCandidateFilterFacts(applications.map((app) => app.userId)),
+      loadCandidateFilterFacts(applications.map((app) => app.userId), { jobId }),
       prisma.job.findUnique({ where: { id: jobId }, select: JOB_CRITERIA_SELECT }),
     ])
     const { criteria, defaultFilters } = jobCriteriaRow

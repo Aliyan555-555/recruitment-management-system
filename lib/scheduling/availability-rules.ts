@@ -16,6 +16,9 @@ export interface OneOffWindowInput {
 
 export const MIN_WINDOW_MINUTES = 15
 
+/** A one-off 0-0 window marks the whole date as unavailable (overrides the weekly template). */
+export const isDayOffWindow = (w: { startMinute: number; endMinute: number }) => w.startMinute === 0 && w.endMinute === 0
+
 function checkMinutes(start: number, end: number): string | null {
   if (!Number.isInteger(start) || !Number.isInteger(end)) return "Times must be whole minutes"
   if (start < 0 || end > 24 * 60) return "Times must be within a single day"
@@ -46,10 +49,14 @@ export function validateAvailability(input: { weekly: WeeklyWindowInput[]; oneOf
       return "Invalid date"
     }
     if (w.date < todayKey) return "One-off availability cannot be in the past"
-    const err = checkMinutes(w.startMinute, w.endMinute)
+    const isDayOff = isDayOffWindow(w)
+    const err = isDayOff ? null : checkMinutes(w.startMinute, w.endMinute)
     if (err) return err
     byDate.set(w.date, [...(byDate.get(w.date) ?? []), w])
   }
-  for (const windows of byDate.values()) if (overlaps(windows)) return "Windows on the same date overlap"
+  for (const windows of byDate.values()) {
+    if (windows.some(isDayOffWindow) && windows.length > 1) return "A day off cannot be combined with other windows"
+    if (overlaps(windows)) return "Windows on the same date overlap"
+  }
   return null
 }

@@ -34,14 +34,18 @@ export default function InterviewerLayout({ children }: { children: React.ReactN
   const pathname = usePathname()
   const role = session?.user?.role
 
+  const isLoginPage = pathname === "/interviewer/login"
+
   useEffect(() => {
+    if (isLoginPage) return
     if (status === "unauthenticated") {
-      router.replace(`/login?callbackUrl=${encodeURIComponent(pathname || "/interviewer/dashboard")}`)
+      router.replace(`/interviewer/login?callbackUrl=${encodeURIComponent(pathname || "/interviewer/dashboard")}`)
     } else if (status === "authenticated" && role !== "INTERVIEWER") {
       router.replace("/unauthorized")
     }
-  }, [status, role, router, pathname])
+  }, [status, role, router, pathname, isLoginPage])
 
+  if (isLoginPage) return <>{children}</>
   if (status === "loading") return <Spinner label="Loading..." />
   if (status === "unauthenticated" || role !== "INTERVIEWER") return <Spinner label="Redirecting..." />
 
@@ -90,7 +94,7 @@ export default function InterviewerLayout({ children }: { children: React.ReactN
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary/10 text-primary">{name[0]}</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon" aria-label="Log out" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <Button variant="ghost" size="icon" aria-label="Log out" onClick={() => signOut({ callbackUrl: "/interviewer/login" })}>
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

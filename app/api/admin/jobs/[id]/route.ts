@@ -583,7 +583,7 @@ export async function PUT(
             })
             stepId = created.id
           }
-          await syncStepInterviewers(tx, stepId, step.interviewerIds, now)
+          if (step.interviewerIds) await syncStepInterviewers(tx, stepId, step.interviewerIds, now)
         }
 
         if (!workflowStructureLocked) {

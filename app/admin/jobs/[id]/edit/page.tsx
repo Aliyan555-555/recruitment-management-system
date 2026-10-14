@@ -213,7 +213,6 @@ export default function EditJobPage() {
             bufferMins: step.bufferMins ?? 0,
             meetingLink: step.meetingLink ?? "",
             location: step.location ?? "",
-            interviewerIds: step.interviewerIds ?? [],
             candidateInstructions: step.candidateInstructions ?? "",
             interviewerInstructions: step.interviewerInstructions ?? "",
           }))

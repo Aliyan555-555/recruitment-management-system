@@ -3,12 +3,15 @@
 // removes or edits a filter chip).
 
 import { InstituteRef, matchInstitute } from "../institutes"
+import { experienceYears } from "../admin/applicant-serializers"
 
 export interface ShortlistFilters {
   ageRange?: { min?: number; max?: number; asOf: string } // asOf: YYYY-MM-DD
   minEducation?: { rank: number; name: string } // highest education level must be at least this
   institutes?: { ids: string[]; names?: string[] } // candidate must have studied at one of these
   minCgpa?: { value: number; scale: number }
+  minExperienceYears?: number // total (non-overlapping) years of work experience
+  minSkillCoverage?: number // % (0-100) of the job's required skills found on the profile
 }
 
 export type FilterKey = keyof ShortlistFilters
@@ -22,6 +25,8 @@ export interface CandidateFilterFacts {
   instituteIds: string[] // known institutes the candidate's educations resolve to
   hasInstituteText: boolean // typed an institute (even if it could not be resolved)
   cgpa: { value: number; scale: number } | null // best grade across educations
+  experienceYears?: number | null // 0 = no experience listed; null = roles exist but dates unusable
+  requiredSkillCoverage?: number | null // 0-1 share of the job's required skills; null = job has none
 }
 
 export type FilterOutcome = "PASS" | "FAIL" | "UNKNOWN"
@@ -87,8 +92,21 @@ export interface EducationFactInput {
   levelName?: string | null
 }
 
+export interface ExperienceFactInput {
+  startDate: string | null
+  endDate: string | null
+  isCurrent: boolean
+}
+
 export function computeCandidateFacts(
-  input: { dateOfBirth?: string | null; educations: EducationFactInput[] },
+  input: {
+    dateOfBirth?: string | null
+    educations: EducationFactInput[]
+    /** Omit when not loaded; the experience filter then reports UNKNOWN instead of guessing. */
+    experiences?: ExperienceFactInput[]
+    /** Computed server-side from the job's required skills (see computeDeterministicMatch). */
+    requiredSkillCoverage?: number | null
+  },
   institutes: InstituteRef[] = []
 ): CandidateFilterFacts {
   const grades = input.educations
@@ -126,6 +144,10 @@ export function computeCandidateFacts(
     instituteIds: Array.from(ids),
     hasInstituteText,
     cgpa,
+    ...(input.experiences
+      ? { experienceYears: input.experiences.length === 0 ? 0 : experienceYears(input.experiences) }
+      : {}),
+    ...(input.requiredSkillCoverage !== undefined ? { requiredSkillCoverage: input.requiredSkillCoverage } : {}),
   }
 }
 
@@ -190,6 +212,28 @@ export function evaluateFilters(
     }
   }
 
+  if (f.minExperienceYears != null && f.minExperienceYears > 0) {
+    const need = f.minExperienceYears
+    const have = facts_.experienceYears
+    if (have == null) checks.push({ key: "minExperienceYears", outcome: "UNKNOWN", reason: "Experience dates missing" })
+    else if (have + 1e-9 < need)
+      checks.push({ key: "minExperienceYears", outcome: "FAIL", reason: `${have} yrs experience, needs ${need}` })
+    else checks.push({ key: "minExperienceYears", outcome: "PASS", reason: `${have} yrs experience` })
+  }
+
+  if (f.minSkillCoverage != null && f.minSkillCoverage > 0) {
+    const cov = facts_.requiredSkillCoverage
+    if (cov === undefined) {
+      checks.push({ key: "minSkillCoverage", outcome: "UNKNOWN", reason: "Skill match not computed" })
+    } else if (cov !== null) {
+      // null: the job lists no required skills, so there is nothing to check
+      const pct = Math.round(cov * 100)
+      if (pct < f.minSkillCoverage)
+        checks.push({ key: "minSkillCoverage", outcome: "FAIL", reason: `Has ${pct}% of required skills, needs ${f.minSkillCoverage}%` })
+      else checks.push({ key: "minSkillCoverage", outcome: "PASS", reason: `${pct}% of required skills` })
+    }
+  }
+
   const bucket: FilterBucket = checks.some((c) => c.outcome === "FAIL")
     ? "FILTERED_OUT"
     : checks.some((c) => c.outcome === "UNKNOWN")
@@ -210,6 +254,8 @@ export function filtersFromJob(criteria: {
   minCgpa?: number | null
   cgpaScale?: number | null
   allowedInstitutes?: { id: string; name: string }[] | null
+  minExperienceYears?: number | null
+  requiredSkillCount?: number | null
 }): ShortlistFilters {
   const f: ShortlistFilters = {}
   if (criteria.minEducation && criteria.minEducation.rank > 0)
@@ -227,7 +273,27 @@ export function filtersFromJob(criteria: {
     }
   if (criteria.minCgpa != null && criteria.minCgpa > 0)
     f.minCgpa = { value: criteria.minCgpa, scale: criteria.cgpaScale || 4 }
+  if (criteria.minExperienceYears != null && criteria.minExperienceYears > 0)
+    f.minExperienceYears = criteria.minExperienceYears
+  if (criteria.requiredSkillCount && criteria.requiredSkillCount > 0) f.minSkillCoverage = DEFAULT_MIN_SKILL_COVERAGE
   return f
+}
+
+/** Default ATS knockout: candidates must show at least half of the job's required skills. */
+export const DEFAULT_MIN_SKILL_COVERAGE = 50
+
+/**
+ * Reads a minimum from the job's free-text "Minimum experience" field:
+ * "2 years", "3+ yrs", "2-4 years", "18 months", "5". Fresh/none/unparseable -> null.
+ */
+export function parseMinExperienceYears(raw: string | null | undefined): number | null {
+  if (!raw) return null
+  const m = raw.trim().toLowerCase().match(/(\d+(?:\.\d+)?)\s*\+?\s*(?:(?:-|to)\s*\d+(?:\.\d+)?\s*)?(years?|yrs?|months?|mos?)?/)
+  if (!m) return null
+  const n = Number(m[1])
+  if (!Number.isFinite(n) || n <= 0) return null
+  const years = m[2]?.startsWith("m") ? n / 12 : n
+  return years > 40 ? null : Math.round(years * 2) / 2
 }
 
 /** Light validation for filters arriving over the API. */
@@ -255,5 +321,9 @@ export function sanitizeFilters(raw: unknown): ShortlistFilters {
   }
   if (r.minCgpa && +r.minCgpa.value > 0 && +r.minCgpa.scale > 0 && +r.minCgpa.value <= +r.minCgpa.scale)
     out.minCgpa = { value: +r.minCgpa.value, scale: +r.minCgpa.scale }
+  if (r.minExperienceYears != null && +r.minExperienceYears > 0 && +r.minExperienceYears <= 40)
+    out.minExperienceYears = +r.minExperienceYears
+  if (r.minSkillCoverage != null && +r.minSkillCoverage > 0 && +r.minSkillCoverage <= 100)
+    out.minSkillCoverage = Math.round(+r.minSkillCoverage)
   return out
 }

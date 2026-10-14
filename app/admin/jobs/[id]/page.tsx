@@ -200,7 +200,7 @@ export default function JobDetailPage() {
             {job.workflow.steps.map((step) => (
               <Link
                 key={step.id}
-                href={`/admin/jobs/${job.id}/rounds/${step.id}/applied`}
+                href={`/admin/jobs/${job.id}/rounds/${step.id}`}
                 className="block border border-border rounded-lg p-4 hover:border-primary/40 hover:bg-primary/5 transition-colors"
               >
                 <div className="flex justify-between items-start">

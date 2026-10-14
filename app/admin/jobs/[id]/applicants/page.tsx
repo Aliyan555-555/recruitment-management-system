@@ -31,7 +31,7 @@ const TAB_LABEL: Record<ApplicantTab, string> = {
 }
 
 const SORTS: { key: SortKey; label: string }[] = [
-  { key: "ai", label: "AI match score" },
+  { key: "ai", label: "Match score (AI, then ATS)" },
   { key: "recent", label: "Most recent" },
   { key: "quick", label: "Quick test score" },
   { key: "name", label: "Name" },
@@ -42,8 +42,17 @@ function sortRows(rows: ApplicantRow[], sort: SortKey) {
   const val = (n: number | null | undefined) => (n == null ? -1 : n)
   const copy = [...rows]
   switch (sort) {
-    case "ai":
-      return copy.sort((a, b) => val(b.ai?.status === "COMPLETED" ? b.ai.overallScore : null) - val(a.ai?.status === "COMPLETED" ? a.ai.overallScore : null) || Number(b.appliedAt) - Number(a.appliedAt))
+    case "ai": {
+      // AI-scored candidates first (by AI score), then everyone else by their ATS score.
+      const aiScore = (r: ApplicantRow) => (r.ai?.status === "COMPLETED" ? r.ai.overallScore : null)
+      return copy.sort(
+        (a, b) =>
+          Number(aiScore(b) != null) - Number(aiScore(a) != null) ||
+          val(aiScore(b)) - val(aiScore(a)) ||
+          val(b.ai?.atsScore) - val(a.ai?.atsScore) ||
+          Number(b.appliedAt) - Number(a.appliedAt)
+      )
+    }
     case "quick":
       return copy.sort((a, b) => val(b.quickTestScore) - val(a.quickTestScore))
     case "name":
@@ -167,7 +176,7 @@ export default function ApplicantsPage() {
   const recommendedVisible = actionableVisible.filter((r) => r.ai?.status === "COMPLETED" && r.ai.recommendation === "SHORTLIST")
 
   const unscoredIds = [...groups.to_review.match, ...groups.to_review.needsReview, ...groups.maybe.match, ...groups.maybe.needsReview]
-    .filter((r) => r.ai?.status === "FILTERED_OUT")
+    .filter((r) => r.ai?.status === "FILTERED_OUT" || r.ai?.status === "ATS_ONLY")
     .map((r) => r.candidateId)
 
   const filterSummary = [
@@ -175,6 +184,8 @@ export default function ApplicantsPage() {
     filters.ageRange && `Age ${filters.ageRange.min ?? "any"}–${filters.ageRange.max ?? "any"}`,
     filters.institutes?.ids.length && `Institutes: ${(filters.institutes.names ?? []).join(", ")}`,
     filters.minCgpa && `CGPA ≥ ${filters.minCgpa.value}/${filters.minCgpa.scale}`,
+    filters.minExperienceYears && `Experience ≥ ${filters.minExperienceYears} yrs`,
+    filters.minSkillCoverage && `Required skills ≥ ${filters.minSkillCoverage}%`,
   ]
     .filter(Boolean)
     .join(" · ")
@@ -264,7 +275,7 @@ export default function ApplicantsPage() {
           )}
           {data?.job.firstRound && (
             <Link
-              href={`/admin/jobs/${jobId}/rounds/${data.job.firstRound.id}/applied`}
+              href={`/admin/jobs/${jobId}/rounds/${data.job.firstRound.id}/candidates`}
               className="rounded-lg border border-input px-4 py-2 text-sm font-medium hover:bg-accent"
             >
               {data.job.firstRound.stepName} →

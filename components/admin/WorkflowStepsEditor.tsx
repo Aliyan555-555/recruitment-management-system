@@ -23,7 +23,6 @@ export interface EditorStep {
   bufferMins?: number | ""
   meetingLink?: string
   location?: string
-  interviewerIds: string[]
   candidateInstructions?: string
   interviewerInstructions?: string
   // preserved untouched when editing an existing job
@@ -43,7 +42,7 @@ const nativeField =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
 
 export function newEditorStep(order: number): EditorStep {
-  return { stepType: "", stepOrder: order, isRequired: true, interviewerIds: [] }
+  return { stepType: "", stepOrder: order, isRequired: true }
 }
 
 /** Defaults applied when the admin picks a step type. */
@@ -73,7 +72,6 @@ export function validateEditorSteps(steps: EditorStep[]): StepErrors {
       bufferMins: s.bufferMins === "" || s.bufferMins === undefined ? 0 : Number(s.bufferMins),
       meetingLink: s.meetingLink,
       location: s.location,
-      interviewerIds: s.interviewerIds,
     }).forEach((m) => add(i, m))
   })
   if (steps.length > 0 && !steps.some((s) => s.stepType === "OFFER")) {
@@ -99,11 +97,6 @@ export function toWorkflowPayload(steps: EditorStep[]) {
   })
 }
 
-interface InterviewerOption {
-  id: string
-  name: string
-}
-
 interface Props {
   steps: EditorStep[]
   onChange: (steps: EditorStep[]) => void
@@ -113,28 +106,6 @@ interface Props {
 }
 
 export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLocked = false }: Props) {
-  const [interviewers, setInterviewers] = useState<InterviewerOption[]>([])
-  const [interviewersLoaded, setInterviewersLoaded] = useState(false)
-
-  useEffect(() => {
-    let alive = true
-    fetch("/api/admin/interviewers")
-      .then((r) => (r.ok ? r.json() : { interviewers: [] }))
-      .then((d) => {
-        if (!alive) return
-        setInterviewers(
-          (d.interviewers ?? [])
-            .filter((i: any) => !i.suspended)
-            .map((i: any) => ({ id: i.id, name: `${i.firstname} ${i.lastname}` }))
-        )
-        setInterviewersLoaded(true)
-      })
-      .catch(() => alive && setInterviewersLoaded(true))
-    return () => {
-      alive = false
-    }
-  }, [])
-
   const usedTypes = useMemo(() => new Set(steps.map((s) => s.stepType)), [steps])
 
   const update = (index: number, patch: Partial<EditorStep>) =>
@@ -162,18 +133,13 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
 
   const add = () => onChange([...steps, newEditorStep(steps.length + 1)])
 
-  const toggleInterviewer = (index: number, id: string) => {
-    const current = steps[index].interviewerIds
-    update(index, { interviewerIds: current.includes(id) ? current.filter((x) => x !== id) : [...current, id] })
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Hiring rounds</CardTitle>
         <CardDescription>
           Candidates move through these rounds in order. Interview rounds are scheduled automatically from the
-          interviewers' availability.
+          interviewers' availability. You choose the interviewers for each round later, on the round's Schedule tab.
           {structureLocked && " Candidates are already in this job, so rounds can be edited but not added, removed or reordered."}
         </CardDescription>
       </CardHeader>
@@ -309,40 +275,6 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                           <Input id={`group-${index}`} type="number" min={1} max={50} value={step.groupSize ?? ""} onChange={(e) => update(index, { groupSize: e.target.value === "" ? "" : Number(e.target.value) })} />
                         </div>
                       </>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>
-                      Interviewers who can run this round
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
-                        ({step.interviewerIds.length} selected{step.stepType === "FOCUS_GROUP" ? `, ${panel} needed per session` : ""})
-                      </span>
-                    </Label>
-                    {!interviewersLoaded ? (
-                      <p className="text-sm text-muted-foreground">Loading interviewers…</p>
-                    ) : interviewers.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No interviewers yet. Add them under <a className="underline" href="/admin/interviewers" target="_blank" rel="noreferrer">Interviewers</a>, then come back.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {interviewers.map((i) => {
-                          const checked = step.interviewerIds.includes(i.id)
-                          return (
-                            <label
-                              key={i.id}
-                              className={cn(
-                                "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
-                                checked ? "border-primary bg-primary/5" : "hover:bg-accent"
-                              )}
-                            >
-                              <input type="checkbox" className="h-4 w-4 accent-primary" checked={checked} onChange={() => toggleInterviewer(index, i.id)} />
-                              <span className="truncate">{i.name}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
                     )}
                   </div>
 

@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/rbac";
 import { admitToRound, rejectFromRound } from "@/lib/services/pipeline-gate";
 import { advanceFromRound, RoundAdvanceError } from "@/lib/services/round-advance";
-import { notifyAdvancedToRound } from "@/lib/scheduling/notifications";
+import { notifyAdvancedToRound, notifyBookingEvent } from "@/lib/scheduling/notifications";
+import { closeRoundBookings } from "@/lib/scheduling/booking-service";
 
 // GET /api/admin/jobs/[id]/rounds/[roundId]/candidates - Get candidates for a round
 export async function GET(
@@ -260,14 +261,22 @@ export async function POST(
           );
         }
 
-        await prisma.$transaction((tx) =>
-          rejectFromRound(tx, {
+        const rejectCancelled = await prisma.$transaction(async (tx) => {
+          // free the seat of any future interview in this round, mark past ones done
+          const cancelled = await closeRoundBookings(tx, {
+            workflowStepId: roundId,
+            candidateIds: candidateIds.map((id: string) => BigInt(id)),
+            actorId: BigInt(user.id),
+          });
+          await rejectFromRound(tx, {
             jobId,
             userIds: candidateIds.map((id) => BigInt(id)),
             workflowStepId: roundId,
             now,
-          }),
-        );
+          });
+          return cancelled;
+        });
+        for (const id of rejectCancelled) void notifyBookingEvent(id, "CANCELLED", { interviewersOnly: true });
         break;
       }
 
@@ -293,6 +302,7 @@ export async function POST(
 
         // they are already admitted to the next round: tell them to book (after the transaction committed)
         void notifyAdvancedToRound(result.advancedPipelineIds);
+        for (const id of result.cancelledBookingIds) void notifyBookingEvent(id, "CANCELLED", { interviewersOnly: true });
 
         return NextResponse.json({
           success: true,
