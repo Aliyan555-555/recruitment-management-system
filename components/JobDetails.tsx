@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import {
   MapPin,
   Calendar,
-  DollarSign,
+  Banknote,
   Briefcase,
   BookOpen,
   Award,
@@ -180,8 +180,8 @@ export function JobDetails({
 
                 {job.minimumSalary && (
                   <div className="flex items-center gap-1.5 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300 px-3 py-1.5 rounded-full font-medium">
-                    <DollarSign className="h-4 w-4" />
-                    {job.minimumSalary}
+                    <Banknote className="h-4 w-4" />
+                    {job.minimumSalary.replace(/\$/g, "PKR ")}
                   </div>
                 )}
               </div>

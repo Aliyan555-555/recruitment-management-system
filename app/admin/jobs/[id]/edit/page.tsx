@@ -31,6 +31,7 @@ import {
 } from "@/components/admin/HiringCriteriaFields"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
+import { parseSalary, validateSalaryRange, buildSalaryString } from "@/lib/salary"
 
 interface FormErrors {
   title?: string
@@ -42,6 +43,8 @@ interface FormErrors {
   employmentType?: string
   totalPositions?: string
   minimumExperience?: string
+  minSalary?: string
+  maxSalary?: string
   minimumSalary?: string
   department?: string
   skills?: string
@@ -89,7 +92,8 @@ export default function EditJobPage() {
     totalPositions: 1,
     department: "",
     minimumExperience: "",
-    minimumSalary: "",
+    minSalary: "",
+    maxSalary: "",
     certification: "",
     minEducation: "",
     successCriteria: "",
@@ -178,7 +182,8 @@ export default function EditJobPage() {
           totalPositions: job.totalPositions || 1,
           department: job.industry ?? "",
           minimumExperience: job.minimumExperience ?? "",
-          minimumSalary: job.minimumSalary ?? "",
+          minSalary: parseSalary(job.minimumSalary).minSalary,
+          maxSalary: parseSalary(job.minimumSalary).maxSalary,
           certification: job.certification ?? "",
           minEducation: job.educationRequirements?.[0]?.educationLevel?.name || job.educationRequirements?.[0]?.educationLevel || "",
           successCriteria: job.successCriteria ?? "",
@@ -353,17 +358,6 @@ export default function EditJobPage() {
     return undefined
   }
 
-  const validateMinimumSalary = (salary: string): string | undefined => {
-    if (!salary || salary.trim() === "") {
-      return undefined
-    }
-    const salaryPattern = /^[\$]?[\d,]+([kK]|[\-\s]+[\$]?[\d,]+[kK]?)?$/i
-    if (!salaryPattern.test(salary.trim())) {
-      return "Please enter a valid salary format (e.g., '$50,000', '50000-70000', '$50k-$70k')"
-    }
-    return undefined
-  }
-
   const validateLocation = (location: { city: string; country: string }): string | undefined => {
     if (!location.city || location.city.trim() === "") {
       return "City is required"
@@ -412,7 +406,9 @@ export default function EditJobPage() {
     newErrors.company = validateCompany(formData.company)
     newErrors.totalPositions = validateTotalPositions(formData.totalPositions)
     newErrors.minimumExperience = validateMinimumExperience(formData.minimumExperience)
-    newErrors.minimumSalary = validateMinimumSalary(formData.minimumSalary)
+    const salaryErrors = validateSalaryRange(formData.minSalary, formData.maxSalary)
+    if (salaryErrors.minSalary) newErrors.minSalary = salaryErrors.minSalary
+    if (salaryErrors.maxSalary) newErrors.maxSalary = salaryErrors.maxSalary
 
     const dateErrors = validateDateRange(formData.postFrom, formData.postTo)
     if (dateErrors.postFrom) newErrors.postFrom = dateErrors.postFrom
@@ -467,9 +463,26 @@ export default function EditJobPage() {
       case "minimumExperience":
         error = validateMinimumExperience(value)
         break
-      case "minimumSalary":
-        error = validateMinimumSalary(value)
+      case "minSalary":
+      case "maxSalary": {
+        const sErrors = validateSalaryRange(
+          fieldName === "minSalary" ? value : formData.minSalary,
+          fieldName === "maxSalary" ? value : formData.maxSalary
+        )
+        error = fieldName === "minSalary" ? sErrors.minSalary : sErrors.maxSalary
+        if (fieldName === "minSalary") {
+          if (sErrors.maxSalary) {
+            setErrors(prev => ({ ...prev, maxSalary: sErrors.maxSalary }))
+          } else if (!sErrors.maxSalary) {
+            setErrors(prev => {
+              const next = { ...prev }
+              delete next.maxSalary
+              return next
+            })
+          }
+        }
         break
+      }
       case "postFrom":
       case "postTo":
         const dateErrors = validateDateRange(
@@ -534,7 +547,7 @@ export default function EditJobPage() {
         industry: cleanString(formData.department),
         minimumExperience: cleanString(formData.minimumExperience),
         certification: cleanString(formData.certification),
-        minimumSalary: cleanString(formData.minimumSalary),
+        minimumSalary: buildSalaryString(formData.minSalary, formData.maxSalary),
         successCriteria: cleanString(formData.successCriteria),
         benefits: cleanString(formData.benefits),
         status: formData.status,
@@ -943,34 +956,83 @@ export default function EditJobPage() {
                 )}
               </div>
 
-              {/* Salary Range */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Salary Range
-                </label>
-                <input
-                  type="text"
-                  value={formData.minimumSalary}
-                  onChange={(e) => {
-                    setFormData({ ...formData, minimumSalary: e.target.value })
-                    if (touched.minimumSalary || errors.minimumSalary) {
-                      handleBlur("minimumSalary", e.target.value)
-                    }
-                  }}
-                  onBlur={(e) => handleBlur("minimumSalary", e.target.value)}
-                  data-error={errors.minimumSalary ? "true" : "false"}
-                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.minimumSalary ? "border-destructive bg-destructive/10" : "border-input"
-                    }`}
-                  placeholder="e.g., $90,000 - $130,000"
-                />
-                {errors.minimumSalary && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.minimumSalary}
-                  </p>
-                )}
+              {/* Salary Range: Min and Max (Numbers Only, PKR) */}
+              <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Minimum Salary (PKR)
+                  </label>
+                  <div className="relative rounded-md shadow-sm">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground text-sm font-medium">
+                      PKR
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.minSalary}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "")
+                        setFormData({ ...formData, minSalary: val })
+                        if (touched.minSalary || errors.minSalary || errors.maxSalary) {
+                          handleBlur("minSalary", val)
+                        }
+                      }}
+                      onBlur={(e) => handleBlur("minSalary", e.target.value)}
+                      data-error={errors.minSalary ? "true" : "false"}
+                      className={`w-full pl-14 pr-3 py-2 border rounded-md bg-background ${
+                        errors.minSalary ? "border-destructive bg-destructive/10" : "border-input"
+                      }`}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
+                  {errors.minSalary && (
+                    <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.minSalary}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Maximum Salary (PKR)
+                  </label>
+                  <div className="relative rounded-md shadow-sm">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground text-sm font-medium">
+                      PKR
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.maxSalary}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "")
+                        setFormData({ ...formData, maxSalary: val })
+                        if (touched.maxSalary || errors.maxSalary || errors.minSalary) {
+                          handleBlur("maxSalary", val)
+                        }
+                      }}
+                      onBlur={(e) => handleBlur("maxSalary", e.target.value)}
+                      data-error={errors.maxSalary ? "true" : "false"}
+                      className={`w-full pl-14 pr-3 py-2 border rounded-md bg-background ${
+                        errors.maxSalary ? "border-destructive bg-destructive/10" : "border-input"
+                      }`}
+                      placeholder="e.g. 100000"
+                    />
+                  </div>
+                  {errors.maxSalary && (
+                    <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.maxSalary}
+                    </p>
+                  )}
+                </div>
               </div>
 
 

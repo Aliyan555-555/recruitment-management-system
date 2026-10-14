@@ -149,7 +149,7 @@ export default function JobDetailPage() {
           {job.minimumSalary && (
             <div>
               <label className="text-sm text-muted-foreground">Salary Range</label>
-              <p className="font-medium text-foreground">{job.minimumSalary}</p>
+              <p className="font-medium text-foreground">{job.minimumSalary.replace(/\$/g, "PKR ")}</p>
             </div>
           )}
           {job.locations && job.locations.length > 0 ? (

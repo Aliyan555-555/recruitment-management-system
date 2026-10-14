@@ -31,6 +31,7 @@ import {
 } from "@/components/admin/HiringCriteriaFields"
 
 const TextEditor = dynamic(() => import("@/components/TextEditor"), { ssr: false })
+import { validateSalaryRange, buildSalaryString } from "@/lib/salary"
 
 interface FormErrors {
   title?: string
@@ -42,6 +43,8 @@ interface FormErrors {
   employmentType?: string
   totalPositions?: string
   minimumExperience?: string
+  minSalary?: string
+  maxSalary?: string
   minimumSalary?: string
   department?: string
   skills?: string
@@ -90,7 +93,8 @@ export default function CreateJobPage() {
     totalPositions: 1,
     department: "",
     minimumExperience: "",
-    minimumSalary: "",
+    minSalary: "",
+    maxSalary: "",
     certification: "",
     minEducation: "",
     successCriteria: "",
@@ -279,18 +283,6 @@ export default function CreateJobPage() {
     return undefined
   }
 
-  const validateMinimumSalary = (salary: string): string | undefined => {
-    if (!salary || salary.trim() === "") {
-      return undefined // Optional field
-    }
-    // Allow formats like "$50,000", "50000-70000", "$50k-$70k", etc.
-    const salaryPattern = /^[\$]?[\d,]+([kK]|[\-\s]+[\$]?[\d,]+[kK]?)?$/i
-    if (!salaryPattern.test(salary.trim())) {
-      return "Please enter a valid salary format (e.g., '$50,000', '50000-70000', '$50k-$70k')"
-    }
-    return undefined
-  }
-
   const validateLocation = (location: { city: string; country: string }): string | undefined => {
     if (!location.city || location.city.trim() === "") {
       return "City is required"
@@ -330,8 +322,9 @@ export default function CreateJobPage() {
     const minExperienceError = validateMinimumExperience(formData.minimumExperience)
     if (minExperienceError) newErrors.minimumExperience = minExperienceError
 
-    const minSalaryError = validateMinimumSalary(formData.minimumSalary)
-    if (minSalaryError) newErrors.minimumSalary = minSalaryError
+    const salaryErrors = validateSalaryRange(formData.minSalary, formData.maxSalary)
+    if (salaryErrors.minSalary) newErrors.minSalary = salaryErrors.minSalary
+    if (salaryErrors.maxSalary) newErrors.maxSalary = salaryErrors.maxSalary
 
     // Validate date range
     const dateErrors = validateDateRange(formData.postFrom, formData.postTo)
@@ -420,9 +413,26 @@ export default function CreateJobPage() {
       case "minimumExperience":
         error = validateMinimumExperience(value)
         break
-      case "minimumSalary":
-        error = validateMinimumSalary(value)
+      case "minSalary":
+      case "maxSalary": {
+        const sErrors = validateSalaryRange(
+          fieldName === "minSalary" ? value : formData.minSalary,
+          fieldName === "maxSalary" ? value : formData.maxSalary
+        )
+        error = fieldName === "minSalary" ? sErrors.minSalary : sErrors.maxSalary
+        if (fieldName === "minSalary") {
+          if (sErrors.maxSalary) {
+            setErrors(prev => ({ ...prev, maxSalary: sErrors.maxSalary }))
+          } else if (!sErrors.maxSalary) {
+            setErrors(prev => {
+              const next = { ...prev }
+              delete next.maxSalary
+              return next
+            })
+          }
+        }
         break
+      }
       case "postFrom":
       case "postTo":
         const dateErrors = validateDateRange(
@@ -471,7 +481,8 @@ export default function CreateJobPage() {
       if (errors.employmentType) errorFields.push("Employment Type")
       if (errors.totalPositions) errorFields.push("Total Positions")
       if (errors.minimumExperience) errorFields.push("Minimum Experience")
-      if (errors.minimumSalary) errorFields.push("Minimum Salary")
+      if (errors.minSalary) errorFields.push("Minimum Salary")
+      if (errors.maxSalary) errorFields.push("Maximum Salary")
       if (errors.locations) errorFields.push("Locations")
       if (errors.workflowSteps) errorFields.push("Workflow Steps")
 
@@ -533,7 +544,7 @@ export default function CreateJobPage() {
           industry: formData.department || undefined,
           minimumExperience: formData.minimumExperience || undefined,
           certification: formData.certification || undefined,
-          minimumSalary: formData.minimumSalary || undefined,
+          minimumSalary: buildSalaryString(formData.minSalary, formData.maxSalary),
           successCriteria: formData.successCriteria || undefined,
           benefits: formData.benefits || undefined,
           status: formData.status,
@@ -645,7 +656,8 @@ export default function CreateJobPage() {
                     {errors.postTo && <li className="flex items-center gap-2">• <span className="font-medium">Post To Date:</span> {errors.postTo}</li>}
                     {errors.totalPositions && <li className="flex items-center gap-2">• <span className="font-medium">Total Positions:</span> {errors.totalPositions}</li>}
                     {errors.minimumExperience && <li className="flex items-center gap-2">• <span className="font-medium">Minimum Experience:</span> {errors.minimumExperience}</li>}
-                    {errors.minimumSalary && <li className="flex items-center gap-2">• <span className="font-medium">Minimum Salary:</span> {errors.minimumSalary}</li>}
+                    {errors.minSalary && <li className="flex items-center gap-2">• <span className="font-medium">Minimum Salary:</span> {errors.minSalary}</li>}
+                    {errors.maxSalary && <li className="flex items-center gap-2">• <span className="font-medium">Maximum Salary:</span> {errors.maxSalary}</li>}
                     {errors.locations && <li className="flex items-center gap-2">• <span className="font-medium">Locations:</span> {errors.locations}</li>}
                     {errors.workflowSteps && <li className="flex items-center gap-2">• <span className="font-medium">Workflow Steps:</span> Please review all workflow step fields</li>}
                   </ul>
@@ -977,33 +989,83 @@ export default function CreateJobPage() {
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Salary Range
-                </label>
-                <input
-                  type="text"
-                  value={formData.minimumSalary}
-                  onChange={(e) => {
-                    setFormData({ ...formData, minimumSalary: e.target.value })
-                    if (touched.minimumSalary || errors.minimumSalary) {
-                      handleBlur("minimumSalary", e.target.value)
-                    }
-                  }}
-                  onBlur={(e) => handleBlur("minimumSalary", e.target.value)}
-                  data-error={errors.minimumSalary ? "true" : "false"}
-                  className={`w-full px-3 py-2 border rounded-md bg-background ${errors.minimumSalary ? "border-destructive bg-destructive/10" : "border-input"
-                    }`}
-                  placeholder="e.g., $90,000 - $130,000"
-                />
-                {errors.minimumSalary && (
-                  <p className="mt-1 text-sm text-destructive flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {errors.minimumSalary}
-                  </p>
-                )}
+              {/* Salary Range: Min and Max (Numbers Only, PKR) */}
+              <div className="col-span-1 md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Minimum Salary (PKR)
+                  </label>
+                  <div className="relative rounded-md shadow-sm">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground text-sm font-medium">
+                      PKR
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.minSalary}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "")
+                        setFormData({ ...formData, minSalary: val })
+                        if (touched.minSalary || errors.minSalary || errors.maxSalary) {
+                          handleBlur("minSalary", val)
+                        }
+                      }}
+                      onBlur={(e) => handleBlur("minSalary", e.target.value)}
+                      data-error={errors.minSalary ? "true" : "false"}
+                      className={`w-full pl-14 pr-3 py-2 border rounded-md bg-background ${
+                        errors.minSalary ? "border-destructive bg-destructive/10" : "border-input"
+                      }`}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
+                  {errors.minSalary && (
+                    <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.minSalary}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Maximum Salary (PKR)
+                  </label>
+                  <div className="relative rounded-md shadow-sm">
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground text-sm font-medium">
+                      PKR
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.maxSalary}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "")
+                        setFormData({ ...formData, maxSalary: val })
+                        if (touched.maxSalary || errors.maxSalary || errors.minSalary) {
+                          handleBlur("maxSalary", val)
+                        }
+                      }}
+                      onBlur={(e) => handleBlur("maxSalary", e.target.value)}
+                      data-error={errors.maxSalary ? "true" : "false"}
+                      className={`w-full pl-14 pr-3 py-2 border rounded-md bg-background ${
+                        errors.maxSalary ? "border-destructive bg-destructive/10" : "border-input"
+                      }`}
+                      placeholder="e.g. 100000"
+                    />
+                  </div>
+                  {errors.maxSalary && (
+                    <p className="mt-1 text-sm text-destructive flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.maxSalary}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div>
