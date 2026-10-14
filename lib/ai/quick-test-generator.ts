@@ -205,6 +205,8 @@ export async function generateQuickTestQuestions(
           : String(error?.message ?? error)
       failures.push(reason)
       console.warn(`[Quick Test Generator] AI attempt (${strict ? "strict" : "normal"}) failed: ${reason}`)
+      // Network failure or timeout: a stricter prompt will not help, and a second wait would double the delay.
+      if (error?.name === "TimeoutError" || error?.name === "AbortError" || error instanceof TypeError) break
     }
   }
 

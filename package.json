@@ -12,6 +12,7 @@
     "seed:demo": "tsx prisma/seed.ts",
     "seed:candidates": "tsx prisma/seed-candidates.ts",
     "test": "tsx --test lib/**/*.test.ts",
+    "clean:operational": "tsx scripts/clean-operational-data.ts",
     "tunnel": "node scripts/tunnel.js"
   },
   "prisma": {

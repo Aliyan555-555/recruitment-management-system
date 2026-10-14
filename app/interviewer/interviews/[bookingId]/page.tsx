@@ -7,9 +7,12 @@ import { ArrowLeft, CheckCircle2, ExternalLink, Loader2, MapPin, Users, Video } 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Scorecard } from "@/components/interviewer/Scorecard"
+import { CandidateDossier } from "@/components/interviewer/candidate-dossier/CandidateDossier"
+import type { CandidateDossier as Dossier } from "@/lib/evaluations/candidate-dossier"
 import { formatInZone, formatTimeInZone, zoneLabel } from "@/lib/timezone"
 
 interface Detail {
+  dossier: Dossier
   timeZone: string
   booking: { id: string; status: string; startsAt: string; endsAt: string; mode: "REMOTE" | "ONSITE" | null; meetingLink: string | null; location: string | null }
   round: { name: string; type: string | null; notesForInterviewers: string | null; formKind: "SKILLS" | "PANEL" }
@@ -29,16 +32,6 @@ interface Detail {
   behaviors: any[] | null
   evaluation: { formData: any; submittedAt: string | null; score: number | null } | null
   canEvaluate: boolean
-}
-
-function Fact({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm">{value}</dd>
-    </div>
-  )
 }
 
 export default function InterviewDetailPage() {
@@ -82,7 +75,6 @@ export default function InterviewDetailPage() {
   const tz = detail.timeZone
   const start = new Date(detail.booking.startsAt)
   const submitted = !!detail.evaluation?.submittedAt
-  const c = detail.candidate
   const cancelled = detail.booking.status === "CANCELLED" || detail.booking.status === "NO_SHOW"
 
   return (
@@ -92,13 +84,13 @@ export default function InterviewDetailPage() {
       </Link>
 
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{c.name}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{detail.dossier.profile.name || detail.candidate.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {detail.round.name} · {detail.job.title}, {detail.job.company}
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">When and where</CardTitle>
@@ -153,23 +145,6 @@ export default function InterviewDetailPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Candidate</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-2 gap-3">
-              <Fact label="Email" value={c.email} />
-              <Fact label="Phone" value={c.phone} />
-              <Fact label="Education" value={c.education} />
-              <Fact label="Institution" value={c.institution} />
-              <Fact label="Last employer" value={c.lastEmployer} />
-              <Fact label="Last role" value={c.lastRole} />
-              <Fact label="Expected salary" value={c.expectedSalary} />
-              <Fact label="Notice period" value={c.noticePeriod} />
-            </dl>
-          </CardContent>
-        </Card>
       </div>
 
       {detail.round.notesForInterviewers && (
@@ -181,17 +156,22 @@ export default function InterviewDetailPage() {
         </Card>
       )}
 
-      {!cancelled && (
-        <Scorecard
-          bookingId={detail.booking.id}
-          kind={detail.round.formKind}
-          behaviors={detail.behaviors}
-          initial={detail.evaluation?.formData ?? null}
-          submitted={submitted}
-          canEvaluate={detail.canEvaluate}
-          onSubmitted={load}
-        />
-      )}
+      <div className={cancelled ? "" : "grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_440px]"}>
+        <CandidateDossier dossier={detail.dossier} />
+        {!cancelled && (
+          <div className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto">
+            <Scorecard
+              bookingId={detail.booking.id}
+              kind={detail.round.formKind}
+              behaviors={detail.behaviors}
+              initial={detail.evaluation?.formData ?? null}
+              submitted={submitted}
+              canEvaluate={detail.canEvaluate}
+              onSubmitted={load}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -108,6 +108,9 @@ function cleanModelName(model: string): string {
 /**
  * Call Google Gemini native generateContent API
  */
+/** Without a deadline an unreachable provider hangs a request for ~5 min (undici default) and the user sees "failed to fetch". */
+const AI_REQUEST_TIMEOUT_MS = Number(process.env.AI_REQUEST_TIMEOUT_MS) || 45_000
+
 async function callGeminiNative(model: string, token: string, options: AiChatOptions): Promise<string> {
   const m = cleanModelName(model)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(token)}`
@@ -133,6 +136,7 @@ async function callGeminiNative(model: string, token: string, options: AiChatOpt
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": token },
       body: JSON.stringify(buildBody(extras)),
+      signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS),
     })
   }
 
@@ -210,7 +214,7 @@ async function callOpenAiCompatible(
   const send = async () => {
     await acquireRequestSlot()
     options.onRequest?.()
-    return fetch(url, { method: "POST", headers, body: JSON.stringify(payload) })
+    return fetch(url, { method: "POST", headers, body: JSON.stringify(payload), signal: AbortSignal.timeout(AI_REQUEST_TIMEOUT_MS) })
   }
 
   const res = await send()

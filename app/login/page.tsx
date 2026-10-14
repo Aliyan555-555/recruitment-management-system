@@ -21,9 +21,13 @@ export default function LoginPage() {
   const [error, setError] = useState(
     sessionExpired
       ? "Your session expired. Please sign in again."
-      : errorParam
-        ? "Sign-in is temporarily unavailable. Please try again in a moment."
-        : ""
+      : errorParam === "MissingCSRF" || errorParam === "CallbackRouteError"
+        ? "Your page was out of date. Please sign in again."
+        : errorParam === "CredentialsSignin"
+          ? "Invalid email or password"
+          : errorParam
+            ? "Sign-in is temporarily unavailable. Please try again in a moment."
+            : ""
   )
   const [formData, setFormData] = useState({
     email: "",
@@ -44,7 +48,7 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError("Invalid email or password")
+        setError(result.code === "service_unavailable" ? "Sign-in is temporarily unavailable. Please try again in a moment." : "Invalid email or password")
         setIsLoading(false)
         return
       }
