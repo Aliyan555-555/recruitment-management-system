@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
   }
 
   const filterUsers = () => {
-    let filtered = [...users]
+    let filtered = users.filter(u => u.role === "ADMIN" || u.role === "INTERVIEWER")
 
     // Filter by role
     if (roleFilter !== "all") {
@@ -112,8 +112,6 @@ export default function AdminUsersPage() {
         return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
       case "INTERVIEWER":
         return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-      case "CANDIDATE":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
     }
@@ -141,32 +139,32 @@ export default function AdminUsersPage() {
     )
   }
 
+  const teamUsers = users.filter(u => u.role === "ADMIN" || u.role === "INTERVIEWER")
   const stats = {
-    total: users.length,
-    admins: users.filter(u => u.role === "ADMIN").length,
-    interviewers: users.filter(u => u.role === "INTERVIEWER").length,
-    candidates: users.filter(u => u.role === "CANDIDATE").length,
+    total: teamUsers.length,
+    admins: teamUsers.filter(u => u.role === "ADMIN").length,
+    interviewers: teamUsers.filter(u => u.role === "INTERVIEWER").length,
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Users</h2>
+        <h2 className="text-3xl font-bold tracking-tight">Team</h2>
         <p className="text-muted-foreground mt-2">
-          Manage all system users and their roles
+          Manage organization team members and their roles
         </p>
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Team Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground mt-1">All users</p>
+            <p className="text-xs text-muted-foreground mt-1">Active team members</p>
           </CardContent>
         </Card>
         <Card>
@@ -189,23 +187,13 @@ export default function AdminUsersPage() {
             <p className="text-xs text-muted-foreground mt-1">Interviewers</p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Candidates</CardTitle>
-            <UserIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.candidates}</div>
-            <p className="text-xs text-muted-foreground mt-1">Candidates</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>All Users</CardTitle>
-          <CardDescription>Filter and search through users</CardDescription>
+          <CardTitle>Team Members</CardTitle>
+          <CardDescription>Filter and search through team members</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -227,7 +215,6 @@ export default function AdminUsersPage() {
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="ADMIN">Admin</SelectItem>
                 <SelectItem value="INTERVIEWER">Interviewer</SelectItem>
-                <SelectItem value="CANDIDATE">Candidate</SelectItem>
               </SelectContent>
             </Select>
           </div>

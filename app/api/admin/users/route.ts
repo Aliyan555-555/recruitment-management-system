@@ -16,10 +16,13 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const role = searchParams.get("role")
 
+    const allowedRoles = ["ADMIN", "INTERVIEWER"]
     const where: any = {}
     
-    if (role) {
+    if (role && allowedRoles.includes(role)) {
       where.role = role
+    } else {
+      where.role = { in: allowedRoles }
     }
 
     const users = await prisma.user.findMany({
