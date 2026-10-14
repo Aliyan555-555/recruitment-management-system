@@ -305,8 +305,6 @@ export default function ApplicationDetailPage() {
 
           <div className="space-y-6">
             {pipeline.steps.map((step, index) => {
-              const matchedSlot = step.booking
-              const shouldShowStartingDate = matchedSlot && step.status !== "COMPLETED" && step.status !== "REJECTED"
 
               const loi = step.lois?.[0]
               const offer = step.offerLetters?.[0]
@@ -471,6 +469,18 @@ export default function ApplicationDetailPage() {
                               <span className="font-medium">Mode:</span> {step.interviewMode}
                             </p>
                           )}
+                          {step.booking?.startsAt && (
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium">Date &amp; Time:</span>{" "}
+                              {new Date(step.booking.startsAt).toLocaleString([], { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              {step.booking.endsAt && ` – ${new Date(step.booking.endsAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                            </p>
+                          )}
+                          {step.booking?.location && (
+                            <p className="text-sm text-muted-foreground">
+                              <span className="font-medium">Address:</span> {step.booking.location}
+                            </p>
+                          )}
                           {step.booking?.meetingLink && (
                             <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                               <p className="text-sm font-medium text-blue-900 mb-1">Meeting Link:</p>
@@ -507,11 +517,6 @@ export default function ApplicationDetailPage() {
 
                         {/* Dates */}
                         <div className="mt-4 pt-3 border-t border-border">
-                          {shouldShowStartingDate && matchedSlot?.startsAt && (
-                            <p className="text-sm text-muted-foreground">
-                              Starting: {new Date(matchedSlot.startsAt).toLocaleString([], { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          )}
                           {step.completedAt && (
                             <p className="text-sm text-muted-foreground">
                               Completed: {new Date(Number(step.completedAt) * 1000).toLocaleDateString()}

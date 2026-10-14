@@ -1,0 +1,9 @@
+node_modules/
+out/
+audio/
+state/
+shots/
+db/
+tmp-vid/
+mails.json
+record.log

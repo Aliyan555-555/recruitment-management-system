@@ -63,12 +63,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       where: { jobId },
       orderBy: { startedAt: "desc" },
       take: 10,
-      select: { id: true, status: true, totalCandidates: true, filters: true, startedAt: true, completedAt: true },
+      select: {
+        id: true,
+        status: true,
+        totalCandidates: true,
+        filters: true,
+        startedAt: true,
+        completedAt: true,
+        aiCandidateLimit: true,
+        aiRequestCount: true,
+      },
     })
     const latestRun = runs[0] ?? null
 
     const [facts, educations, experiences, skills, quickTests, aiResults, runCounts] = await Promise.all([
-      loadCandidateFilterFacts(userIds),
+      loadCandidateFilterFacts(userIds, { jobId }),
       prisma.userEducation.findMany({
         where: { userId: { in: userIds } },
         select: {
@@ -104,6 +113,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
               experienceScore: true,
               educationScore: true,
               mandatoryRequirementsMet: true,
+              atsScore: true,
+              errorMessage: true,
             },
           })
         : Promise.resolve([]),
@@ -159,6 +170,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
               experienceScore: ai.experienceScore,
               educationScore: ai.educationScore,
               mandatoryRequirementsMet: ai.mandatoryRequirementsMet,
+              atsScore: ai.atsScore,
+              note: ai.status === "ATS_ONLY" ? ai.errorMessage : null,
             }
           : null
 
@@ -196,9 +209,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
     let completedCount = 0
     let failedCount = 0
+    let atsOnlyCount = 0
+    let filteredOutCount = 0
     for (const c of runCounts) {
       if (c.status === "COMPLETED") completedCount = c._count
       if (c.status === "FAILED") failedCount = c._count
+      if (c.status === "ATS_ONLY") atsOnlyCount = c._count
+      if (c.status === "FILTERED_OUT") filteredOutCount = c._count
     }
     const lastFailed =
       latestRun && failedCount > 0
@@ -226,6 +243,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
             totalCandidates: latestRun.totalCandidates,
             completedCount,
             failedCount,
+            atsOnlyCount,
+            filteredOutCount,
+            aiCandidateLimit: latestRun.aiCandidateLimit,
+            aiRequestCount: latestRun.aiRequestCount,
             filters: latestRun.filters ? sanitizeFilters(latestRun.filters) : null,
             startedAt: latestRun.startedAt.toString(),
             completedAt: latestRun.completedAt?.toString() ?? null,

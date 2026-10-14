@@ -186,12 +186,12 @@ export default function FocusGroupAssessmentPage() {
         if (finalSubmit && !data.bothSubmitted) {
           // If only one assessment is submitted, show message
           setTimeout(() => {
-            router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)
+            router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`)
           }, 2000)
         } else if (finalSubmit && data.bothSubmitted) {
           // Both assessments complete
           setTimeout(() => {
-            router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)
+            router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`)
           }, 2000)
         }
       } else {
@@ -398,7 +398,7 @@ export default function FocusGroupAssessmentPage() {
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-6 border-t border-gray-200">
             <Link
-              href={`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`}
+              href={`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`}
               className="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-all"
             >
               BACK

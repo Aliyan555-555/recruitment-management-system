@@ -23,7 +23,9 @@ async function main() {
 
   const { prisma } = await import("../lib/prisma")
   const { publishSlots } = await import("../lib/scheduling/slot-service")
-  const { bookSlot, cancelBooking, rescheduleBooking, BookingError } = await import("../lib/scheduling/booking-service")
+  const { bookSlot, cancelBooking, rescheduleBooking, adminBookSlot, closeRoundBookings, BookingError } = await import("../lib/scheduling/booking-service")
+  const { rejectFromRound } = await import("../lib/services/pipeline-gate")
+  const { getRoundCandidates } = await import("../lib/scheduling/round-candidates-service")
   const { getCandidateSlotsView } = await import("../lib/scheduling/candidate-view")
   const { submitEvaluation, saveDraft, getInterviewDetail } = await import("../lib/evaluations/service")
   const { advanceFromRound, RoundAdvanceError } = await import("../lib/services/round-advance")
@@ -266,6 +268,29 @@ async function main() {
         const st = await prisma.candidatePipelineStep.findFirstOrThrow({ where: { workflowStepId: focus.id, pipeline: { candidateId: unbooked.id } } })
         assert.equal(st.status, "SKIPPED")
       }
+    })
+    await check("admin can book for a candidate, and rejecting frees the seat", async () => {
+      const slot = await prisma.interviewSlot.findFirstOrThrow({ where: { stepId: screening.id, bookedCount: 0, startsAt: { gt: new Date() } } })
+      const { bookingId } = await adminBookSlot({ candidateId: c5.id, workflowStepId: screening.id, slotId: slot.id, actorId: admin.id })
+      assert.equal((await prisma.interviewSlot.findUniqueOrThrow({ where: { id: slot.id } })).bookedCount, 1)
+      const cancelled = await prisma.$transaction(async (tx) => {
+        const ids = await closeRoundBookings(tx, { workflowStepId: screening.id, candidateIds: [c5.id], actorId: admin.id })
+        await rejectFromRound(tx, { jobId: job.id, userIds: [c5.id], workflowStepId: screening.id })
+        return ids
+      })
+      assert.deepEqual(cancelled.map(String), [bookingId.toString()])
+      assert.equal((await prisma.interviewSlot.findUniqueOrThrow({ where: { id: slot.id } })).bookedCount, 0, "seat released")
+      assert.equal((await prisma.slotBooking.findUniqueOrThrow({ where: { id: bookingId } })).status, "CANCELLED")
+    })
+    await check("Candidates tab rows carry the right status and actions", async () => {
+      const data = await getRoundCandidates(screening.id)
+      const byId = new Map(data.candidates.map((r) => [r.candidateId, r]))
+      assert.equal(byId.get(c5.id.toString())?.outcome, "REJECTED")
+      const waiting = data.candidates.find((r) => r.status === "AWAITING_BOOKING")
+      assert.ok(waiting && waiting.actions.includes("BOOK_FOR_CANDIDATE"))
+      const scheduled = data.candidates.find((r) => r.status === "SCHEDULED")
+      assert.ok(scheduled && scheduled.actions.includes("RESCHEDULE"))
+      assert.ok(data.candidates.filter((r) => r.outcome === "PASSED").length >= 4, "the four focus-group candidates passed screening")
     })
     await check("a stale selection cannot rewind or double advance a candidate", async () => {
       const r = await prisma.$transaction((tx) => advanceFromRound(tx, { jobId: job.id, workflowStepId: screening.id, candidateIds: [c6.id], actorId: admin.id, mode: "COMPLETE", now }))

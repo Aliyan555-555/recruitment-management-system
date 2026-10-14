@@ -336,7 +336,7 @@ export default function AssessmentPage() {
       })
 
       if (res.ok) {
-        router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)
+        router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`)
       } else {
         const error = await res.json().catch(() => ({}))
         alert(error?.error || "Error submitting assessment")
@@ -409,7 +409,7 @@ export default function AssessmentPage() {
             </p>
           </div>
           <button
-            onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
+            onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`)}
             className="text-sm font-medium text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -784,7 +784,7 @@ export default function AssessmentPage() {
               <div className="flex items-center gap-4">
                 {isReadOnly && (
                   <button
-                    onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/shortlisted`)}
+                    onClick={() => router.push(`/admin/jobs/${params.id}/rounds/${params.roundId}/candidates`)}
                     className="bg-background border-2 border-input text-foreground px-8 py-3 rounded-lg font-semibold hover:bg-muted transition-all flex items-center gap-2"
                   >
                     Back to Candidate List

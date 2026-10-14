@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Plus, RotateCcw, X } from "lucide-react"
 import { InstitutePicker, useInstitutes } from "@/components/admin/InstitutePicker"
 import { useEducationLevels } from "@/components/admin/useEducationLevels"
-import { FilterKey, ShortlistFilters, todayIso } from "@/lib/ai-shortlist/filters"
+import { DEFAULT_MIN_SKILL_COVERAGE, FilterKey, ShortlistFilters, todayIso } from "@/lib/ai-shortlist/filters"
 
 export interface FilterCounts {
   match: number
@@ -17,6 +17,8 @@ const LABELS: Record<FilterKey, string> = {
   ageRange: "Age range",
   institutes: "Institutes",
   minCgpa: "Minimum CGPA",
+  minExperienceYears: "Minimum experience",
+  minSkillCoverage: "Required skills match",
 }
 
 const inputCls = "w-20 px-2 py-1 text-xs border border-border rounded-md bg-background"
@@ -36,6 +38,8 @@ function chipLabel(key: FilterKey, f: ShortlistFilters): string {
     return names.length > 2 ? `${shown} +${names.length - 2}` : shown
   }
   if (key === "minCgpa" && f.minCgpa) return `CGPA ≥ ${f.minCgpa.value}/${f.minCgpa.scale}`
+  if (key === "minExperienceYears" && f.minExperienceYears != null) return `Experience ≥ ${f.minExperienceYears} yrs`
+  if (key === "minSkillCoverage" && f.minSkillCoverage != null) return `Required skills ≥ ${f.minSkillCoverage}%`
   return LABELS[key]
 }
 
@@ -87,6 +91,8 @@ export function ShortlistFilterBar({
     if (key === "ageRange") next.ageRange = { min: 20, max: 35, asOf: todayIso() }
     if (key === "institutes") next.institutes = { ids: [], names: [] }
     if (key === "minCgpa") next.minCgpa = { value: 3, scale: 4 }
+    if (key === "minExperienceYears") next.minExperienceYears = 1
+    if (key === "minSkillCoverage") next.minSkillCoverage = DEFAULT_MIN_SKILL_COVERAGE
     onChange(next)
     setEditing(key)
     setAdding(false)
@@ -144,7 +150,7 @@ export function ShortlistFilterBar({
               <Plus className="w-3 h-3" /> Add filter
             </button>
             {adding && (
-              <ul className="absolute z-20 mt-1 w-44 rounded-lg border border-border bg-popover shadow-md text-xs">
+              <ul className="absolute z-20 mt-1 w-48 rounded-lg border border-border bg-popover shadow-md text-xs">
                 {addable.map((k) => (
                   <li key={k}>
                     <button type="button" onClick={() => add(k)} className="w-full text-left px-3 py-2 hover:bg-muted">
@@ -234,6 +240,24 @@ export function ShortlistFilterBar({
           <input type="number" step="0.1" min={0} className={inputCls} value={filters.minCgpa.value} onChange={(e) => onChange({ ...filters, minCgpa: { ...filters.minCgpa!, value: Number(e.target.value) } })} />
           <span>out of</span>
           <input type="number" min={1} className={inputCls} value={filters.minCgpa.scale} onChange={(e) => onChange({ ...filters, minCgpa: { ...filters.minCgpa!, scale: Number(e.target.value) || 4 } })} />
+          <button type="button" onClick={() => setEditing(null)} className="ml-auto underline">Done</button>
+        </div>
+      )}
+
+      {editing === "minExperienceYears" && filters.minExperienceYears != null && (
+        <div className="flex flex-wrap items-center gap-2 text-xs p-3 rounded-xl bg-muted/40">
+          <span>At least</span>
+          <input type="number" step="0.5" min={0.5} max={40} className={inputCls} value={filters.minExperienceYears} onChange={(e) => onChange({ ...filters, minExperienceYears: Number(e.target.value) || 0.5 })} />
+          <span>years of work experience (overlapping roles counted once)</span>
+          <button type="button" onClick={() => setEditing(null)} className="ml-auto underline">Done</button>
+        </div>
+      )}
+
+      {editing === "minSkillCoverage" && filters.minSkillCoverage != null && (
+        <div className="flex flex-wrap items-center gap-2 text-xs p-3 rounded-xl bg-muted/40">
+          <span>Profile shows at least</span>
+          <input type="number" step="5" min={5} max={100} className={inputCls} value={filters.minSkillCoverage} onChange={(e) => onChange({ ...filters, minSkillCoverage: Math.min(100, Math.max(5, Number(e.target.value) || 5)) })} />
+          <span>% of the job&apos;s required skills (tagged, or named in experience / bio)</span>
           <button type="button" onClick={() => setEditing(null)} className="ml-auto underline">Done</button>
         </div>
       )}

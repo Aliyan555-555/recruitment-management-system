@@ -65,6 +65,20 @@ test("one-off date windows work and are in addition to weekly rules", () => {
   assert.deepEqual(drafts.map((d) => hhmm(d.startsAt)), ["14:00", "14:30"])
 })
 
+test("date-specific windows replace the weekly template for that date; 0-0 means day off", () => {
+  const weekly = { dayOfWeek: 1, startMinute: 9 * 60, endMinute: 10 * 60 }
+  const run = (date: { startMinute: number; endMinute: number }) =>
+    generateSlots(
+      input({
+        fromDate: "2026-10-12",
+        toDate: "2026-10-12",
+        interviewers: [iv("1", { availability: [weekly, { date: "2026-10-12", ...date }] })],
+      })
+    ).map((d) => hhmm(d.startsAt))
+  assert.deepEqual(run({ startMinute: 14 * 60, endMinute: 15 * 60 }), ["14:00", "14:30"])
+  assert.deepEqual(run({ startMinute: 0, endMinute: 0 }), [])
+})
+
 test("time off and already-booked time are excluded", () => {
   const start = (h: number, m = 0) => new Date(Date.UTC(2026, 9, 12, h - 5, m)) // PKT -> UTC
   const drafts = generateSlots(

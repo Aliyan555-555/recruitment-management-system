@@ -3,14 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { AlertTriangle, CalendarClock, CalendarPlus, CalendarX, Loader2, Lock, Trash2, Unlock, UserX } from "lucide-react"
+import { AlertTriangle, CalendarClock, CalendarX, Loader2, Lock, Trash2, Unlock, UserX } from "lucide-react"
 import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
 import { RoundSubNav } from "@/components/admin/RoundSubNav"
 import { RoundReadiness } from "@/components/admin/RoundReadiness"
+import { InterviewerPicker } from "@/components/admin/round/InterviewerPicker"
+import { SlotPublishCalendar } from "@/components/admin/round/SlotPublishCalendar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -21,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { addDaysToDateKey, formatInZone, formatTimeInZone, zonedDateKey, zoneLabel } from "@/lib/timezone"
+import { formatInZone, formatTimeInZone, zonedDateKey } from "@/lib/timezone"
 
 interface SlotRow {
   id: string
@@ -44,16 +45,6 @@ interface Overview {
 
 type BookingAction = { kind: "cancel" | "reschedule"; bookingId: string; slotId: string; candidateName: string }
 
-interface Preview {
-  timeZone: string
-  total: number
-  perDay: Array<{ date: string; count: number }>
-  interviewersUsed: number
-  candidateCapacity: number
-  warnings: string[]
-  config: { durationMins: number; bufferMins: number; panelSize: number; groupSize: number; mode: string | null; poolSize: number }
-}
-
 async function readError(res: Response, fallback: string) {
   const body = await res.json().catch(() => null)
   return body?.error || fallback
@@ -71,11 +62,6 @@ export default function RoundSchedulePage() {
   const [slots, setSlots] = useState<SlotRow[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [fromDate, setFromDate] = useState("")
-  const [toDate, setToDate] = useState("")
-  const [preview, setPreview] = useState<Preview | null>(null)
-  const [previewing, setPreviewing] = useState(false)
-  const [publishing, setPublishing] = useState(false)
   const [busySlot, setBusySlot] = useState<string | null>(null)
   const [overview, setOverview] = useState<Overview | null>(null)
   const [action, setAction] = useState<BookingAction | null>(null)
@@ -84,12 +70,15 @@ export default function RoundSchedulePage() {
   const [acting, setActing] = useState(false)
   const [readinessKey, setReadinessKey] = useState(0)
   const publishRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const today = zonedDateKey(new Date(), timeZone)
-    setFromDate((d) => d || addDaysToDateKey(today, 1))
-    setToDate((d) => d || addDaysToDateKey(today, 14))
-  }, [timeZone])
+  const [pool, setPool] = useState<{ selected: number; panelSize: number } | null>(null)
+  const poolShort = pool !== null && pool.selected < Math.max(1, pool.panelSize)
+  const handlePoolChange = useCallback((state: { selected: number; panelSize: number }, saved: boolean) => {
+    setPool(state)
+    if (saved) {
+      setReadinessKey((k) => k + 1)
+      loadSlots()
+    }
+  }, [])
 
   const loadSlots = useCallback(async () => {
     const res = await fetch(`/api/admin/steps/${roundId}/slots`)
@@ -128,40 +117,6 @@ export default function RoundSchedulePage() {
       alive = false
     }
   }, [jobId, roundId, router, loadSlots])
-
-  const runPreview = async () => {
-    setPreviewing(true)
-    setPreview(null)
-    try {
-      const res = await fetch(`/api/admin/steps/${roundId}/slots/preview?fromDate=${fromDate}&toDate=${toDate}`)
-      if (!res.ok) throw new Error(await readError(res, "Preview failed"))
-      setPreview(await res.json())
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Preview failed")
-    } finally {
-      setPreviewing(false)
-    }
-  }
-
-  const publish = async () => {
-    setPublishing(true)
-    try {
-      const res = await fetch(`/api/admin/steps/${roundId}/slots`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromDate, toDate }),
-      })
-      if (!res.ok) throw new Error(await readError(res, "Publish failed"))
-      const data = await res.json()
-      toast.success(`${data.created} slots published`)
-      setPreview(null)
-      await loadSlots()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Publish failed")
-    } finally {
-      setPublishing(false)
-    }
-  }
 
   const toggleBlock = async (slot: SlotRow) => {
     setBusySlot(slot.id)
@@ -220,22 +175,6 @@ export default function RoundSchedulePage() {
     }
   }
 
-  const skipCandidate = async (candidateId: string, name: string) => {
-    if (!window.confirm(`Skip this round for ${name}? They move straight to the next round.`)) return
-    try {
-      const res = await fetch(`/api/admin/jobs/${jobId}/rounds/${roundId}/candidates`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "skip_round", candidateIds: [candidateId] }),
-      })
-      if (!res.ok) throw new Error(await readError(res, "Could not skip this round"))
-      toast.success(`${name} skipped this round`)
-      await loadSlots()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not skip this round")
-    }
-  }
-
   const markNoShow = async (bookingId: string) => {
     try {
       const res = await fetch(`/api/admin/bookings/${bookingId}/no-show`, { method: "POST" })
@@ -264,8 +203,6 @@ export default function RoundSchedulePage() {
     return [...groups.entries()]
   }, [slots, timeZone])
 
-  const rangeInvalid = !fromDate || !toDate || toDate < fromDate
-
   if (loading) {
     return (
       <div className="flex min-h-[300px] items-center justify-center">
@@ -277,13 +214,16 @@ export default function RoundSchedulePage() {
   return (
     <div className="space-y-6 p-6">
       <JobPipelineHeaderLoader jobId={jobId} currentStageId={roundId} />
-      <RoundSubNav jobId={jobId} roundId={roundId} stepType={stepType} activeView="schedule" counts={counts} />
+      <RoundSubNav jobId={jobId} roundId={roundId} stepType={stepType} activeView="schedule" />
+
+      <InterviewerPicker roundId={roundId} onChange={handlePoolChange} />
 
       <RoundReadiness
         jobId={jobId}
         roundId={roundId}
         refreshKey={readinessKey}
         onOpenSlots={() => publishRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onAssignInterviewers={() => document.getElementById("round-interviewers")?.scrollIntoView({ behavior: "smooth", block: "start" })}
       />
 
       {overview && (
@@ -292,7 +232,7 @@ export default function RoundSchedulePage() {
             { label: "Awaiting booking", value: overview.counts.awaitingBooking, note: `${overview.freeSeats} free seats`, href: undefined as string | undefined },
             { label: "Scheduled", value: overview.counts.scheduled, note: undefined, href: undefined },
             { label: "Awaiting feedback", value: overview.counts.awaitingFeedback, note: undefined, href: undefined },
-            { label: "Ready for decision", value: overview.counts.readyForDecision, note: undefined, href: `/admin/jobs/${jobId}/rounds/${roundId}/results` },
+            { label: "Ready for decision", value: overview.counts.readyForDecision, note: undefined, href: `/admin/jobs/${jobId}/rounds/${roundId}/candidates` },
           ].map((c) => (
             <Card key={c.label}>
               <CardContent className="p-4">
@@ -301,7 +241,7 @@ export default function RoundSchedulePage() {
                 {c.note && <p className="text-xs text-muted-foreground">{c.note}</p>}
                 {c.href && c.value > 0 && (
                   <a href={c.href} className="text-xs text-primary underline">
-                    Open results
+                    Decide now
                   </a>
                 )}
               </CardContent>
@@ -318,95 +258,25 @@ export default function RoundSchedulePage() {
         </p>
       )}
 
-      {overview && overview.awaiting.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Waiting to book ({overview.counts.awaitingBooking})</CardTitle>
-            <CardDescription>
-              {overview.isRequired ? "These candidates have been shortlisted and can book once slots are open." : "This round is optional, so you can skip it for a candidate."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="divide-y">
-            {overview.awaiting.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span>
-                  <span className="font-medium">{c.name}</span>
-                  <span className="ml-2 text-xs text-muted-foreground">{c.email}</span>
-                </span>
-                {!overview.isRequired && (
-                  <Button variant="outline" size="sm" onClick={() => skipCandidate(c.id, c.name)}>
-                    Skip round
-                  </Button>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {overview && overview.counts.awaitingBooking > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {overview.counts.awaitingBooking} candidate{overview.counts.awaitingBooking === 1 ? " has" : "s have"} not booked yet.{" "}
+          <a href={`/admin/jobs/${jobId}/rounds/${roundId}/candidates`} className="text-primary underline">
+            Book for them or send a reminder
+          </a>
+        </p>
       )}
 
-      <div ref={publishRef} className="scroll-mt-24" />
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarPlus className="h-5 w-5" />
-            Publish interview slots
-          </CardTitle>
-          <CardDescription>
-            Slots are created automatically from the assigned interviewers' availability. Times are shown in {zoneLabel(timeZone)}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="from">From</Label>
-              <Input id="from" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPreview(null) }} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="to">To</Label>
-              <Input id="to" type="date" value={toDate} min={fromDate} onChange={(e) => { setToDate(e.target.value); setPreview(null) }} />
-            </div>
-            <Button variant="outline" disabled={rangeInvalid || previewing} onClick={runPreview}>
-              {previewing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Preview
-            </Button>
-          </div>
-
-          {preview && (
-            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-              {preview.warnings.map((w) => (
-                <p key={w} className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  {w}
-                </p>
-              ))}
-              {preview.total === 0 ? (
-                <p className="text-sm text-muted-foreground">No free time found in this range, so nothing would be created.</p>
-              ) : (
-                <>
-                  <p className="text-sm">
-                    <span className="text-2xl font-bold">{preview.total}</span> slots of {preview.config.durationMins} min
-                    {preview.config.panelSize > 1 ? ` with ${preview.config.panelSize} interviewers each` : ""} using{" "}
-                    {preview.interviewersUsed} interviewer{preview.interviewersUsed === 1 ? "" : "s"}. Room for{" "}
-                    <strong>{preview.candidateCapacity}</strong> candidate{preview.candidateCapacity === 1 ? "" : "s"}
-                    {counts.shortlisted > 0 ? ` (${counts.shortlisted} in this round now)` : ""}.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {preview.perDay.map((d) => (
-                      <Badge key={d.date} variant="secondary">
-                        {formatInZone(new Date(`${d.date}T12:00:00Z`), "UTC", { weekday: "short", day: "2-digit", month: "short" })}: {d.count}
-                      </Badge>
-                    ))}
-                  </div>
-                  <Button disabled={publishing} onClick={publish}>
-                    {publishing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Publish {preview.total} slots
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div ref={publishRef} className="scroll-mt-24">
+        <SlotPublishCalendar
+          roundId={roundId}
+          jobId={jobId}
+          timeZone={timeZone}
+          existingSlots={slots}
+          onSlotsChanged={loadSlots}
+          isPoolConfigured={!poolShort}
+        />
+      </div>
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Upcoming slots</h3>

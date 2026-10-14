@@ -104,7 +104,8 @@ export async function GET(
 
     // Meeting links / locations are only revealed once the candidate holds an active booking for that step.
     const activeBookings = await prisma.slotBooking.findMany({
-      where: { applicationId: pipeline.applicationId, status: "RESERVED" },
+      where: { applicationId: pipeline.applicationId, status: { in: ["RESERVED", "COMPLETED"] } },
+      orderBy: { slot: { startsAt: "asc" } },
       select: {
         id: true,
         slot: { select: { id: true, stepId: true, startsAt: true, endsAt: true, mode: true, meetingLink: true, location: true } },

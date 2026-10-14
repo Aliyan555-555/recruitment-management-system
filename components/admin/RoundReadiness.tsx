@@ -15,6 +15,7 @@ interface Props {
   /** change this value to re-check (e.g. after publishing slots) */
   refreshKey?: number
   onOpenSlots: () => void
+  onAssignInterviewers?: () => void
 }
 
 const ICONS = {
@@ -23,7 +24,7 @@ const ICONS = {
   todo: <CircleDashed className="h-4 w-4 shrink-0 text-destructive" />,
 }
 
-export function RoundReadiness({ jobId, roundId, refreshKey, onOpenSlots }: Props) {
+export function RoundReadiness({ jobId, roundId, refreshKey, onOpenSlots, onAssignInterviewers }: Props) {
   const [data, setData] = useState<{ ready: boolean; items: ReadinessItem[] } | null>(null)
   const [reminding, setReminding] = useState(false)
 
@@ -81,6 +82,11 @@ export function RoundReadiness({ jobId, roundId, refreshKey, onOpenSlots }: Prop
                 {item.action.kind === "EDIT_JOB" && (
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/admin/jobs/${jobId}/edit`}>{item.action.label}</Link>
+                  </Button>
+                )}
+                {item.action.kind === "ASSIGN_INTERVIEWERS" && (
+                  <Button size="sm" variant="outline" onClick={onAssignInterviewers}>
+                    {item.action.label}
                   </Button>
                 )}
                 {item.action.kind === "PUBLISH" && (

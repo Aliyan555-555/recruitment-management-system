@@ -19,6 +19,12 @@ export interface DraftContext {
   drafts: SlotDraft[]
   poolSize: number
   warnings: string[]
+  interviewers: Array<{
+    id: string
+    name: string
+    availability: Array<{ dayOfWeek: number | null; date: string | null; startMinute: number; endMinute: number }>
+    timeOff: Array<{ startsAt: string; endsAt: string }>
+  }>
 }
 
 async function loadInterviewStep(stepId: bigint) {
@@ -118,7 +124,32 @@ export async function buildDrafts(stepId: bigint, fromDate: string, toDate: stri
     })),
   })
 
-  return { stepId, stepName: step.stepName, timeZone, config, drafts, poolSize: pool.length, warnings }
+  const interviewerDetails = pool.map((p) => ({
+    id: p.id.toString(),
+    name: `${p.firstname} ${p.lastname}`.trim(),
+    availability: availability
+      .filter((a) => a.interviewerId === p.id)
+      .map((a) => ({
+        dayOfWeek: a.dayOfWeek,
+        date: a.date ? a.date.toISOString().slice(0, 10) : null,
+        startMinute: a.startMinute,
+        endMinute: a.endMinute,
+      })),
+    timeOff: timeOff
+      .filter((t) => t.interviewerId === p.id)
+      .map((t) => ({ startsAt: t.startsAt.toISOString(), endsAt: t.endsAt.toISOString() })),
+  }))
+
+  return {
+    stepId,
+    stepName: step.stepName,
+    timeZone,
+    config,
+    drafts,
+    poolSize: pool.length,
+    warnings,
+    interviewers: interviewerDetails,
+  }
 }
 
 export async function previewSlots(stepId: bigint, fromDate: string, toDate: string) {
@@ -138,8 +169,88 @@ export async function previewSlots(stepId: bigint, fromDate: string, toDate: str
       groupSize: ctx.config.groupSize,
       mode: ctx.config.interviewMode,
       poolSize: ctx.poolSize,
+      meetingLink: ctx.config.meetingLink,
+      location: ctx.config.location,
     },
+    drafts: ctx.drafts.map((d, i) => ({
+      id: `draft_${d.startsAt.getTime()}_${i}`,
+      startsAt: d.startsAt.toISOString(),
+      endsAt: d.endsAt.toISOString(),
+      interviewerIds: d.interviewerIds,
+      capacity: d.capacity,
+    })),
+    interviewers: ctx.interviewers,
   }
+}
+
+export interface CustomSlotInput {
+  startsAt: string
+  endsAt: string
+  interviewerIds: string[]
+  capacity?: number | undefined
+  mode?: "REMOTE" | "ONSITE" | null | undefined
+  meetingLink?: string | null | undefined
+  location?: string | null | undefined
+}
+
+export async function publishSpecificSlots(
+  stepId: bigint,
+  slotInputs: CustomSlotInput[],
+  adminId: bigint
+) {
+  if (slotInputs.length === 0) {
+    throw new SchedulingError("No slots specified to publish")
+  }
+  const { config } = await loadInterviewStep(stepId)
+  const now = nowSeconds()
+
+  const created = await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${stepId})`
+      let count = 0
+      for (const input of slotInputs) {
+        const startsAt = new Date(input.startsAt)
+        const endsAt = new Date(input.endsAt)
+        if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+          throw new SchedulingError("Invalid slot start/end times")
+        }
+        const capacity = input.capacity ?? config.groupSize ?? 1
+        const mode = (input.mode !== undefined ? input.mode : config.interviewMode) as "REMOTE" | "ONSITE" | null
+        const meetingLink = mode === "REMOTE" ? (input.meetingLink !== undefined ? input.meetingLink : (config.meetingLink ?? null)) : null
+        const location = mode === "ONSITE" ? (input.location !== undefined ? input.location : (config.location ?? null)) : null
+
+        const slot = await tx.interviewSlot.create({
+          data: {
+            stepId,
+            startsAt,
+            endsAt,
+            capacity,
+            mode,
+            meetingLink,
+            location,
+            createdBy: adminId,
+            createdAt: now,
+            updatedAt: now,
+          },
+          select: { id: true },
+        })
+
+        if (input.interviewerIds && input.interviewerIds.length > 0) {
+          await tx.slotInterviewer.createMany({
+            data: input.interviewerIds.map((id) => ({
+              slotId: slot.id,
+              interviewerId: BigInt(id),
+            })),
+          })
+        }
+        count++
+      }
+      return count
+    },
+    { timeout: 60_000, maxWait: 10_000 }
+  )
+
+  return { created }
 }
 
 export async function publishSlots(stepId: bigint, fromDate: string, toDate: string, adminId: bigint) {

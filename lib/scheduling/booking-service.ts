@@ -242,3 +242,84 @@ export async function markNoShow(input: { bookingId: bigint; actorId: bigint }):
     })
   })
 }
+
+/**
+ * Admin books a slot on behalf of a candidate (the candidate never booked, or is blocked after no-shows).
+ * Same round/pipeline checks as a candidate booking, but no no-show cap and no lead time.
+ */
+export async function adminBookSlot(input: { candidateId: bigint; workflowStepId: bigint; slotId: bigint; actorId: bigint }): Promise<{ bookingId: bigint }> {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const pipelineStep = await tx.candidatePipelineStep.findFirst({
+        where: { workflowStepId: input.workflowStepId, pipeline: { candidateId: input.candidateId } },
+        select: {
+          id: true,
+          status: true,
+          stepOrder: true,
+          pipeline: { select: { id: true, applicationId: true, overallStatus: true, lockState: true, currentStepOrder: true } },
+        },
+      })
+      if (!pipelineStep) throw new BookingError("NOT_FOUND", "This candidate is not in this round", 404)
+      const p = pipelineStep.pipeline
+      if (p.overallStatus !== "IN_PROGRESS" || p.lockState !== "NONE") throw new BookingError("PIPELINE_CLOSED", "This application is no longer active.")
+      if (p.currentStepOrder !== pipelineStep.stepOrder || pipelineStep.status !== "IN_PROGRESS") {
+        throw new BookingError("WRONG_ROUND", "The candidate is not waiting in this round.")
+      }
+
+      const slot = await tx.interviewSlot.findUnique({ where: { id: input.slotId }, select: { id: true, stepId: true } })
+      if (!slot || slot.stepId !== input.workflowStepId) throw new BookingError("WRONG_ROUND", "This slot is not for this round.")
+      if (await tx.slotBooking.findFirst({ where: { activeKey: activeKeyFor(slot.stepId, input.candidateId) }, select: { id: true } })) {
+        throw new BookingError("ALREADY_BOOKED", "The candidate already has an interview booked in this round.")
+      }
+      if (!(await takeSeat(tx, slot.id, 0))) throw new BookingError("SLOT_FULL", "That slot is full, blocked or already started.")
+
+      const now = nowSeconds()
+      const booking = await tx.slotBooking.create({
+        data: {
+          slotId: slot.id,
+          candidateId: input.candidateId,
+          applicationId: p.applicationId,
+          pipelineStepId: pipelineStep.id,
+          status: "RESERVED",
+          activeKey: activeKeyFor(slot.stepId, input.candidateId),
+          createdAt: now,
+          updatedAt: now,
+        },
+        select: { id: true },
+      })
+      await audit(tx, { pipelineId: p.id, userId: input.actorId, action: "CREATED", bookingId: booking.id, changes: { slotId: slot.id.toString(), byAdmin: true } })
+      return { bookingId: booking.id }
+    })
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new BookingError("ALREADY_BOOKED", "The candidate already has an interview booked in this round.")
+    throw error
+  }
+}
+
+/**
+ * When candidates leave a round (moved on, skipped, rejected) their active booking in that round must not linger:
+ * a finished interview becomes COMPLETED, a future one is CANCELLED and its seat is released.
+ * Runs inside the caller's transaction. Returns the ids of bookings that were cancelled (future interviews).
+ */
+export async function closeRoundBookings(tx: Tx, input: { workflowStepId: bigint; candidateIds: bigint[]; actorId: bigint }): Promise<bigint[]> {
+  if (input.candidateIds.length === 0) return []
+  const active = await tx.slotBooking.findMany({
+    where: { status: "RESERVED", candidateId: { in: input.candidateIds }, slot: { stepId: input.workflowStepId } },
+    select: { id: true, slotId: true, icsSequence: true, slot: { select: { endsAt: true, startsAt: true } } },
+  })
+  const now = nowSeconds()
+  const cancelled: bigint[] = []
+  for (const b of active) {
+    if (b.slot.startsAt <= new Date()) {
+      await tx.slotBooking.update({ where: { id: b.id }, data: { status: "COMPLETED", activeKey: null, updatedAt: now } })
+    } else {
+      await tx.slotBooking.update({
+        where: { id: b.id },
+        data: { status: "CANCELLED", activeKey: null, cancelledAt: now, cancelledBy: input.actorId, cancelReason: "Round closed for candidate", icsSequence: b.icsSequence + 1, updatedAt: now },
+      })
+      await releaseSeat(tx, b.slotId)
+      cancelled.push(b.id)
+    }
+  }
+  return cancelled
+}

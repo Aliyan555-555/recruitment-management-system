@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import {
   BadgeCheck,
+  BarChart3,
   Briefcase,
   CheckCircle2,
   CircleHelp,
@@ -18,7 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { evaluateFilters, ShortlistFilters } from "@/lib/ai-shortlist/filters"
 import type { ApplicantDetail, Decision } from "./types"
-import { AiRecBadge, initials, ScoreBar, ScorePill } from "./badges"
+import { AiRecBadge, AtsPill, initials, ScoreBar, ScorePill } from "./badges"
 import { DecisionBar } from "./DecisionBar"
 
 function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
@@ -42,6 +43,16 @@ function Field({ label, value }: { label: string; value: string | null | undefin
     </div>
   )
 }
+
+const ATS_LABELS: [string, string][] = [
+  ["requiredSkills", "Required skills"],
+  ["preferredSkills", "Preferred skills"],
+  ["experience", "Experience"],
+  ["education", "Education"],
+  ["assessment", "Assessments"],
+  ["quickTest", "Quick test"],
+  ["completeness", "Profile completeness"],
+]
 
 const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String).filter(Boolean) : [])
 
@@ -89,6 +100,7 @@ export function CandidateProfilePanel({ jobId, detail, loading, filters, onDecid
               <h2 className="text-xl font-bold text-foreground">{c.name}</h2>
               {ai?.status === "COMPLETED" && <ScorePill score={ai.overallScore} className="text-sm" />}
               {ai?.status === "COMPLETED" && <AiRecBadge rec={ai.recommendation} />}
+              {ai && ai.status !== "COMPLETED" && <AtsPill score={ai.atsScore} className="text-sm" />}
             </div>
             {p?.title && <p className="text-sm text-foreground/80">{p.title}</p>}
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -183,12 +195,24 @@ export function CandidateProfilePanel({ jobId, detail, loading, filters, onDecid
             <p className="text-sm text-muted-foreground">
               {ai?.status === "FILTERED_OUT"
                 ? "Not AI-scored: excluded by the screening filters when the run started."
+                : ai?.status === "ATS_ONLY"
+                  ? ai.errorMessage ?? "Not AI-scored: ranked below the candidates sent to AI. Use \"Score with AI\" to evaluate."
                 : ai?.status === "FAILED"
                   ? `AI evaluation failed for this candidate${ai.errorMessage ? `: ${ai.errorMessage}` : "."}`
                   : "Not AI-scored yet. Run AI screening to get a match score."}
             </p>
           )}
         </Section>
+
+        {ai?.atsBreakdown && (
+          <Section title={`ATS match${ai.atsScore != null ? ` · ${ai.atsScore}` : ""}`} icon={<BarChart3 className="h-4 w-4" />}>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {ATS_LABELS.map(([key, label]) =>
+                ai.atsBreakdown[key] == null ? null : <ScoreBar key={key} label={label} value={ai.atsBreakdown[key]} />
+              )}
+            </div>
+          </Section>
+        )}
 
         <Section title="Experience" icon={<Briefcase className="h-4 w-4" />}>
           {c.experiences.length === 0 ? (

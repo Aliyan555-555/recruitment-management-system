@@ -223,7 +223,7 @@ export default function OfferLetterPage() {
         const error = await res.json()
         if (error.error) {
           alert(error.error)
-          router.push(`/admin/jobs/${jobId}/rounds/${roundId}/shortlisted`)
+          router.push(`/admin/jobs/${jobId}/rounds/${roundId}/offers`)
         }
       }
     } catch (error) {

@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
             updatedAt: now,
           },
         })
-        if (step.interviewerIds.length > 0) {
+        if (step.interviewerIds && step.interviewerIds.length > 0) {
           await syncStepInterviewers(tx, created.id, step.interviewerIds, now)
         }
       }

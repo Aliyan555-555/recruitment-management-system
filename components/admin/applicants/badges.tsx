@@ -40,6 +40,20 @@ export function ScorePill({ score, className }: { score: number | null | undefin
   )
 }
 
+/** Deterministic ATS score, shown for candidates the AI did not score. */
+export function AtsPill({ score, className }: { score: number | null | undefined; className?: string }) {
+  if (score == null) return null
+  return (
+    <span
+      className={cn("inline-flex items-center gap-1 rounded-md border border-dashed px-1.5 py-0.5 text-xs font-semibold tabular-nums", scoreTone(score), className)}
+      title="ATS score (keyword, experience and education match; not AI-scored)"
+    >
+      <span className="text-[10px] font-medium opacity-70">ATS</span>
+      {score}
+    </span>
+  )
+}
+
 export function ScoreBar({ label, value }: { label: string; value: number | null | undefined }) {
   return (
     <div className="space-y-1">

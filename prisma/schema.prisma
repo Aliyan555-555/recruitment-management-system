@@ -1153,6 +1153,9 @@ model AiShortlistRun {
   totalCandidates  Int                  @default(0) @map("total_candidates")
   aiModel          String?              @map("ai_model")
   filters          Json?
+  // Funnel bookkeeping: how many top-ranked candidates were sent to AI and how many AI requests it took
+  aiCandidateLimit Int?                 @map("ai_candidate_limit")
+  aiRequestCount   Int                  @default(0) @map("ai_request_count")
   startedAt        BigInt               @map("started_at")
   completedAt      BigInt?              @map("completed_at")
   createdAt        BigInt               @map("created_at")
@@ -1204,6 +1207,10 @@ model AiCandidateShortlistResult {
   // Deterministic facts (dob, cgpa, institute) used by hard filters; re-evaluated client-side
   filterFacts Json? @map("filter_facts")
 
+  // Deterministic ATS ranking computed for every candidate that passes the hard filters
+  atsScore     Int?  @map("ats_score")
+  atsBreakdown Json? @map("ats_breakdown")
+
   createdAt BigInt @map("created_at")
   updatedAt BigInt @map("updated_at")
 
@@ -1223,6 +1230,7 @@ enum AiCandidateResultStatus {
   COMPLETED
   FAILED
   FILTERED_OUT // excluded by hard filters; AI not called (can be scored on demand)
+  ATS_ONLY // passed filters but ranked below the AI cut-off; ATS score only (can be AI-scored on demand)
 }
 
 enum AiShortlistRecommendation {

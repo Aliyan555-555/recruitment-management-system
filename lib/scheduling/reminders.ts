@@ -3,11 +3,13 @@ import { createNotification } from "@/lib/notifications"
 import { sendEmail } from "@/lib/email"
 import { appUrl, renderEmailLayout } from "./email-layout"
 import { notifyBookingEvent } from "./notifications"
+import { remindToBook } from "./round-candidates-service"
 
 const HOUR = 3_600_000
 const nowSeconds = () => BigInt(Math.floor(Date.now() / 1000))
 
 export interface ReminderRunResult {
+  bookingNudges: number
   dayReminders: number
   hourReminders: number
   feedbackNudges: number
@@ -30,7 +32,31 @@ async function claim(bookingId: bigint, field: "remindedDayAt" | "remindedHourAt
  */
 export async function runInterviewReminders(): Promise<ReminderRunResult> {
   const now = Date.now()
-  const result: ReminderRunResult = { dayReminders: 0, hourReminders: 0, feedbackNudges: 0 }
+  const result: ReminderRunResult = { bookingNudges: 0, dayReminders: 0, hourReminders: 0, feedbackNudges: 0 }
+
+  // --- candidates admitted 2+ days ago who still have not booked while seats are free (every 2 days at most)
+  const twoDaysAgo = BigInt(Math.floor((now - 48 * HOUR) / 1000))
+  const notBooked = await prisma.candidatePipelineStep.findMany({
+    where: {
+      status: "IN_PROGRESS",
+      startedAt: { lte: twoDaysAgo },
+      pipeline: { overallStatus: "IN_PROGRESS", lockState: "NONE" },
+      slotBookings: { none: { status: "RESERVED" } },
+      workflowStep: { slots: { some: { isBlocked: false, startsAt: { gt: new Date(now + HOUR) } } } },
+    },
+    select: { workflowStepId: true, pipeline: { select: { candidateId: true, currentStepOrder: true } }, stepOrder: true },
+    take: 500,
+  })
+  const byStep = new Map<string, bigint[]>()
+  for (const r of notBooked) {
+    if (r.pipeline.currentStepOrder !== r.stepOrder) continue
+    const key = r.workflowStepId.toString()
+    byStep.set(key, [...(byStep.get(key) ?? []), r.pipeline.candidateId])
+  }
+  for (const [stepId, ids] of byStep) {
+    const { sent } = await remindToBook(BigInt(stepId), ids, 48 * 3600)
+    result.bookingNudges += sent
+  }
 
   // --- 1 hour
   const soon = await prisma.slotBooking.findMany({

@@ -53,7 +53,7 @@ export function buildInbox(f: InboxFacts): InboxItem[] {
         severity: "high",
         title: `${plural(r.readyForDecision, "candidate")} ready for a decision`,
         context,
-        href: `${base}/results`,
+        href: `${base}/candidates`,
         actionLabel: "Review",
         weight: r.readyForDecision,
       })
@@ -80,7 +80,7 @@ export function buildInbox(f: InboxFacts): InboxItem[] {
         severity: "low",
         title: `${plural(r.newApplicants, "new applicant")} to review`,
         context,
-        href: `${base}/applied`,
+        href: `/admin/jobs/${r.jobId}/applicants`,
         actionLabel: "Review",
         weight: r.newApplicants,
       })

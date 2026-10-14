@@ -135,7 +135,7 @@ function icsFor(ctx: BookingContext, event: BookingEvent, audience: "CANDIDATE" 
  * Sends in-app notifications and emails (with a calendar invite) for a booking event.
  * Best effort: failures are logged and never thrown, so a mail outage cannot undo a booking.
  */
-export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent, opts: { reason?: string | null; previous?: BookingContext | null } = {}) {
+export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent, opts: { reason?: string | null; previous?: BookingContext | null; interviewersOnly?: boolean } = {}) {
   try {
     const ctx = await loadBookingContext(bookingId)
     if (!ctx) return
@@ -144,6 +144,7 @@ export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent,
     const candidateLink = ctx.pipelineId ? appUrl(`/applications/${ctx.pipelineId}`) : appUrl("/applications")
 
     // --- candidate
+    if (!opts.interviewersOnly) {
     await createNotification({
       userId: ctx.candidate.id,
       title: HEADINGS[event],
@@ -173,6 +174,7 @@ export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent,
       }),
       icalEvent: event.startsWith("REMINDER") ? undefined : { method: event === "CANCELLED" ? "CANCEL" : "REQUEST", content: icsFor(ctx, event, "CANDIDATE") },
     })
+    }
 
     // --- interviewers
     const interviewerHeading: Record<BookingEvent, string> = {

@@ -20,9 +20,31 @@ export const AI_SHORTLIST_THRESHOLDS = {
   minConfidenceForShortlist: 45,
 } as const
 
-// Kept modest since free-tier LLM providers (e.g. OpenRouter's ":free" model
-// pool) rate-limit bursts of concurrent requests and return transient errors.
-export const AI_SHORTLIST_CONCURRENCY = 2
+/**
+ * ATS-first funnel: every candidate that passes the hard filters gets a free deterministic ATS score;
+ * only the best `AI_TOP_K` (with at least `AI_MIN_ATS_SCORE`) are sent to the AI, `AI_BATCH_SIZE` per
+ * request. Everyone else keeps their ATS ranking and can be AI-scored on demand.
+ */
+export const AI_SHORTLIST_FUNNEL = {
+  topK: 20,
+  maxTopK: 100,
+  minAtsScore: 40,
+  batchSize: 5,
+} as const
+
+/** Weights of the deterministic ATS score (lib/ai-shortlist/ats-score.ts); renormalised over present data. */
+export const ATS_WEIGHTS = {
+  requiredSkills: 0.30,
+  preferredSkills: 0.10,
+  assessment: 0.15,
+  quickTest: 0.10,
+  experience: 0.15,
+  education: 0.10,
+  completeness: 0.10,
+} as const
+
+// Batches run one at a time; the AI client additionally paces every request (see AI_REQUESTS_PER_MINUTE).
+export const AI_SHORTLIST_CONCURRENCY = 1
 
 export const AI_SHORTLIST_RUN_RATE_LIMIT = {
   maxRequests: 5,

@@ -66,7 +66,13 @@ export async function GET(
 
     // Calculate statistics for each round
     const roundsWithStats = job.workflow.steps.map(step => {
-      const allCandidates = step.pipelineSteps
+      // Applying creates a PENDING first-round step for every applicant. Those candidates are still
+      // waiting on the Applications screen, so they are not "in" the round until they are shortlisted
+      // (admitted -> IN_PROGRESS). Counting them made the first round mirror the Applications total.
+      const allCandidates =
+        step.stepOrder === 1
+          ? step.pipelineSteps.filter(ps => ps.status !== "PENDING")
+          : step.pipelineSteps
 
       return {
         id: step.id.toString(),

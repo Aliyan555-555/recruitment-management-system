@@ -75,7 +75,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string;
         where: { jobId, candidateId: userId },
         orderBy: { createdAt: "desc" },
       }),
-      loadCandidateFilterFacts([userId]),
+      loadCandidateFilterFacts([userId], { jobId }),
       application.reviewedBy
         ? prisma.user.findUnique({ where: { id: application.reviewedBy }, select: { firstname: true, lastname: true } })
         : Promise.resolve(null),

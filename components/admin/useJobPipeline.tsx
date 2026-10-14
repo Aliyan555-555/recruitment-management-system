@@ -67,7 +67,7 @@ export function useJobPipeline({ jobId, currentStageId, refreshKey = 0 }: UseJob
             id: round.id,
             label: round.stepName,
             count: round.statistics.pending + round.statistics.inProgress + round.statistics.completed,
-            href: `/admin/jobs/${jobId}/rounds/${round.id}/applied`,
+            href: `/admin/jobs/${jobId}/rounds/${round.id}`,
             kind: "round" as const,
           })),
         ]
