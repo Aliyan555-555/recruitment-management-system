@@ -8,7 +8,7 @@
 # STAGE 1: base
 #   Shared OS layer — system deps + tini only.
 # ──────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS base
+FROM node:22.23.4-bookworm-slim AS base
 WORKDIR /app
 
 # Install only the minimal shared system deps
