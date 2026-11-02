@@ -1,5 +1,3 @@
-
-
 networks:
   ats_network:
     driver: bridge
@@ -71,8 +69,10 @@ services:
       - .env
 
     environment:
-      NODE_ENV:     production
-      NODE_OPTIONS: "--max-old-space-size=1024"
+      NODE_ENV:                         production
+      NODE_OPTIONS:                     "--max-old-space-size=1024"
+      PUPPETEER_EXECUTABLE_PATH:        "/usr/bin/chromium"
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
 
     networks:
       - ats_network
