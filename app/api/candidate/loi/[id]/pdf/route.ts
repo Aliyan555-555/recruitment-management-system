@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import puppeteer from "puppeteer"
+import { generatePdfFromHtml } from "@/lib/pdf-generator"
 
 // GET /api/candidate/loi/[id]/pdf - Get LOI PDF for candidate
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const logPrefix = `[CANDIDATE-LOI-PDF] [id=${params.id}]`
   try {
     const session = await auth()
     
@@ -66,54 +67,42 @@ export async function GET(
       )
     }
 
-    // Generate PDF from HTML using Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    console.log(`${logPrefix} Generating PDF buffer from HTML`)
+    const pdfBuffer = await generatePdfFromHtml(htmlContent, {
+      format: "A4",
+      margin: {
+        top: "20mm",
+        right: "20mm",
+        bottom: "20mm",
+        left: "20mm"
+      },
+      printBackground: true
     })
 
-    try {
-      const page = await browser.newPage()
-      
-      // Set the HTML content
-      await page.setContent(htmlContent, {
-        waitUntil: 'networkidle0'
-      })
+    const candidateName = `${loi.candidate.firstname} ${loi.candidate.lastname}`
+    const filename = `LOI_${candidateName.replace(/\s+/g, '_')}_${Date.now()}.pdf`
 
-      // Generate PDF
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm'
-        },
-        printBackground: true
-      })
-
-      await browser.close()
-
-      const candidateName = `${loi.candidate.firstname} ${loi.candidate.lastname}`
-      const filename = `LOI_${candidateName.replace(/\s+/g, '_')}_${Date.now()}.pdf`
-
-      // Return PDF as response
-      return new NextResponse(pdfBuffer as any, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename}"`,
-          'Content-Length': pdfBuffer.length.toString(),
-        },
-      })
-    } catch (pdfError) {
-      await browser.close()
-      throw pdfError
-    }
+    // Return PDF as response
+    return new NextResponse(pdfBuffer as any, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Length': pdfBuffer.length.toString(),
+      },
+    })
   } catch (error) {
-    console.error("Error generating LOI PDF:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+    console.error(`${logPrefix} CRITICAL ERROR:`, error)
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details:
+          process.env.NODE_ENV === "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
+      },
+      { status: 500 }
+    )
   }
 }
-
-
-

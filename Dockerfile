@@ -87,6 +87,8 @@ ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=1024" \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    XDG_CONFIG_HOME=/tmp \
+    XDG_CACHE_HOME=/tmp \
     # Avoid --single-process: often worsens CPU churn; shm_size in compose helps.
     CHROMIUM_FLAGS="--headless=new --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-extensions --mute-audio"
 

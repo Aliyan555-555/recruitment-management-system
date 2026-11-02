@@ -8,6 +8,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   experimental: {
+    serverComponentsExternalPackages: ['puppeteer', 'puppeteer-core'],
     instrumentationHook: true,
     serverActions: {
       bodySizeLimit: '2mb',
@@ -16,4 +17,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-

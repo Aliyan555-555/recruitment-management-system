@@ -3,6 +3,12 @@ import { renderToStream } from '@react-pdf/renderer'
 import { LOITemplate } from './templates/loi-template'
 import { OfferLetterTemplate } from './templates/offer-letter-template'
 
+export {
+  generatePdfFromHtml,
+  getChromiumExecutablePath,
+  type GeneratePdfOptions,
+} from './html-pdf-generator'
+
 export interface LOIData {
   candidateName: string
   candidateAddress?: string
@@ -132,4 +138,3 @@ export async function generateOfferLetterPDFResponse(data: OfferLetterData): Pro
     },
   })
 }
-
