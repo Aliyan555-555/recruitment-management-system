@@ -112,6 +112,31 @@ export function parseQuickTestQuestions(
   }))
 }
 
+/**
+ * Builds a candidate's test from the admin-authored bank. Options keep the admin's order
+ * ("All of the above" must stay last); only the question selection/order is randomised when the
+ * bank is larger than the test. Points are equal and sum to the max, like generated tests.
+ */
+export function buildCustomQuickTestQuestions(
+  bank: Array<{ question: string; options: string[]; correct: string }>,
+  count: number,
+  random: () => number = Math.random
+): GeneratedQuickTestQuestion[] {
+  if (bank.length < count) {
+    throw new QuickTestGenerationError(
+      `The custom question bank has ${bank.length} questions but ${count} are required`
+    )
+  }
+  const picked = bank.length === count ? bank : shuffle(bank, random).slice(0, count)
+  const points = equalPoints(count)
+  return picked.map((item, index) => ({
+    question: item.question,
+    options: item.options,
+    correct: item.correct,
+    points: points[index]!,
+  }))
+}
+
 function buildPrompts(job: QuickTestJobContext, count: number, strict: boolean) {
   const required = job.skills.filter((s) => s.priority === "REQUIRED").map((s) => s.name)
   const preferred = job.skills.filter((s) => s.priority === "PREFERRED").map((s) => s.name)

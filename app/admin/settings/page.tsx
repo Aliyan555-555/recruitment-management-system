@@ -10,6 +10,7 @@ import { Save, Building2, Upload, Globe, Mail, Phone, MapPin, Facebook, Linkedin
 import { toast } from "sonner"
 import { EducationLevelsManager } from "@/components/admin/EducationLevelsManager"
 import { AiSettingsCard } from "@/components/admin/AiSettingsCard"
+import { CustomRoundsCard } from "@/components/admin/CustomRoundsCard"
 
 interface OrganizationSettings {
   id: string
@@ -382,6 +383,8 @@ export default function AdminSettingsPage() {
         </Card>
 
         <AiSettingsCard />
+
+        <CustomRoundsCard />
 
         <EducationLevelsManager />
       </div>

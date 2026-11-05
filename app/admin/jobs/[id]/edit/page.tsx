@@ -17,6 +17,7 @@ import { addSkillToList, sanitizeSkillInput } from "@/lib/skills"
 import {
   DEFAULT_QUICK_TEST_FORM,
   QuickTestConfigCard,
+  quickTestFormFromApi,
   toQuickTestPayload,
   validateQuickTestForm,
   type QuickTestFormValue,
@@ -161,11 +162,7 @@ export default function EditJobPage() {
         setHiringCriteria(hiringCriteriaFromJob(job.hiringCriteria, job.educationRequirements?.[0]?.educationLevelId ?? null))
 
         if (job.quickTest) {
-          setQuickTest({
-            enabled: !!job.quickTest.enabled,
-            questionCount: job.quickTest.questionCount ?? DEFAULT_QUICK_TEST_FORM.questionCount,
-            timeLimitMinutes: job.quickTest.timeLimitMinutes ?? DEFAULT_QUICK_TEST_FORM.timeLimitMinutes,
-          })
+          setQuickTest(quickTestFormFromApi(job.quickTest))
         }
 
         // Populate form data

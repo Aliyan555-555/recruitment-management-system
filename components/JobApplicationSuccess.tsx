@@ -60,30 +60,13 @@ export function JobApplicationSuccess({
 }: JobApplicationSuccessProps) {
   const router = useRouter()
 
+  // Hiring rounds are only revealed to shortlisted candidates, so before that we only describe what comes next.
   const fallbackSteps: ApplicationTimelineStep[] = [
     {
       id: "review",
       title: "Application Review",
-      description: "Our hiring team reviews your profile and submitted documents.",
+      description: "Our hiring team reviews your profile. If you are shortlisted, the hiring rounds appear on your application page and we will notify you.",
       timeline: "1-2 business days"
-    },
-    {
-      id: "screening",
-      title: "Initial Screening",
-      description: "We schedule a brief call to understand your background and expectations.",
-      timeline: "3-5 business days"
-    },
-    {
-      id: "technical",
-      title: "Technical Interview",
-      description: "Discuss your skills in depth with the interviewing panel.",
-      timeline: "1-2 weeks"
-    },
-    {
-      id: "final",
-      title: "Final Interview",
-      description: "Meet decision makers to understand the team culture and expectations.",
-      timeline: "2-3 weeks"
     }
   ]
 

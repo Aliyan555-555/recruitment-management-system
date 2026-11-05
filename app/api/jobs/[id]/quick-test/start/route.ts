@@ -7,7 +7,9 @@ import { checkRateLimit } from "@/lib/rate-limit"
 import { ensureJobStatusCurrent } from "@/lib/middleware/job-status-check"
 import {
   QuickTestGenerationError,
+  buildCustomQuickTestQuestions,
   generateQuickTestQuestions,
+  type GeneratedQuickTestQuestion,
 } from "@/lib/ai/quick-test-generator"
 import {
   getCurrentAttempt,
@@ -129,18 +131,37 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
 
     // Generate before creating the attempt so a failure never consumes the candidate's single attempt
     // and generation latency does not count against their time limit.
-    let generated
+    let generated: { questions: GeneratedQuickTestQuestion[]; source: "ai" | "curated" | "custom" }
     try {
-      generated = await generateQuickTestQuestions(
-        {
-          title: job.title,
-          description: job.description,
-          successCriteria: job.successCriteria,
-          minimumExperience: job.minimumExperience,
-          skills: job.skills.map((skill) => ({ name: skill.skillName, priority: skill.priority })),
-        },
-        config.questionCount
-      )
+      if (config.useCustomQuestions) {
+        // Admin-authored questions replace AI generation entirely.
+        const bank = await prisma.jobQuickTestQuestion.findMany({
+          where: { jobId },
+          orderBy: { order: "asc" },
+        })
+        generated = {
+          questions: buildCustomQuickTestQuestions(
+            bank.map((item) => ({
+              question: item.question,
+              options: item.options as string[],
+              correct: item.correctOption,
+            })),
+            config.questionCount
+          ),
+          source: "custom",
+        }
+      } else {
+        generated = await generateQuickTestQuestions(
+          {
+            title: job.title,
+            description: job.description,
+            successCriteria: job.successCriteria,
+            minimumExperience: job.minimumExperience,
+            skills: job.skills.map((skill) => ({ name: skill.skillName, priority: skill.priority })),
+          },
+          config.questionCount
+        )
+      }
     } catch (error) {
       console.error("[Quick Test] Question generation failed:", error)
       const message =
@@ -168,7 +189,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
           questionCount: generated.questions.length,
           timeLimitMinutes: config.timeLimitMinutes,
           maxPoints: QUICK_TEST_LIMITS.maxPoints,
-          aiModel: generated.source === "ai" ? await getAiModelName() : "curated",
+          aiModel: generated.source === "ai" ? await getAiModelName() : generated.source,
           startedAt: now,
           expiresAt: BigInt(computeExpiresAt(startedAt, config.timeLimitMinutes)),
           createdAt: now,

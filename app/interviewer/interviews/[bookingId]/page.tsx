@@ -9,13 +9,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Scorecard } from "@/components/interviewer/Scorecard"
 import { CandidateDossier } from "@/components/interviewer/candidate-dossier/CandidateDossier"
 import type { CandidateDossier as Dossier } from "@/lib/evaluations/candidate-dossier"
+import type { CustomFormSchema } from "@/lib/evaluations/custom-form"
 import { formatInZone, formatTimeInZone, zoneLabel } from "@/lib/timezone"
 
 interface Detail {
   dossier: Dossier
   timeZone: string
   booking: { id: string; status: string; startsAt: string; endsAt: string; mode: "REMOTE" | "ONSITE" | null; meetingLink: string | null; location: string | null }
-  round: { name: string; type: string | null; notesForInterviewers: string | null; formKind: "SKILLS" | "PANEL" }
+  round: {
+    name: string
+    type: string | null
+    notesForInterviewers: string | null
+    formKind: "SKILLS" | "PANEL" | "CUSTOM"
+    customForm: CustomFormSchema | null
+  }
   job: { title: string; company: string }
   candidate: {
     name: string
@@ -164,6 +171,7 @@ export default function InterviewDetailPage() {
               bookingId={detail.booking.id}
               kind={detail.round.formKind}
               behaviors={detail.behaviors}
+              customForm={detail.round.customForm}
               initial={detail.evaluation?.formData ?? null}
               submitted={submitted}
               canEvaluate={detail.canEvaluate}

@@ -3,6 +3,7 @@ import { buildIcs } from "@/lib/calendar/ics"
 import { sendEmail } from "@/lib/email"
 import { createNotification } from "@/lib/notifications"
 import { formatInZone, formatTimeInZone, zoneLabel } from "@/lib/timezone"
+import { candidateRoundName, candidateRoundPhrase } from "@/lib/workflow/candidate-visibility"
 import { readStepConfig } from "@/lib/workflow/step-config"
 import { appUrl, renderEmailLayout } from "./email-layout"
 import { getOrgTimeZone } from "./org-settings"
@@ -23,6 +24,8 @@ export interface BookingContext {
   interviewers: Person[]
   jobTitle: string
   stepName: string
+  /** What the candidate sees: the real name, or "Hidden round" when the admin turned the name off. */
+  candidateStepName: string
   startsAt: Date
   endsAt: Date
   mode: "REMOTE" | "ONSITE" | null
@@ -71,12 +74,13 @@ export async function loadBookingContext(bookingId: bigint): Promise<BookingCont
     })),
     jobTitle: booking.slot.step.workflow.job.title,
     stepName: booking.slot.step.stepName,
+    candidateStepName: candidateRoundName({ stepName: booking.slot.step.stepName, showName: config.showName }),
     startsAt: booking.slot.startsAt,
     endsAt: booking.slot.endsAt,
     mode,
     meetingLink: mode === "REMOTE" ? booking.slot.meetingLink ?? config.meetingLink : null,
     location: mode === "ONSITE" ? booking.slot.location ?? config.location : null,
-    instructionsForCandidate: config.candidateInstructions,
+    instructionsForCandidate: config.showName ? config.candidateInstructions : null,
     timeZone: await getOrgTimeZone(),
   }
 }
@@ -93,11 +97,11 @@ function whereText(ctx: BookingContext): string | null {
 }
 
 const SUBJECTS: Record<BookingEvent, (c: BookingContext) => string> = {
-  BOOKED: (c) => `Interview confirmed: ${c.stepName} for ${c.jobTitle}`,
-  RESCHEDULED: (c) => `Interview rescheduled: ${c.stepName} for ${c.jobTitle}`,
-  CANCELLED: (c) => `Interview cancelled: ${c.stepName} for ${c.jobTitle}`,
+  BOOKED: (c) => `Interview confirmed: ${c.candidateStepName} for ${c.jobTitle}`,
+  RESCHEDULED: (c) => `Interview rescheduled: ${c.candidateStepName} for ${c.jobTitle}`,
+  CANCELLED: (c) => `Interview cancelled: ${c.candidateStepName} for ${c.jobTitle}`,
   REMINDER_DAY: (c) => `Reminder: interview tomorrow for ${c.jobTitle}`,
-  REMINDER_HOUR: (c) => `Starting soon: ${c.stepName} for ${c.jobTitle}`,
+  REMINDER_HOUR: (c) => `Starting soon: ${c.candidateStepName} for ${c.jobTitle}`,
 }
 
 const HEADINGS: Record<BookingEvent, string> = {
@@ -124,7 +128,7 @@ function icsFor(ctx: BookingContext, event: BookingEvent, audience: "CANDIDATE" 
     method: cancelled ? "CANCEL" : "REQUEST",
     startsAt: ctx.startsAt,
     endsAt: ctx.endsAt,
-    summary: audience === "CANDIDATE" ? `${ctx.stepName} - ${ctx.jobTitle}` : `Interview: ${ctx.candidate.name} (${ctx.stepName})`,
+    summary: audience === "CANDIDATE" ? `${ctx.candidateStepName} - ${ctx.jobTitle}` : `Interview: ${ctx.candidate.name} (${ctx.stepName})`,
     description: description || undefined,
     location: ctx.location ?? ctx.meetingLink ?? undefined,
     attendees: audience === "CANDIDATE" ? [{ name: ctx.candidate.name, email: ctx.candidate.email }] : ctx.interviewers.map((i) => ({ name: i.name, email: i.email })),
@@ -148,7 +152,7 @@ export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent,
     await createNotification({
       userId: ctx.candidate.id,
       title: HEADINGS[event],
-      message: `${ctx.stepName} for ${ctx.jobTitle}: ${when}`,
+      message: `${ctx.candidateStepName} for ${ctx.jobTitle}: ${when}`,
       type: event.startsWith("REMINDER") ? "REMINDER" : "SYSTEM",
       entityType: "slot_booking",
       entityId: ctx.bookingId,
@@ -162,7 +166,7 @@ export async function notifyBookingEvent(bookingId: bigint, event: BookingEvent,
         intro: `Hello ${ctx.candidate.name},`,
         details: [
           { label: "Job", value: ctx.jobTitle },
-          { label: "Round", value: ctx.stepName },
+          { label: "Round", value: ctx.candidateStepName },
           { label: "When", value: when },
           { label: "Where", value: where },
           { label: "Reason", value: event === "CANCELLED" ? opts.reason : null },
@@ -265,27 +269,28 @@ export async function notifySlotsPublished(stepId: bigint): Promise<number> {
       select: {
         pipelineId: true,
         pipeline: { select: { candidate: { select: { id: true, firstname: true, lastname: true, email: true } }, job: { select: { title: true } } } },
-        workflowStep: { select: { stepName: true } },
+        workflowStep: { select: { stepName: true, stepType: true, isRequired: true, stepMetadata: true } },
       },
     })
 
     for (const w of waiting) {
       const candidate = w.pipeline.candidate
       const link = appUrl(`/applications/${w.pipelineId}`)
+      const roundPhrase = candidateRoundPhrase({ stepName: w.workflowStep.stepName, showName: readStepConfig(w.workflowStep).showName })
       await createNotification({
         userId: candidate.id,
         title: "Interview slots are open",
-        message: `Book your ${w.workflowStep.stepName} for ${w.pipeline.job.title}`,
+        message: `Book your ${roundPhrase} for ${w.pipeline.job.title}`,
         type: "ASSIGNMENT",
         entityType: "pipeline",
         entityId: w.pipelineId,
       }).catch((e) => console.error("Slots notification failed:", e))
       await sendEmail({
         to: candidate.email,
-        subject: `Book your ${w.workflowStep.stepName} - ${w.pipeline.job.title}`,
+        subject: `Book your ${roundPhrase} - ${w.pipeline.job.title}`,
         html: renderEmailLayout({
           heading: "Choose your interview time",
-          intro: `Hello ${candidate.firstname}, interview slots for ${w.pipeline.job.title} (${w.workflowStep.stepName}) are now open. Pick the time that suits you best.`,
+          intro: `Hello ${candidate.firstname}, interview slots for ${w.pipeline.job.title} (${roundPhrase}) are now open. Pick the time that suits you best.`,
           cta: { label: "Book my interview", url: link },
         }),
       })
@@ -320,11 +325,12 @@ export async function notifyAdvancedToRound(pipelineIds: bigint[]): Promise<void
       if (!step) continue
       const config = readStepConfig(step)
       const link = appUrl(`/applications/${p.id}`)
+      const roundPhrase = candidateRoundPhrase({ stepName: step.stepName, showName: config.showName })
 
       if (!config.isInterview) {
         await createNotification({
           userId: p.candidate.id,
-          title: `You moved to the ${step.stepName} stage`,
+          title: config.showName ? `You moved to the ${step.stepName} stage` : "You moved to the next round",
           message: `${p.job.title}: the team will be in touch with the next steps.`,
           type: "COMPLETION",
           entityType: "pipeline",
@@ -345,7 +351,7 @@ export async function notifyAdvancedToRound(pipelineIds: bigint[]): Promise<void
 
       await createNotification({
         userId: p.candidate.id,
-        title: canBook ? `Book your ${step.stepName}` : `You moved to the ${step.stepName}`,
+        title: canBook ? `Book your ${roundPhrase}` : `You moved to the ${roundPhrase}`,
         message: canBook ? `${p.job.title}: choose a time that suits you.` : `${p.job.title}: interview times will open soon.`,
         type: "ASSIGNMENT",
         entityType: "pipeline",
@@ -354,12 +360,12 @@ export async function notifyAdvancedToRound(pipelineIds: bigint[]): Promise<void
 
       await sendEmail({
         to: p.candidate.email,
-        subject: canBook ? `Book your ${step.stepName} - ${p.job.title}` : `Next round: ${step.stepName} - ${p.job.title}`,
+        subject: canBook ? `Book your ${roundPhrase} - ${p.job.title}` : `Next round: ${candidateRoundName({ stepName: step.stepName, showName: config.showName })} - ${p.job.title}`,
         html: renderEmailLayout({
           heading: canBook ? "Choose your interview time" : "You are through to the next round",
           intro: canBook
-            ? `Hello ${p.candidate.firstname}, congratulations! You are through to the ${step.stepName} for ${p.job.title}. Pick the time that suits you best.`
-            : `Hello ${p.candidate.firstname}, congratulations! You are through to the ${step.stepName} for ${p.job.title}. We will email you as soon as interview times open.`,
+            ? `Hello ${p.candidate.firstname}, congratulations! You are through to the ${roundPhrase} for ${p.job.title}. Pick the time that suits you best.`
+            : `Hello ${p.candidate.firstname}, congratulations! You are through to the ${roundPhrase} for ${p.job.title}. We will email you as soon as interview times open.`,
           cta: { label: canBook ? "Book my interview" : "View my application", url: link },
         }),
       })

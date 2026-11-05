@@ -1,6 +1,23 @@
 import Joi from "joi"
 import { validateAndNormalizeSkillName } from "@/lib/skills"
 
+export const accountCheckSchema = Joi.object({
+  title: Joi.string().required().messages({ "any.required": "Title is required" }),
+  firstname: Joi.string().trim().min(2).required().messages({
+    "string.empty": "First name is required",
+    "string.min": "First name must be at least 2 characters",
+  }),
+  lastname: Joi.string().trim().min(2).required().messages({
+    "string.empty": "Last name is required",
+    "string.min": "Last name must be at least 2 characters",
+  }),
+  email: Joi.string().trim().email({ tlds: false }).required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Enter a valid email address",
+    "any.required": "Email is required",
+  }),
+})
+
 export const personalInfoSchema = Joi.object({
   title: Joi.string().required().messages({ "any.required": "Title is required" }),
   firstname: Joi.string().min(2).required().messages({

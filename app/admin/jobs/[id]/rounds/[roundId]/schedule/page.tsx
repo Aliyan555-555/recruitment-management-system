@@ -214,7 +214,7 @@ export default function RoundSchedulePage() {
   return (
     <div className="space-y-6 p-6">
       <JobPipelineHeaderLoader jobId={jobId} currentStageId={roundId} />
-      <RoundSubNav jobId={jobId} roundId={roundId} stepType={stepType} activeView="schedule" />
+      <RoundSubNav jobId={jobId} roundId={roundId} stepType={stepType} isInterview activeView="schedule" />
 
       <InterviewerPicker roundId={roundId} onChange={handlePoolChange} />
 

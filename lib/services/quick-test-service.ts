@@ -195,10 +195,12 @@ export async function upsertJobQuickTest(
 
   if (!existing && !config.enabled) return
 
+  const useCustomQuestions = config.source === "CUSTOM"
   const data = {
     isEnabled: config.enabled,
     questionCount: config.questionCount,
     timeLimitMinutes: config.timeLimitMinutes,
+    useCustomQuestions,
     updatedAt: now,
   }
 
@@ -206,5 +208,21 @@ export async function upsertJobQuickTest(
     await tx.jobQuickTest.update({ where: { jobId }, data })
   } else {
     await tx.jobQuickTest.create({ data: { jobId, ...data, createdAt: now } })
+  }
+
+  // The bank is replaced wholesale so the admin's list is always the source of truth.
+  // Switching back to AI keeps nothing: stale questions would otherwise resurface on a later switch.
+  await tx.jobQuickTestQuestion.deleteMany({ where: { jobId } })
+  if (useCustomQuestions && config.questions.length) {
+    await tx.jobQuickTestQuestion.createMany({
+      data: config.questions.map((item, index) => ({
+        jobId,
+        question: item.question,
+        options: item.options,
+        correctOption: item.correct,
+        order: index + 1,
+        createdAt: now,
+      })),
+    })
   }
 }

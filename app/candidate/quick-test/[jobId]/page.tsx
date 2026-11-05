@@ -43,7 +43,7 @@ type StatusResponse = {
   required: boolean
   state: "NOT_REQUIRED" | "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
   hasApplied?: boolean
-  config?: { enabled: boolean; questionCount: number; timeLimitMinutes: number }
+  config?: { enabled: boolean; questionCount: number; timeLimitMinutes: number; source?: "AI" | "CUSTOM" }
   attempt?: AttemptSummary | null
 }
 
@@ -178,19 +178,9 @@ export default function CandidateQuickTestPage() {
     setApplyState("applying")
     setApplyError(null)
     try {
-      const res = await fetch(`/api/jobs/${jobId}/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      })
-      const data = await res.json().catch(() => ({}))
-
-      if (res.ok || /already applied/i.test(data.error ?? "")) {
-        setApplyState("applied")
-        setTimeout(() => router.replace(`/jobs/${jobId}/apply/success`), 1400)
-        return
-      }
-      throw new Error(data.error || "We could not submit your application")
+      // The test is done; the candidate now reviews their profile and confirms the application there.
+      setApplyState("applied")
+      setTimeout(() => router.replace(`/jobs/${jobId}/apply/review`), 800)
     } catch (err: any) {
       setApplyState("failed")
       setApplyError(err.message || "We could not submit your application")
@@ -339,7 +329,7 @@ export default function CandidateQuickTestPage() {
           <CardHeader>
             <CardTitle>Quick test before you apply</CardTitle>
             <CardDescription>
-              This role includes a short test. Your application is submitted automatically when you finish.
+              This role includes a short test. When you finish, you review your profile and then confirm your application.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -357,7 +347,12 @@ export default function CandidateQuickTestPage() {
             </div>
 
             <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>Questions are generated for this role. You have one attempt.</li>
+              <li>
+                {config?.source === "CUSTOM"
+                  ? "The questions were written by the hiring team for this role."
+                  : "Questions are generated for this role."}{" "}
+                You have one attempt.
+              </li>
               <li>The timer starts when you press Start and keeps running if you leave the page.</li>
               <li>Your answers save automatically, so you can safely reload and continue.</li>
               <li>When time runs out, your answers are submitted automatically.</li>
@@ -407,7 +402,7 @@ export default function CandidateQuickTestPage() {
             {applyState === "applied" && (
               <p className="flex items-center justify-center gap-2 text-sm font-medium text-emerald-600">
                 <CheckCircle2 className="h-4 w-4" />
-                Application submitted. Redirecting...
+                Test saved. Taking you to your profile review...
               </p>
             )}
             {(applyState === "failed" || applyState === "idle") && (
@@ -420,17 +415,17 @@ export default function CandidateQuickTestPage() {
                 )}
                 <p className="text-sm text-muted-foreground">
                   {applyState === "idle"
-                    ? "Your test is saved. Submit your application to finish."
+                    ? "Your test is saved. Review your profile and confirm to finish applying."
                     : "Your test result is saved, so you won't need to retake it."}
                 </p>
                 <Button onClick={submitApplication}>
                   {applyState === "failed" ? (
                     <>
                       <RotateCcw className="mr-2 h-4 w-4" />
-                      Retry submitting application
+                      Retry
                     </>
                   ) : (
-                    "Submit application"
+                    "Review profile & apply"
                   )}
                 </Button>
               </div>

@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { parseQuickTestQuestions, stripHtml } from "./quick-test-generator"
+import { buildCustomQuickTestQuestions, parseQuickTestQuestions, stripHtml } from "./quick-test-generator"
 
 const makeQuestions = (n: number) =>
   Array.from({ length: n }, (_, i) => ({
@@ -52,4 +52,27 @@ test("stripHtml removes tags and truncates", () => {
   assert.equal(stripHtml("<p>Hello&nbsp;<b>World</b></p>", 100), "Hello World")
   assert.equal(stripHtml("abcdef", 3), "abc")
   assert.equal(stripHtml(null, 3), "")
+})
+
+test("buildCustomQuickTestQuestions keeps admin option order and sums points to 100", () => {
+  const bank = Array.from({ length: 5 }, (_, i) => ({
+    question: `Custom question number ${i + 1}?`,
+    options: ["One", "Two", "Three", "All of the above"],
+    correct: "All of the above",
+  }))
+  const built = buildCustomQuickTestQuestions(bank, 5)
+  assert.equal(built.length, 5)
+  assert.deepEqual(built[0]!.options, ["One", "Two", "Three", "All of the above"])
+  assert.equal(built.reduce((sum, q) => sum + q.points, 0), 100)
+})
+
+test("buildCustomQuickTestQuestions samples from a larger bank and rejects a smaller one", () => {
+  const bank = Array.from({ length: 8 }, (_, i) => ({
+    question: `Custom question number ${i + 1}?`,
+    options: ["a", "b", "c", "d"],
+    correct: "a",
+  }))
+  const built = buildCustomQuickTestQuestions(bank, 5)
+  assert.equal(new Set(built.map((q) => q.question)).size, 5)
+  assert.throws(() => buildCustomQuickTestQuestions(bank.slice(0, 3), 5))
 })

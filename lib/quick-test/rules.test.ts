@@ -60,3 +60,48 @@ test("quickTestConfigSchema applies defaults and rejects out-of-range values", (
   assert.equal(quickTestConfigSchema.safeParse({ enabled: true, timeLimitMinutes: 91 }).success, false)
   assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 7.5 }).success, false)
 })
+
+const makeQuestion = (n: number, overrides: Record<string, unknown> = {}) => ({
+  question: `What does the number ${n} represent here?`,
+  options: [`A${n}`, `B${n}`, `C${n}`, `D${n}`],
+  correct: `B${n}`,
+  ...overrides,
+})
+const makeBank = (count: number) => Array.from({ length: count }, (_, i) => makeQuestion(i + 1))
+
+test("custom questions: valid bank passes and AI source needs no questions", () => {
+  const custom = quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions: makeBank(5) })
+  assert.equal(custom.success, true)
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true }).success, true)
+})
+
+test("custom questions: bank smaller than the question count is rejected", () => {
+  const result = quickTestConfigSchema.safeParse({ enabled: true, questionCount: 6, source: "CUSTOM", questions: makeBank(5) })
+  assert.equal(result.success, false)
+})
+
+test("custom questions: duplicate options (case-insensitive) are rejected", () => {
+  const questions = [...makeBank(4), makeQuestion(5, { options: ["Yes", "yes", "No", "Maybe"], correct: "No" })]
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions }).success, false)
+})
+
+test("custom questions: correct answer must be one of the options", () => {
+  const questions = [...makeBank(4), makeQuestion(5, { correct: "Z" })]
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions }).success, false)
+})
+
+test("custom questions: need exactly four options and a real question", () => {
+  const threeOptions = [...makeBank(4), makeQuestion(5, { options: ["A", "B", "C"], correct: "A" })]
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions: threeOptions }).success, false)
+  const shortQuestion = [...makeBank(4), makeQuestion(5, { question: "Too short" })]
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions: shortQuestion }).success, false)
+})
+
+test("custom questions: duplicate question text is rejected", () => {
+  const questions = [...makeBank(4), makeQuestion(1)]
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: true, questionCount: 5, source: "CUSTOM", questions }).success, false)
+})
+
+test("custom questions: an incomplete bank is allowed while the quick test is disabled", () => {
+  assert.equal(quickTestConfigSchema.safeParse({ enabled: false, source: "CUSTOM", questions: [] }).success, true)
+})

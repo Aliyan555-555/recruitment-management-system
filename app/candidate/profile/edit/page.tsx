@@ -35,9 +35,15 @@ import {
 } from "@/lib/skills"
 
 import { InstituteSelect } from "@/components/InstituteSelect"
+import { safeReturnTo } from "@/lib/safe-redirect"
 
 export default function EditProfilePage() {
   const router = useRouter()
+  // Set when the candidate came from the pre-apply profile review and should go back there after saving.
+  const [returnTo, setReturnTo] = useState<string | null>(null)
+  useEffect(() => {
+    setReturnTo(safeReturnTo(new URLSearchParams(window.location.search).get("returnTo")))
+  }, [])
   // const { toast } = useToast() // Removed hook
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -336,6 +342,10 @@ export default function EditProfilePage() {
       toast.success("Success", {
         description: "Profile updated successfully",
       })
+      if (returnTo) {
+        router.push(returnTo)
+        return
+      }
       window.scrollTo(0, 0)
     } catch (err: any) {
       setError(err.message || "Failed to save profile")
@@ -481,7 +491,7 @@ export default function EditProfilePage() {
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       <div className="flex items-center gap-4 mb-8">
-        <Link href="/candidate/profile">
+        <Link href={returnTo ?? "/candidate/profile"}>
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -915,7 +925,7 @@ export default function EditProfilePage() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={() => router.push("/candidate/profile")}>Cancel</Button>
+          <Button variant="outline" onClick={() => router.push(returnTo ?? "/candidate/profile")}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes

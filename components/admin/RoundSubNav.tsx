@@ -14,18 +14,20 @@ interface RoundSubNavProps {
   jobId: string
   roundId: string
   stepType?: string | null
+  /** custom rounds are scheduled like interviews only when their template says so */
+  isInterview?: boolean
   activeView: RoundNavView
   /** optional badge counts */
   counts?: Partial<Record<RoundNavView, number>>
   className?: string
 }
 
-export function RoundSubNav({ jobId, roundId, stepType, activeView, counts = {}, className }: RoundSubNavProps) {
+export function RoundSubNav({ jobId, roundId, stepType, isInterview = false, activeView, counts = {}, className }: RoundSubNavProps) {
   const base = `/admin/jobs/${jobId}/rounds/${roundId}`
   const links: Array<{ view: RoundNavView; label: string; href: string }> =
     stepType === "OFFER"
       ? [{ view: "offers", label: "Offers", href: `${base}/offers` }]
-      : isInterviewStepType(stepType)
+      : isInterviewStepType(stepType) || isInterview
         ? [
             { view: "candidates", label: "Candidates", href: `${base}/candidates` },
             { view: "schedule", label: "Schedule", href: `${base}/schedule` },

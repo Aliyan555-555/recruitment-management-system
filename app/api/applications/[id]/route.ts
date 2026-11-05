@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
 import { readStepConfig } from "@/lib/workflow/step-config"
+import { candidateRoundName, filterStepsForCandidate, isCandidateShortlisted } from "@/lib/workflow/candidate-visibility"
 
 export async function GET(
   req: NextRequest,
@@ -113,7 +114,19 @@ export async function GET(
     })
     const bookingByStep = new Map(activeBookings.map((b) => [b.slot.stepId.toString(), b]))
 
-    const steps = workflowSteps.map((workflowStep) => {
+    const application = await prisma.jobsApplied.findUnique({
+      where: { id: pipeline.applicationId },
+      select: { status: true },
+    })
+    const shortlisted = isCandidateShortlisted({
+      applicationStatus: application?.status,
+      pipelineSteps: pipeline.steps.map((step) => ({ status: step.status, stepOrder: step.stepOrder })),
+      hasBooking: activeBookings.length > 0,
+    })
+    // No rounds are revealed before shortlisting; afterwards all are listed (some under a hidden name).
+    const visibleWorkflowSteps = filterStepsForCandidate(workflowSteps, shortlisted)
+
+    const steps = visibleWorkflowSteps.map((workflowStep) => {
       const pipelineStep = pipeline.steps.find(
         (step) => step.workflowStepId === workflowStep.id
       )
@@ -123,7 +136,7 @@ export async function GET(
 
       return {
         id: pipelineStep ? pipelineStep.id.toString() : `workflow-${workflowStep.id.toString()}`,
-        stepName: workflowStep.stepName,
+        stepName: candidateRoundName({ stepName: workflowStep.stepName, showName: cfg.showName }),
         stepOrder: workflowStep.stepOrder,
         status: pipelineStep ? pipelineStep.status : "PENDING",
         isRequired: workflowStep.isRequired,
@@ -131,7 +144,7 @@ export async function GET(
         feedback: pipelineStep?.feedback ?? null,
         startedAt: pipelineStep?.startedAt?.toString(),
         completedAt: pipelineStep?.completedAt?.toString(),
-        stepType: cfg.stepType,
+        stepType: cfg.showName ? cfg.stepType : null,
         isInterview: cfg.isInterview,
         durationMins: cfg.isInterview ? cfg.durationMins : undefined,
         interviewMode: cfg.isInterview ? cfg.interviewMode : undefined,
@@ -146,8 +159,8 @@ export async function GET(
               location: booking.slot.location ?? cfg.location,
             }
           : null,
-        candidateInstructions: cfg.candidateInstructions ?? undefined,
-        attachments: metadata.attachments?.filter((att: any) => att.access?.includes("CANDIDATE")) || [],
+        candidateInstructions: cfg.showName ? (cfg.candidateInstructions ?? undefined) : undefined,
+        attachments: cfg.showName ? metadata.attachments?.filter((att: any) => att.access?.includes("CANDIDATE")) || [] : [],
         interviews: pipelineStep
           ? pipelineStep.interviews.map((interview) => ({
               rating: interview.rating,
@@ -168,9 +181,10 @@ export async function GET(
       }
     })
 
+    // Counts and progress must not leak rounds before shortlisting either.
     const metrics = calculatePipelineMetrics({
-      totalWorkflowSteps: workflowSteps.length,
-      pipelineSteps: pipeline.steps,
+      totalWorkflowSteps: visibleWorkflowSteps.length,
+      pipelineSteps: shortlisted ? pipeline.steps : [],
       currentStepOrder: pipeline.currentStepOrder,
       overallStatus: pipeline.overallStatus,
     })
@@ -189,6 +203,7 @@ export async function GET(
           description: pipeline.job.description,
         },
         status: pipeline.overallStatus,
+        shortlisted,
         lockState: (pipeline as any).lockState || "NONE",
         currentStep: metrics.currentStep,
         startedAt: pipeline.startedAt.toString(),

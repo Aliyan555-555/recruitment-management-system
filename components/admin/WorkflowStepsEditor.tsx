@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { isInterviewStepType, validateStepConfig } from "@/lib/workflow/step-config"
+import type { CustomRoundTemplateView } from "@/components/admin/CustomRoundsCard"
 
 export interface EditorStep {
   /** existing WorkflowStep id (edit page) */
@@ -25,6 +26,13 @@ export interface EditorStep {
   location?: string
   candidateInstructions?: string
   interviewerInstructions?: string
+  /** after shortlisting, show this round's name to the candidate (default: shown; off = "Hidden round") */
+  showName?: boolean
+  /** CUSTOM rounds: the organization template this round is based on */
+  customRoundTemplateId?: string | null
+  /** CUSTOM rounds: whether the template schedules it like an interview (derived from durationMins when loaded) */
+  customIsInterview?: boolean
+  stepName?: string
   // preserved untouched when editing an existing job
   [extra: string]: unknown
 }
@@ -40,6 +48,13 @@ const STEP_OPTIONS = [
 
 const nativeField =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+
+/** Built-in interview rounds, or a custom round whose template schedules it like an interview. */
+export function isEditorStepInterview(step: Pick<EditorStep, "stepType" | "customIsInterview" | "durationMins">): boolean {
+  if (isInterviewStepType(step.stepType)) return true
+  if (step.stepType !== "CUSTOM") return false
+  return step.customIsInterview ?? (step.durationMins !== undefined && step.durationMins !== "")
+}
 
 export function newEditorStep(order: number): EditorStep {
   return { stepType: "", stepOrder: order, isRequired: true }
@@ -61,7 +76,8 @@ export function validateEditorSteps(steps: EditorStep[]): StepErrors {
       add(i, "Choose a round type")
       return
     }
-    if (steps.some((o, j) => j < i && o.stepType === s.stepType)) add(i, "Each round type can be used only once")
+    if (s.stepType === "CUSTOM" && !s.customRoundTemplateId) add(i, "Choose one of your custom rounds")
+    if (s.stepType !== "CUSTOM" && steps.some((o, j) => j < i && o.stepType === s.stepType)) add(i, "Each round type can be used only once")
     if (s.stepType === "OFFER" && i !== steps.length - 1) add(i, "Offer must be the last round")
     validateStepConfig({
       stepType: s.stepType,
@@ -72,6 +88,7 @@ export function validateEditorSteps(steps: EditorStep[]): StepErrors {
       bufferMins: s.bufferMins === "" || s.bufferMins === undefined ? 0 : Number(s.bufferMins),
       meetingLink: s.meetingLink,
       location: s.location,
+      customInterview: s.stepType === "CUSTOM" && isEditorStepInterview(s),
     }).forEach((m) => add(i, m))
   })
   if (steps.length > 0 && !steps.some((s) => s.stepType === "OFFER")) {
@@ -108,11 +125,47 @@ interface Props {
 export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLocked = false }: Props) {
   const usedTypes = useMemo(() => new Set(steps.map((s) => s.stepType)), [steps])
 
+  // Organization-defined rounds (Settings > Custom job rounds)
+  const [templates, setTemplates] = useState<CustomRoundTemplateView[]>([])
+  useEffect(() => {
+    let alive = true
+    fetch("/api/admin/custom-round-templates?active=true", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { templates: [] }))
+      .then((d) => alive && setTemplates(d.templates ?? []))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+  const templateFor = (step: EditorStep) => templates.find((t) => t.id === step.customRoundTemplateId)
+  const selectValue = (step: EditorStep) => (step.stepType === "CUSTOM" ? `custom:${step.customRoundTemplateId ?? ""}` : step.stepType)
+
   const update = (index: number, patch: Partial<EditorStep>) =>
     onChange(steps.map((s, i) => (i === index ? { ...s, ...patch } : s)))
 
-  const setType = (index: number, stepType: string) => {
+  const setType = (index: number, value: string) => {
+    if (value.startsWith("custom:")) {
+      const template = templates.find((t) => t.id === value.slice("custom:".length))
+      if (!template) return
+      update(index, {
+        stepType: "CUSTOM",
+        customRoundTemplateId: template.id,
+        customIsInterview: template.isInterview,
+        stepName: template.name,
+        isRequired: steps[index].isRequired,
+        interviewMode: template.isInterview ? (template.interviewMode ?? steps[index].interviewMode ?? "") : "",
+        durationMins: template.isInterview ? (template.durationMins ?? 30) : "",
+        panelSize: template.isInterview ? template.panelSize : 1,
+        groupSize: template.isInterview ? template.capacityPerSlot : 1,
+        bufferMins: template.isInterview ? template.bufferMins : 0,
+        candidateInstructions: steps[index].candidateInstructions || template.candidateInstructions || "",
+      })
+      return
+    }
+    const stepType = value
     update(index, {
+      customRoundTemplateId: null,
+      customIsInterview: undefined,
       stepType,
       ...defaultsFor(stepType),
       isRequired: stepType === "OFFER" ? true : steps[index].isRequired,
@@ -145,7 +198,8 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
       </CardHeader>
       <CardContent className="space-y-4">
         {steps.map((step, index) => {
-          const interview = isInterviewStepType(step.stepType)
+          const interview = isEditorStepInterview(step)
+          const customTemplate = step.stepType === "CUSTOM" ? templateFor(step) : undefined
           const stepErrors = errors[index] ?? []
           const panel = Number(step.panelSize) || 1
           return (
@@ -155,7 +209,11 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                     {index + 1}
                   </span>
-                  <span className="text-sm font-medium">{STEP_OPTIONS.find((o) => o.value === step.stepType)?.label ?? "New round"}</span>
+                  <span className="text-sm font-medium">
+                    {step.stepType === "CUSTOM"
+                      ? (customTemplate?.name ?? step.stepName ?? "Custom round")
+                      : (STEP_OPTIONS.find((o) => o.value === step.stepType)?.label ?? "New round")}
+                  </span>
                 </div>
                 {!structureLocked && (
                   <div className="flex gap-1">
@@ -177,7 +235,7 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                   <Label>Round type</Label>
                   <select
                     className={nativeField}
-                    value={step.stepType}
+                    value={selectValue(step)}
                     disabled={structureLocked}
                     onChange={(e) => setType(index, e.target.value)}
                   >
@@ -187,9 +245,29 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                         {o.label}
                       </option>
                     ))}
+                    {templates.length > 0 && (
+                      <optgroup label="Your custom rounds">
+                        {templates.map((t) => (
+                          <option key={t.id} value={`custom:${t.id}`}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* a round whose template was deactivated or deleted stays selectable so the job can still be saved */}
+                    {step.stepType === "CUSTOM" && step.customRoundTemplateId && !customTemplate && (
+                      <option value={selectValue(step)}>{step.stepName ?? "Custom round"}</option>
+                    )}
                   </select>
-                  {step.stepType && (
-                    <p className="text-xs text-muted-foreground">{STEP_OPTIONS.find((o) => o.value === step.stepType)?.hint}</p>
+                  {step.stepType === "CUSTOM" ? (
+                    <p className="text-xs text-muted-foreground">
+                      {customTemplate?.description ||
+                        (interview ? "Scheduled like an interview, with this round's own rating form" : "Manual decision, not scheduled")}
+                    </p>
+                  ) : (
+                    step.stepType && (
+                      <p className="text-xs text-muted-foreground">{STEP_OPTIONS.find((o) => o.value === step.stepType)?.hint}</p>
+                    )
                   )}
                 </div>
 
@@ -218,6 +296,23 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                     {step.isRequired ? "Every candidate must complete this round." : "An admin can skip this round for a candidate."}
                   </p>
                 </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+                <input
+                  id={`vis-${index}`}
+                  type="checkbox"
+                  className="mt-1 h-4 w-4"
+                  checked={step.showName !== false}
+                  onChange={(e) => update(index, { showName: e.target.checked })}
+                />
+                <label htmlFor={`vis-${index}`} className="text-sm">
+                  <span className="font-medium">Show this round&apos;s name to candidates</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Candidates see no rounds until they are shortlisted, then they see every round. If this is off,
+                    the round still appears in their list, but as &quot;Hidden round&quot; without its name or details.
+                  </span>
+                </label>
               </div>
 
               {interview && (
@@ -264,11 +359,11 @@ export function WorkflowStepsEditor({ steps, onChange, errors = {}, structureLoc
                       <Label htmlFor={`buf-${index}`}>Gap after (min)</Label>
                       <Input id={`buf-${index}`} type="number" min={0} max={120} value={step.bufferMins ?? ""} onChange={(e) => update(index, { bufferMins: e.target.value === "" ? "" : Number(e.target.value) })} />
                     </div>
-                    {step.stepType === "FOCUS_GROUP" && (
+                    {(step.stepType === "FOCUS_GROUP" || step.stepType === "CUSTOM") && (
                       <>
                         <div className="space-y-2">
                           <Label htmlFor={`panel-${index}`}>Interviewers per session</Label>
-                          <Input id={`panel-${index}`} type="number" min={2} max={10} value={step.panelSize ?? ""} onChange={(e) => update(index, { panelSize: e.target.value === "" ? "" : Number(e.target.value) })} />
+                          <Input id={`panel-${index}`} type="number" min={step.stepType === "CUSTOM" ? 1 : 2} max={10} value={step.panelSize ?? ""} onChange={(e) => update(index, { panelSize: e.target.value === "" ? "" : Number(e.target.value) })} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor={`group-${index}`}>Candidates per session</Label>

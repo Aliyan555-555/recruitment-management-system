@@ -142,6 +142,17 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Organization-defined rounds can repeat, so they are keyed per step ("CUSTOM:<stepId>")
+      for (const step of steps.filter((s: any) => s.stepType === "CUSTOM")) {
+        const stepRecords = pipelineSteps.filter(ps =>
+          ps.workflowStepId === step.id && ps.pipeline.jobId === job.id
+        );
+        roundCounts[`CUSTOM:${step.id}`] = {
+          shortlisted: stepRecords.filter(ps => ps.status === "IN_PROGRESS" || ps.status === "COMPLETED").length,
+          unshortlisted: stepRecords.filter(ps => ps.status === "PENDING").length,
+        };
+      }
+
       // Calculate shortlist counts
       const jobApplications = jobsAppliedCounts.filter(jac => jac.jobId === job.id);
       
