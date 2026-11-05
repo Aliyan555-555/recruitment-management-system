@@ -15,6 +15,14 @@ export function isInterviewStepType(stepType: string | null | undefined): stepTy
   return !!stepType && (INTERVIEW_STEP_TYPES as readonly string[]).includes(stepType)
 }
 
+/**
+ * A CUSTOM (organization-defined) round is scheduled like an interview exactly when it has a duration:
+ * template-based rounds without scheduling never get a durationMins column.
+ */
+export function isCustomInterviewRound(step: { stepType?: string | null; durationMins?: number | null }): boolean {
+  return step.stepType === "CUSTOM" && step.durationMins != null
+}
+
 const optionalString = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
   z.string().trim().optional()
@@ -30,6 +38,7 @@ export const stepMetadataSchema = z
     weightage: z.coerce.number().min(0).max(100).optional().catch(undefined),
     scoreThreshold: z.coerce.number().min(0).max(100).optional().catch(undefined),
     skipReason: optionalString.catch(undefined),
+    showName: z.boolean().optional().catch(undefined),
   })
   .passthrough()
 
@@ -67,6 +76,11 @@ export interface StepConfig {
   location: string | null
   candidateInstructions: string | null
   interviewerInstructions: string | null
+  /**
+   * Admin choice: after a candidate is shortlisted, show this round's name. When false the round still
+   * appears in their list, but as "Hidden round". Shown unless the admin turned it off.
+   */
+  showName: boolean
 }
 
 export const DEFAULT_INTERVIEW_DURATION_MINS = 30
@@ -79,7 +93,7 @@ function normalizeMode(value: unknown): InterviewModeValue | null {
 export function readStepConfig(step: StepConfigInput): StepConfig {
   const meta = parseStepMetadata(step.stepMetadata)
   const stepType = (step.stepType as string | null | undefined) ?? meta.stepType ?? null
-  const isInterview = isInterviewStepType(stepType)
+  const isInterview = isInterviewStepType(stepType) || isCustomInterviewRound({ stepType, durationMins: step.durationMins })
   const panelSize = Math.max(1, step.panelSize ?? 1)
   const groupSize = isInterview ? Math.max(1, step.capacityPerSlot ?? 1) : 1
   const legacyDuration = Number((step.stepMetadata as any)?.durationMins)
@@ -99,6 +113,7 @@ export function readStepConfig(step: StepConfigInput): StepConfig {
     location: meta.location ?? null,
     candidateInstructions: meta.candidateInstructions ?? null,
     interviewerInstructions: meta.interviewerInstructions ?? null,
+    showName: meta.showName !== false,
   }
 }
 
@@ -110,6 +125,7 @@ export function toPublicStep(step: StepConfigInput) {
     isRequired: cfg.isRequired,
     interviewMode: cfg.isInterview ? cfg.interviewMode : null,
     durationMins: cfg.isInterview ? cfg.durationMins : null,
+    showName: cfg.showName,
   }
 }
 
@@ -124,9 +140,12 @@ export function validateStepConfig(step: {
   meetingLink?: string | null
   location?: string | null
   interviewerIds?: Array<string | number | bigint> | null
+  /** CUSTOM rounds only: whether the template schedules this round like an interview */
+  customInterview?: boolean
 }): string[] {
   const errors: string[] = []
-  if (!isInterviewStepType(step.stepType)) return errors
+  const customInterview = step.stepType === "CUSTOM" && step.customInterview === true
+  if (!isInterviewStepType(step.stepType) && !customInterview) return errors
 
   if (step.interviewMode !== "REMOTE" && step.interviewMode !== "ONSITE") {
     errors.push("Interview mode (Remote or Onsite) is required")
@@ -141,7 +160,7 @@ export function validateStepConfig(step: {
   if (step.stepType === "FOCUS_GROUP" && panel < 2) errors.push("Focus group needs at least 2 interviewers")
   const group = step.groupSize ?? 1
   if (!Number.isInteger(group) || group < 1 || group > 50) errors.push("Group size must be between 1 and 50")
-  if (step.stepType !== "FOCUS_GROUP" && group !== 1) {
+  if (step.stepType !== "FOCUS_GROUP" && !customInterview && group !== 1) {
     errors.push("Only a focus group can have more than one candidate per slot")
   }
   const buffer = step.bufferMins ?? 0

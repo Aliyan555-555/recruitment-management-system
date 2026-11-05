@@ -1,6 +1,7 @@
 import { parseStepMetadata, readStepConfig, toPublicStep } from "@/lib/workflow/step-config"
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { filterStepsForCandidate } from "@/lib/workflow/candidate-visibility"
 
 export async function GET(
   req: NextRequest,
@@ -42,7 +43,8 @@ export async function GET(
       )
     }
 
-    const workflowSteps = job.workflow?.steps.map((step) => {
+    // Rounds are only revealed to candidates once they are shortlisted, so the public job page lists none.
+    const workflowSteps = filterStepsForCandidate(job.workflow?.steps ?? [], false).map((step) => {
       const cfg = readStepConfig(step)
       const meta = parseStepMetadata(step.stepMetadata)
 

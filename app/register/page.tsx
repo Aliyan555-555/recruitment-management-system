@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import AccountCheckStep from "./components/AccountCheckStep"
 import PersonalInfoStep from "./components/PersonalInfoStep"
 import EducationStep from "./components/EducationStep"
 import ExperienceSkillsStep from "./components/ExperienceSkillsStep"
@@ -43,6 +44,7 @@ import {
   isExperienceStarted,
 } from "./utils"
 import {
+  accountCheckSchema,
   personalInfoSchema,
   educationEntrySchemaJoi,
   experienceEntrySchemaJoi,
@@ -110,6 +112,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [stepError, setStepError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false)
+  const [emailTaken, setEmailTaken] = useState(false)
   const [educationLevels, setEducationLevels] = useState<Array<{ id: string; name: string; rank?: number }>>([])
   const [jobDetails, setJobDetails] = useState<{ title: string; company: string } | null>(null)
 
@@ -266,6 +270,24 @@ export default function RegisterPage() {
     setStepError(null)
     switch (currentStep) {
       case 0: {
+        const { error } = accountCheckSchema.validate(
+          {
+            title: personalInfo.title,
+            firstname: personalInfo.firstname,
+            lastname: personalInfo.lastname,
+            email: personalInfo.email,
+          },
+          { abortEarly: false },
+        )
+        if (error) {
+          applyFieldErrors(["personal"], mapJoiErrors(error.details, "personal"))
+          setStepError("Please enter your name and a valid email.")
+          return false
+        }
+        applyFieldErrors(["personal"], {})
+        return true
+      }
+      case 1: {
         const { error } = personalInfoSchema.validate(personalInfo, { abortEarly: false })
         if (error) {
           applyFieldErrors(["personal"], mapJoiErrors(error.details, "personal"))
@@ -275,7 +297,7 @@ export default function RegisterPage() {
         applyFieldErrors(["personal"], {})
         return true
       }
-      case 1: {
+      case 2: {
         const errors: FieldErrors = {}
         let hasCompleteEntry = false
 
@@ -307,7 +329,7 @@ export default function RegisterPage() {
         applyFieldErrors(["education"], {})
         return true
       }
-      case 2: {
+      case 3: {
         const errors: FieldErrors = {}
         let hasValidExperience = false
 
@@ -356,7 +378,7 @@ export default function RegisterPage() {
         applyFieldErrors(["experience", "skills"], {})
         return true
       }
-      case 3: {
+      case 4: {
         const { error } = jobPreferenceSchemaJoi.validate(jobPreference, { abortEarly: false })
         if (error) {
           applyFieldErrors(["preferences"], mapJoiErrors(error.details, "preferences"))
@@ -366,7 +388,7 @@ export default function RegisterPage() {
         applyFieldErrors(["preferences"], {})
         return true
       }
-      case 4: {
+      case 5: {
         const securityData = {
           password,
           confirmPassword,
@@ -388,8 +410,37 @@ export default function RegisterPage() {
     }
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validateStep()) return
+
+    if (currentStep === 0) {
+      setIsCheckingEmail(true)
+      setEmailTaken(false)
+      try {
+        const response = await fetch("/api/register/check-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: personalInfo.email.trim() }),
+        })
+        const data = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          setStepError(data.error || "Could not verify your email. Please try again.")
+          return
+        }
+        if (data.exists) {
+          setEmailTaken(true)
+          setStepError("An account with this email already exists.")
+          return
+        }
+      } catch (err) {
+        console.error("Email check failed", err)
+        setStepError("Could not verify your email. Please check your connection and try again.")
+        return
+      } finally {
+        setIsCheckingEmail(false)
+      }
+    }
+
     setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
   }
 
@@ -529,6 +580,20 @@ export default function RegisterPage() {
     switch (currentStep) {
       case 0:
         return (
+          <AccountCheckStep
+            personalInfo={personalInfo}
+            onChange={(updates) => {
+              if (updates.email !== undefined) setEmailTaken(false)
+              handlePersonalInfoChange(updates)
+            }}
+            clearFieldError={clearFieldError}
+            getFieldError={getFieldError}
+            loginHref={jobId ? `/login?jobId=${jobId}` : "/login"}
+            emailTaken={emailTaken}
+          />
+        )
+      case 1:
+        return (
           <PersonalInfoStep
             personalInfo={personalInfo}
             onChange={handlePersonalInfoChange}
@@ -537,7 +602,7 @@ export default function RegisterPage() {
             maxDob={maxDob}
           />
         )
-      case 1:
+      case 2:
         return (
           <EducationStep
             entries={educationEntries}
@@ -550,7 +615,7 @@ export default function RegisterPage() {
             getFieldError={getFieldError}
           />
         )
-      case 2:
+      case 3:
         return (
           <ExperienceSkillsStep
             experiences={experiences}
@@ -565,7 +630,7 @@ export default function RegisterPage() {
             getFieldError={getFieldError}
           />
         )
-      case 3:
+      case 4:
         return (
           <JobPreferenceStep
             jobPreference={jobPreference}
@@ -575,7 +640,7 @@ export default function RegisterPage() {
             getFieldError={getFieldError}
           />
         )
-      case 4:
+      case 5:
         return (
           <SecurityStep
             personalInfo={personalInfo}
@@ -672,8 +737,9 @@ export default function RegisterPage() {
                   Submit Profile
                 </Button>
               ) : (
-                <Button className="flex-1" onClick={handleNext}>
-                  Next
+                <Button className="flex-1" onClick={handleNext} disabled={isCheckingEmail}>
+                  {isCheckingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isCheckingEmail ? "Checking..." : "Next"}
                 </Button>
               )}
             </div>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { createNotification } from "@/lib/notifications"
 import { sendEmail } from "@/lib/email"
+import { candidateRoundPhrase } from "@/lib/workflow/candidate-visibility"
 import { readStepConfig } from "@/lib/workflow/step-config"
 import { SchedulingError } from "./availability-service"
 import { appUrl, renderEmailLayout } from "./email-layout"
@@ -198,9 +199,10 @@ export async function getRoundCandidateDetail(stepId: bigint, candidateId: bigin
 export async function remindToBook(stepId: bigint, candidateIds: bigint[], cooldownSeconds = REMIND_COOLDOWN_SECONDS): Promise<{ sent: number }> {
   const step = await prisma.workflowStep.findUnique({
     where: { id: stepId },
-    select: { stepName: true, workflow: { select: { job: { select: { title: true } } } } },
+    select: { stepName: true, stepType: true, isRequired: true, stepMetadata: true, workflow: { select: { job: { select: { title: true } } } } },
   })
   if (!step) throw new SchedulingError("Round not found", 404)
+  const roundPhrase = candidateRoundPhrase({ stepName: step.stepName, showName: readStepConfig(step).showName })
 
   const waiting = await prisma.candidatePipelineStep.findMany({
     where: {
@@ -223,7 +225,7 @@ export async function remindToBook(stepId: bigint, candidateIds: bigint[], coold
     if (recent) continue
     await createNotification({
       userId: c.id,
-      title: `Book your ${step.stepName}`,
+      title: `Book your ${roundPhrase}`,
       message: `${step.workflow.job.title}: please choose your interview time.`,
       type: "REMINDER",
       entityType: "booking_reminder",
@@ -231,10 +233,10 @@ export async function remindToBook(stepId: bigint, candidateIds: bigint[], coold
     })
     await sendEmail({
       to: c.email,
-      subject: `Reminder: book your ${step.stepName} - ${step.workflow.job.title}`,
+      subject: `Reminder: book your ${roundPhrase} - ${step.workflow.job.title}`,
       html: renderEmailLayout({
         heading: "Please choose your interview time",
-        intro: `Hello ${c.firstname}, you have not booked your ${step.stepName} for ${step.workflow.job.title} yet. It only takes a minute.`,
+        intro: `Hello ${c.firstname}, you have not booked your ${roundPhrase} for ${step.workflow.job.title} yet. It only takes a minute.`,
         cta: { label: "Book my interview", url: appUrl(`/applications/${w.pipeline.id}`) },
       }),
     })

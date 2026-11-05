@@ -7,6 +7,7 @@ import Link from "next/link"
 import { BookInterviewCard } from "@/components/candidate/BookInterviewCard"
 import { Navbar } from "@/components/Navbar"
 import DOMPurify from "isomorphic-dompurify"
+import { HIDDEN_ROUND_NAME } from "@/lib/workflow/candidate-visibility"
 
 interface PipelineDetail {
   id: string
@@ -21,6 +22,8 @@ interface PipelineDetail {
     description: string
   }
   status: string
+  /** false until an admin shortlists the candidate; hidden rounds are omitted from `steps` */
+  shortlisted?: boolean
   lockState?: string
   currentStep: number
   startedAt: string
@@ -38,7 +41,7 @@ interface PipelineDetail {
     feedback?: string
     startedAt?: string
     completedAt?: string
-    stepType?: string
+    stepType?: string | null
     durationMins?: number
     interviewMode?: string
     booking?: { id: string; startsAt: string; endsAt: string; mode: string | null; meetingLink: string | null; location: string | null } | null
@@ -262,7 +265,8 @@ export default function ApplicationDetailPage() {
             </span>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar (rounds stay private until shortlisting) */}
+          {pipeline.shortlisted !== false && (
           <div className="mt-6">
             <div className="flex justify-between text-sm text-muted-foreground mb-2">
               <span>Overall Progress</span>
@@ -283,6 +287,7 @@ export default function ApplicationDetailPage() {
               ></div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Job Description */}
@@ -299,7 +304,19 @@ export default function ApplicationDetailPage() {
           </div>
         )}
 
+        {/* Not shortlisted yet: no round details */}
+        {pipeline.shortlisted === false && pipeline.status !== "REJECTED" && (
+          <div className="bg-card rounded-lg shadow p-6 border border-border mb-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2">Application under review</h2>
+            <p className="text-sm text-muted-foreground">
+              Your application has been received and is being reviewed. The hiring rounds will appear here
+              once you are shortlisted, and we&apos;ll notify you when that happens.
+            </p>
+          </div>
+        )}
+
         {/* Interview Process */}
+        {pipeline.steps.length > 0 && (
         <div className="bg-card rounded-lg shadow p-6 border border-border">
           <h2 className="text-lg font-semibold text-foreground mb-6">Interview Process</h2>
 
@@ -344,9 +361,9 @@ export default function ApplicationDetailPage() {
                       <div className="bg-muted/30 rounded-lg p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold text-foreground">{step.stepName}</h3>
+                            <h3 className={step.stepName === HIDDEN_ROUND_NAME ? "font-semibold text-muted-foreground italic" : "font-semibold text-foreground"}>{step.stepName}</h3>
                             <div className="flex gap-2 mt-1">
-                              {step.stepType && (
+                              {step.stepType && step.stepType !== "CUSTOM" && (
                                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
                                   {step.stepType}
                                 </span>
@@ -548,19 +565,23 @@ export default function ApplicationDetailPage() {
             })}
           </div>
         </div>
+        )}
 
         {/* Interview booking */}
-        {pipeline.status === "IN_PROGRESS" && pipeline.lockState !== "LOCKED_REJECTED" && (
+        {pipeline.shortlisted !== false && pipeline.status === "IN_PROGRESS" && pipeline.lockState !== "LOCKED_REJECTED" && (
           <div className="mt-6">
             <BookInterviewCard pipelineId={pipeline.id} onChanged={loadPipeline} />
           </div>
         )}
 
         {/* Next Steps Message */}
-        {pipeline.status === "IN_PROGRESS" && (
+        {pipeline.shortlisted !== false && pipeline.status === "IN_PROGRESS" && (
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-blue-800">
-              <span className="font-semibold">Next:&nbsp;</span> We&apos;re currently reviewing your application at the &quot;{pipeline.steps.find(s => s.stepOrder === pipeline.currentStep)?.stepName}&quot; stage. You&apos;ll be notified of any updates.
+              <span className="font-semibold">Next:&nbsp;</span> We&apos;re currently reviewing your application at {(() => {
+                const current = pipeline.steps.find(s => s.stepOrder === pipeline.currentStep)?.stepName
+                return !current || current === HIDDEN_ROUND_NAME ? "your current stage" : <>the &quot;{current}&quot; stage</>
+              })()}. You&apos;ll be notified of any updates.
             </p>
           </div>
         )}

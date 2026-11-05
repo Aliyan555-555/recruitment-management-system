@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { zonedDateKey } from "@/lib/timezone"
+import { candidateRoundName, candidateRoundPhrase } from "@/lib/workflow/candidate-visibility"
 import { readStepConfig } from "@/lib/workflow/step-config"
 import { activeKeyFor } from "./booking-service"
 import { MAX_NO_SHOWS } from "./booking-rules"
@@ -72,12 +73,13 @@ export async function getCandidateSlotsView(candidateId: bigint, pipelineId: big
   if (!config.isInterview) return empty("NOT_APPLICABLE")
 
   const stepInfo = {
-    name: current.workflowStep.stepName,
+    // a round the admin keeps nameless reads as "next round" in "Book your ..."
+    name: candidateRoundPhrase({ stepName: current.workflowStep.stepName, showName: config.showName }),
     durationMins: config.durationMins,
     mode: config.interviewMode,
     groupSize: config.groupSize,
     panelSize: config.panelSize,
-    instructions: config.candidateInstructions,
+    instructions: config.showName ? config.candidateInstructions : null,
   }
 
   const booking = await prisma.slotBooking.findFirst({
@@ -176,7 +178,7 @@ export async function listUpcomingInterviews(candidateId: bigint) {
         applicationId: b.applicationId.toString(),
         jobTitle: b.slot.step.workflow.job.title,
         jobCompany: b.slot.step.workflow.job.company,
-        stepName: b.slot.step.stepName,
+        stepName: candidateRoundName({ stepName: b.slot.step.stepName, showName: config.showName }),
         stepOrder: b.slot.step.stepOrder,
         startsAt: b.slot.startsAt.toISOString(),
         endsAt: b.slot.endsAt.toISOString(),

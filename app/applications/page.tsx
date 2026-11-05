@@ -19,6 +19,7 @@ interface Application {
     completedSteps: number
     progressPercent?: number
     overallStatus: string
+    shortlisted?: boolean
     steps: Array<{
       stepName: string
       stepOrder: number
@@ -209,7 +210,7 @@ export default function ApplicationsPage() {
                 </div>
 
                 {/* Pipeline Progress */}
-                {application?.pipeline && (
+                {application?.pipeline && application.pipeline.shortlisted !== false && (
                   <div className="p-6 bg-muted/30">
                     <div className="mb-6">
                       <div className="flex justify-between items-center mb-3">

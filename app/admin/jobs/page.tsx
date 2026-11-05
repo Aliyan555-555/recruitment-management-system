@@ -346,6 +346,41 @@ export default function AdminJobsPage() {
       },
     },
     {
+      id: "customRounds",
+      header: "Custom Rounds",
+      enableSorting: false,
+      cell: ({ row }) => {
+        const customSteps = (row.original.workflow?.steps ?? []).filter(step => step.type === "CUSTOM")
+        if (customSteps.length === 0) {
+          return <div className="text-center"><span className="text-sm text-gray-400">N/A</span></div>
+        }
+        return (
+          <div className="flex flex-col items-center gap-1">
+            {customSteps.map(step => {
+              const counts = row.original.roundCounts?.[`CUSTOM:${step.id}`]
+              return (
+                <Link
+                  key={step.id}
+                  href={`/admin/jobs/${row.original.id}/rounds/${step.id}`}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                  title={step.name}
+                >
+                  <span className="mr-1">{step.name}</span>
+                  {counts && (
+                    <span className="whitespace-nowrap" title="In round / To review">
+                      <span className="text-green-600 font-semibold">{counts.shortlisted}</span>
+                      <span className="text-gray-400 mx-1">·</span>
+                      <span className="text-gray-600">{counts.unshortlisted} to review</span>
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        )
+      },
+    },
+    {
       id: "offered",
       header: "Offered",
       enableSorting: false,

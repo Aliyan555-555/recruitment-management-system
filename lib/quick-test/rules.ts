@@ -10,21 +10,84 @@ export const QUICK_TEST_LIMITS = {
   startRateLimit: { maxRequests: 10, windowMs: 60 * 60 * 1000 },
 } as const
 
-export const quickTestConfigSchema = z.object({
-  enabled: z.boolean(),
-  questionCount: z
-    .number()
-    .int("Question count must be a whole number")
-    .min(QUICK_TEST_LIMITS.questionCount.min, `Minimum ${QUICK_TEST_LIMITS.questionCount.min} questions`)
-    .max(QUICK_TEST_LIMITS.questionCount.max, `Maximum ${QUICK_TEST_LIMITS.questionCount.max} questions`)
-    .default(QUICK_TEST_LIMITS.questionCount.default),
-  timeLimitMinutes: z
-    .number()
-    .int("Time limit must be a whole number of minutes")
-    .min(QUICK_TEST_LIMITS.timeLimitMinutes.min, `Minimum ${QUICK_TEST_LIMITS.timeLimitMinutes.min} minutes`)
-    .max(QUICK_TEST_LIMITS.timeLimitMinutes.max, `Maximum ${QUICK_TEST_LIMITS.timeLimitMinutes.max} minutes`)
-    .default(QUICK_TEST_LIMITS.timeLimitMinutes.default),
-})
+export const CUSTOM_QUESTION_LIMITS = {
+  questionMax: 1000,
+  optionMax: 500,
+  optionCount: 4,
+  /** Largest admin-authored bank for one job. */
+  bankMax: 100,
+} as const
+
+export const customQuestionSchema = z
+  .object({
+    question: z
+      .string()
+      .trim()
+      .min(10, "Each question must be at least 10 characters")
+      .max(CUSTOM_QUESTION_LIMITS.questionMax, `Questions can be at most ${CUSTOM_QUESTION_LIMITS.questionMax} characters`),
+    options: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, "Options cannot be empty")
+          .max(CUSTOM_QUESTION_LIMITS.optionMax, `Options can be at most ${CUSTOM_QUESTION_LIMITS.optionMax} characters`)
+      )
+      .length(CUSTOM_QUESTION_LIMITS.optionCount, `Each question needs exactly ${CUSTOM_QUESTION_LIMITS.optionCount} options`),
+    correct: z.string().trim().min(1, "Select the correct answer for every question"),
+  })
+  .superRefine((value, ctx) => {
+    const lowered = value.options.map((option) => option.toLowerCase())
+    if (new Set(lowered).size !== value.options.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Options must be different from each other", path: ["options"] })
+    }
+    if (!value.options.includes(value.correct)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "The correct answer must be one of the options", path: ["correct"] })
+    }
+  })
+
+export type CustomQuickTestQuestion = z.infer<typeof customQuestionSchema>
+
+export const quickTestConfigSchema = z
+  .object({
+    enabled: z.boolean(),
+    questionCount: z
+      .number()
+      .int("Question count must be a whole number")
+      .min(QUICK_TEST_LIMITS.questionCount.min, `Minimum ${QUICK_TEST_LIMITS.questionCount.min} questions`)
+      .max(QUICK_TEST_LIMITS.questionCount.max, `Maximum ${QUICK_TEST_LIMITS.questionCount.max} questions`)
+      .default(QUICK_TEST_LIMITS.questionCount.default),
+    timeLimitMinutes: z
+      .number()
+      .int("Time limit must be a whole number of minutes")
+      .min(QUICK_TEST_LIMITS.timeLimitMinutes.min, `Minimum ${QUICK_TEST_LIMITS.timeLimitMinutes.min} minutes`)
+      .max(QUICK_TEST_LIMITS.timeLimitMinutes.max, `Maximum ${QUICK_TEST_LIMITS.timeLimitMinutes.max} minutes`)
+      .default(QUICK_TEST_LIMITS.timeLimitMinutes.default),
+    source: z.enum(["AI", "CUSTOM"]).default("AI"),
+    questions: z
+      .array(customQuestionSchema)
+      .max(CUSTOM_QUESTION_LIMITS.bankMax, `Maximum ${CUSTOM_QUESTION_LIMITS.bankMax} custom questions`)
+      .default([]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.source !== "CUSTOM" || !value.enabled) return
+    const seen = new Set<string>()
+    for (const [index, item] of value.questions.entries()) {
+      const key = item.question.toLowerCase()
+      if (seen.has(key)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Question ${index + 1} is a duplicate`, path: ["questions", index] })
+      }
+      seen.add(key)
+    }
+    // Candidates answer `questionCount` questions drawn from the bank, so the bank must cover it.
+    if (value.questions.length < value.questionCount) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Add at least ${value.questionCount} custom questions (you have ${value.questions.length})`,
+        path: ["questions"],
+      })
+    }
+  })
 
 export type QuickTestConfigInput = z.infer<typeof quickTestConfigSchema>
 

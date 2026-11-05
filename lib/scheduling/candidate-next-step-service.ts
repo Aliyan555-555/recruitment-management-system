@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { candidateRoundPhrase } from "@/lib/workflow/candidate-visibility"
 import { readStepConfig } from "@/lib/workflow/step-config"
 import { computeNextStep, mostUrgent, type NextStep } from "./candidate-next-step"
 import { getOrgTimeZone } from "./org-settings"
@@ -63,7 +64,7 @@ export async function getCandidateNextSteps(candidateId: bigint): Promise<{ time
       jobTitle: p.job.title,
       overallStatus: p.overallStatus,
       lockState: p.lockState,
-      stepName: workflowStep?.stepName ?? null,
+      stepName: workflowStep && config ? candidateRoundPhrase({ stepName: workflowStep.stepName, showName: config.showName }) : null,
       stepStatus: pipelineStep?.status ?? null,
       isInterview: !!config?.isInterview,
       booking: booking

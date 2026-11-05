@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { calculatePipelineMetrics } from "@/lib/pipeline-metrics"
+import { readStepConfig } from "@/lib/workflow/step-config"
+import { candidateRoundName, filterStepsForCandidate, isCandidateShortlisted } from "@/lib/workflow/candidate-visibility"
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,7 +34,10 @@ export async function GET(req: NextRequest) {
                   select: {
                     id: true,
                     stepName: true,
-                    stepOrder: true
+                    stepOrder: true,
+                    isRequired: true,
+                    stepType: true,
+                    stepMetadata: true
                   },
                   orderBy: {
                     stepOrder: "asc"
@@ -52,9 +57,13 @@ export async function GET(req: NextRequest) {
               select: {
                 stepOrder: true,
                 status: true,
+                workflowStepId: true,
                 workflowStep: {
                   select: {
-                    stepName: true
+                    stepName: true,
+                    stepType: true,
+                    isRequired: true,
+                    stepMetadata: true
                   }
                 }
               },
@@ -90,10 +99,29 @@ export async function GET(req: NextRequest) {
 
     const batchMap = new Map(batches.filter(b => b).map(b => [b!.id, b]))
 
+    const bookedApplicationIds = new Set(
+      (
+        await prisma.slotBooking.findMany({
+          where: { candidateId: userId, status: { in: ["RESERVED", "COMPLETED"] } },
+          select: { applicationId: true },
+        })
+      ).map(booking => booking.applicationId.toString())
+    )
+
     return NextResponse.json({
       applications: applications.map(app => {
-        const workflowSteps = app.job.workflow?.steps ?? []
-        const pipelineSteps = app.pipeline?.steps ?? []
+        const allWorkflowSteps = app.job.workflow?.steps ?? []
+        const allPipelineSteps = app.pipeline?.steps ?? []
+
+        // No rounds are shown until the candidate is shortlisted; afterwards all, some under a hidden name.
+        const shortlisted = isCandidateShortlisted({
+          applicationStatus: app.status,
+          pipelineSteps: allPipelineSteps.map(step => ({ status: step.status, stepOrder: step.stepOrder })),
+          hasBooking: bookedApplicationIds.has(app.id.toString()),
+        })
+        const workflowSteps = filterStepsForCandidate(allWorkflowSteps, shortlisted)
+        const pipelineSteps = shortlisted ? allPipelineSteps : []
+
         const metrics = calculatePipelineMetrics({
           totalWorkflowSteps: workflowSteps.length,
           pipelineSteps,
@@ -117,10 +145,13 @@ export async function GET(req: NextRequest) {
                 completedSteps: metrics.completedSteps,
                 progressPercent: metrics.progressPercent,
                 overallStatus: app.pipeline.overallStatus,
+                shortlisted,
                 lockState: (app.pipeline as any).lockState || "NONE",
                 pipelineMode: (app.pipeline as any).pipelineMode || "INDIVIDUAL",
                 steps: pipelineSteps.map(step => ({
-                  stepName: step.workflowStep?.stepName ?? `Step ${step.stepOrder}`,
+                  stepName: step.workflowStep
+                    ? candidateRoundName({ stepName: step.workflowStep.stepName, showName: readStepConfig(step.workflowStep).showName })
+                    : `Step ${step.stepOrder}`,
                   stepOrder: step.stepOrder,
                   status: step.status
                 }))

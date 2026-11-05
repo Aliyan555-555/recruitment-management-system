@@ -318,7 +318,7 @@ export default function RoundCandidatesPage() {
   return (
     <div className="space-y-6 p-6">
       <JobPipelineHeaderLoader jobId={jobId} currentStageId={roundId} />
-      <RoundSubNav jobId={jobId} roundId={roundId} stepType={data.round.stepType} activeView="candidates" />
+      <RoundSubNav jobId={jobId} roundId={roundId} stepType={data.round.stepType} isInterview={data.round.isInterview} activeView="candidates" />
 
       {needsInterviewers && (
         <div className="flex flex-col gap-2 rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">

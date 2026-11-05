@@ -619,6 +619,8 @@ enum StepType {
   FOCUS_GROUP
   FINAL_INTERVIEW
   OFFER
+  /// Organization-defined round (see CustomRoundTemplate); behaves like an interview round when it has a duration.
+  CUSTOM
 }
 
 enum LetterStatus {
@@ -662,9 +664,12 @@ model WorkflowStep {
   durationMins     Int?       @map("duration_mins")
   panelSize        Int        @default(1) @map("panel_size")
   bufferMins       Int        @default(0) @map("buffer_mins")
+  /// Template this CUSTOM round was created from. Name and evaluationSchema are snapshotted on the step.
+  customRoundTemplateId BigInt? @map("custom_round_template_id")
   stepMetadata     Json?      @map("step_metadata") // Stores durationMins, weightage, scoreThreshold, interviewMode, meetingLink, interviewerIds, routeVisibility, evaluationCriteria, candidateInstructions, interviewerInstructions, skipReason, attachments (metadata)
 
   workflow      JobWorkflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  customRoundTemplate CustomRoundTemplate? @relation(fields: [customRoundTemplateId], references: [id], onDelete: SetNull)
   pipelineSteps CandidatePipelineStep[]
   slots         InterviewSlot[]
   batches       Batch[]
@@ -672,6 +677,32 @@ model WorkflowStep {
 
   @@index([workflowId])
   @@map("workflow_step")
+}
+
+/// Reusable hiring round defined by an organization (Settings > Custom job rounds).
+/// Jobs copy what they need onto their WorkflowStep, so editing a template never changes running jobs.
+model CustomRoundTemplate {
+  id                    BigInt   @id @default(autoincrement())
+  name                  String   @db.VarChar(120)
+  description           String?  @db.VarChar(500)
+  candidateInstructions String?  @map("candidate_instructions") @db.Text
+  /// true => scheduled like an interview (slots, bookings, interviewer pool)
+  isInterview           Boolean  @default(true) @map("is_interview")
+  interviewMode         InterviewMode? @map("interview_mode")
+  durationMins          Int?     @map("duration_mins")
+  panelSize             Int      @default(1) @map("panel_size")
+  bufferMins            Int      @default(0) @map("buffer_mins")
+  /// candidates per slot
+  capacityPerSlot       Int      @default(1) @map("capacity_per_slot")
+  /// { fields: CustomFormField[], recommendationEnabled: boolean } - the interviewers' rating form
+  evaluationSchema      Json?    @map("evaluation_schema")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             BigInt   @map("created_at")
+  updatedAt             BigInt   @map("updated_at")
+
+  steps WorkflowStep[]
+
+  @@map("custom_round_template")
 }
 
 // Interviewer availability slots per workflow step
@@ -1251,12 +1282,31 @@ model JobQuickTest {
   isEnabled        Boolean @default(true) @map("is_enabled")
   questionCount    Int     @default(10) @map("question_count")
   timeLimitMinutes Int     @default(15) @map("time_limit_minutes")
+  // When true, candidates get admin-authored questions (JobQuickTestQuestion) instead of AI-generated ones.
+  useCustomQuestions Boolean @default(false) @map("use_custom_questions")
   createdAt        BigInt  @map("created_at")
   updatedAt        BigInt  @map("updated_at")
 
-  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  job             Job                     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  customQuestions JobQuickTestQuestion[]
 
   @@map("job_quick_test")
+}
+
+/// Admin-authored question bank for a job's quick test. `correctOption` must equal one of `options`.
+model JobQuickTestQuestion {
+  id            BigInt @id @default(autoincrement())
+  jobId         BigInt @map("job_id")
+  question      String @db.Text
+  options       Json
+  correctOption String @map("correct_option") @db.VarChar(500)
+  order         Int
+  createdAt     BigInt @map("created_at")
+
+  config JobQuickTest @relation(fields: [jobId], references: [jobId], onDelete: Cascade)
+
+  @@unique([jobId, order])
+  @@map("job_quick_test_question")
 }
 
 enum QuickTestAttemptStatus {

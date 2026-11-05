@@ -5,6 +5,7 @@
  *  - skills scorecard (screening / final interview): { skills: { key: { rating, max? } }, recommendedToHire, comments }
  *  - panel behaviours (focus group, current):        { focusGroup: { panel: { behaviors: [{ rating 1-4 }] } }, recommendedToHire }
  *  - legacy focus group (admin-entered):             { focusGroup: { internal, external } } (each with score/maxScore)
+ *  - custom round (org-defined form):                { custom: {...}, customScore: { total, max }, recommendedToHire? }
  */
 
 export const DEFAULT_SKILL_MAX: Record<string, number> = {
@@ -58,8 +59,18 @@ export function scoreBehaviors(behaviors: Array<{ rating?: unknown }> | undefine
 }
 
 /** Score of one scorecard of any supported shape, or null if the form has no scoreable content. */
-export function scoreFormData(formData: any): (ScoreResult & { kind: "skills" | "panel" | "legacy-focus-group" }) | null {
+export function scoreFormData(
+  formData: any
+): (ScoreResult & { kind: "skills" | "panel" | "legacy-focus-group" | "custom" }) | null {
   if (!formData || typeof formData !== "object") return null
+
+  // Custom-round scorecards carry their own computed score (see evaluations/custom-form.ts).
+  const customScore = formData.customScore
+  if (customScore && typeof customScore === "object" && Number(customScore.max) > 0) {
+    const total = Number(customScore.total ?? 0)
+    const max = Number(customScore.max)
+    return { total, max, percentage: pct(total, max), kind: "custom" }
+  }
 
   const panel = formData.focusGroup?.panel
   if (panel?.behaviors) return { ...scoreBehaviors(panel.behaviors), kind: "panel" }

@@ -1,4 +1,5 @@
 export const steps = [
+  { title: "Account Check", description: "Confirm your name and email" },
   { title: "Personal Info", description: "Tell us about yourself" },
   { title: "Education", description: "Share your academic background" },
   { title: "Experience & Skills", description: "Highlight your expertise" },

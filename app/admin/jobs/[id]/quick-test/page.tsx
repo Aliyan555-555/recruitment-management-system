@@ -8,6 +8,7 @@ import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
 import {
   DEFAULT_QUICK_TEST_FORM,
   QuickTestConfigCard,
+  quickTestFormFromApi,
   toQuickTestPayload,
   validateQuickTestForm,
   type QuickTestFormValue,
@@ -38,7 +39,13 @@ interface AttemptRow {
 
 interface QuickTestData {
   job: { id: string; title: string }
-  config: { enabled: boolean; questionCount: number; timeLimitMinutes: number }
+  config: {
+    enabled: boolean
+    questionCount: number
+    timeLimitMinutes: number
+    source?: "AI" | "CUSTOM"
+    questions?: Array<{ question: string; options: string[]; correct: string }>
+  }
   stats: {
     started: number
     completed: number
@@ -160,11 +167,7 @@ export default function AdminQuickTestPage() {
 
   const openSettings = () => {
     if (!data) return
-    setSettingsForm({
-      enabled: data.config.enabled,
-      questionCount: data.config.questionCount,
-      timeLimitMinutes: data.config.timeLimitMinutes,
-    })
+    setSettingsForm(quickTestFormFromApi(data.config))
     setSettingsError(null)
     setSettingsOpen(true)
   }
@@ -431,7 +434,7 @@ export default function AdminQuickTestPage() {
             <DialogTitle>{detail ? detail.candidate.name : "Quick test attempt"}</DialogTitle>
             <DialogDescription>
               {detail
-                ? `${detail.candidate.email} · ${detail.attempt.scorePercent ?? 0}% (${detail.attempt.scoredPoints ?? 0}/${detail.attempt.maxPoints} points)${detail.attempt.aiModel === "curated" ? " · generic fallback questions (AI was unavailable)" : ""}`
+                ? `${detail.candidate.email} · ${detail.attempt.scorePercent ?? 0}% (${detail.attempt.scoredPoints ?? 0}/${detail.attempt.maxPoints} points)${detail.attempt.aiModel === "curated" ? " · generic fallback questions (AI was unavailable)" : detail.attempt.aiModel === "custom" ? " · your custom questions" : ""}`
                 : "Loading attempt..."}
             </DialogDescription>
           </DialogHeader>

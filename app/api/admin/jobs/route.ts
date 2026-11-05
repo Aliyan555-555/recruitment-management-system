@@ -8,6 +8,7 @@ import {
   buildStepColumns,
   buildStepMetadata,
   normalizeStep,
+  resolveCustomRounds,
   syncStepInterviewers,
   validateWorkflow,
   type WorkflowStepPayload,
@@ -74,6 +75,14 @@ export async function POST(req: NextRequest) {
     const quickTestResult = parseQuickTestConfigInput(body.quickTest)
     if (!quickTestResult.ok) {
       return NextResponse.json({ error: quickTestResult.error }, { status: 400 })
+    }
+
+    // Attach the organization's templates to custom rounds before validating
+    if (Array.isArray(body.workflowSteps)) {
+      const customRoundError = await resolveCustomRounds(prisma, body.workflowSteps as WorkflowStepPayload[])
+      if (customRoundError) {
+        return NextResponse.json({ error: customRoundError }, { status: 400 })
+      }
     }
 
     // Validate workflow steps (order, offer-last, per-step interview settings)

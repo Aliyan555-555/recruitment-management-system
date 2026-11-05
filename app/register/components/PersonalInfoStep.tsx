@@ -44,55 +44,6 @@ const PersonalInfoStep = ({
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label>Title *</Label>
-          <Select
-            value={personalInfo.title}
-            onValueChange={(value) => handleInputChange("title", value)}
-            disabled={isDisabled("title")}
-          >
-            <SelectTrigger disabled={isDisabled("title")}>
-              <SelectValue placeholder="Select title" />
-            </SelectTrigger>
-            <SelectContent>
-              {titles.map((title) => (
-                <SelectItem key={title} value={title}>
-                  {title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {getFieldError("personal.title") && (
-            <p className="text-xs text-destructive">{getFieldError("personal.title")}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label>First Name *</Label>
-          <Input
-            value={personalInfo.firstname}
-            placeholder="e.g., Ikram Ullah"
-            onChange={(e) => handleInputChange("firstname", e.target.value)}
-            disabled={isDisabled("firstname")}
-          />
-          {getFieldError("personal.firstname") && (
-            <p className="text-xs text-destructive">{getFieldError("personal.firstname")}</p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label>Last Name *</Label>
-          <Input
-            value={personalInfo.lastname}
-            placeholder="e.g., Khan"
-            onChange={(e) => handleInputChange("lastname", e.target.value)}
-            disabled={isDisabled("lastname")}
-          />
-          {getFieldError("personal.lastname") && (
-            <p className="text-xs text-destructive">{getFieldError("personal.lastname")}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
           <Label>Father Name *</Label>
           <Input
             value={personalInfo.fatherName}
@@ -104,22 +55,6 @@ const PersonalInfoStep = ({
             <p className="text-xs text-destructive">{getFieldError("personal.fatherName")}</p>
           )}
         </div>
-        <div className="space-y-2">
-          <Label>Email *</Label>
-          <Input
-            type="email"
-            value={personalInfo.email}
-            placeholder="you@example.com"
-            onChange={(e) => handleInputChange("email", e.target.value)}
-            disabled={isDisabled("email")}
-          />
-          {getFieldError("personal.email") && (
-            <p className="text-xs text-destructive">{getFieldError("personal.email")}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Username *</Label>
           <Input

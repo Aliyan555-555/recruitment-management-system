@@ -102,25 +102,11 @@ export function JobDetails({
         return
       }
 
-      const response = await fetch(`/api/jobs/${job.id}/apply`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({})
-      })
-
-      if (response.ok) {
-        router.push(`/jobs/${job.id}/apply/success`)
-      } else {
-        const data = await response.json()
-        if (data.code === "QUICK_TEST_REQUIRED") {
-          router.push(data.redirectTo)
-          return
-        }
-        setErrorMessage(data.error || "Failed to apply. Please try again.")
-      }
+      // Candidates review (and can update) their full profile before the application is submitted.
+      router.push(`/jobs/${job.id}/apply/review`)
     } catch (error) {
       console.error("Apply error:", error)
-      setErrorMessage("Failed to submit application. Please check your connection and try again.")
+      setErrorMessage("Could not open the application review. Please try again.")
     } finally {
       setApplying(false)
     }
@@ -381,7 +367,7 @@ export function JobDetails({
                           ? "You've completed the quick test. Submit your application to finish."
                           : quickTest.state === "IN_PROGRESS"
                             ? "Your quick test is in progress. The timer keeps running, so resume it now."
-                            : `This job includes a ${quickTest.timeLimitMinutes}-minute quick test (${quickTest.questionCount} questions, one attempt). Your application is submitted when you finish it.`}
+                            : `This job includes a ${quickTest.timeLimitMinutes}-minute quick test (${quickTest.questionCount} questions, one attempt). After the test you review your profile, then confirm your application.`}
                       </span>
                     </div>
                   )}

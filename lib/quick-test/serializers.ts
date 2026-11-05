@@ -46,11 +46,26 @@ export function serializeQuickTestConfig(config: {
   isEnabled: boolean
   questionCount: number
   timeLimitMinutes: number
+  useCustomQuestions?: boolean
 }) {
   return {
     enabled: config.isEnabled,
     questionCount: config.questionCount,
     timeLimitMinutes: config.timeLimitMinutes,
+    source: config.useCustomQuestions ? ("CUSTOM" as const) : ("AI" as const),
+  }
+}
+
+/** Admin-only: includes the correct answer. Never use on a candidate-facing route. */
+export function serializeAdminCustomQuestion(question: {
+  question: string
+  options: unknown
+  correctOption: string
+}) {
+  return {
+    question: question.question,
+    options: question.options as string[],
+    correct: question.correctOption,
   }
 }
 

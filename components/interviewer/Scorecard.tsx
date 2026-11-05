@@ -17,14 +17,22 @@ import {
 import { SCREENING_SKILLS } from "@/lib/constants/screening-skills"
 import type { BehaviorDefinition } from "@/lib/constants/focus-group-behaviors"
 import { BEHAVIOR_MAX_RATING, scoreFormData, validatePanelForm, validateSkillsForm } from "@/lib/evaluations/scoring"
+import {
+  DEFAULT_CUSTOM_FORM,
+  scoreCustomForm,
+  validateCustomForm,
+  type CustomFormSchema,
+} from "@/lib/evaluations/custom-form"
 import { cn } from "@/lib/utils"
 
-type FormKind = "SKILLS" | "PANEL"
+type FormKind = "SKILLS" | "PANEL" | "CUSTOM"
 
 interface Props {
   bookingId: string
   kind: FormKind
   behaviors: BehaviorDefinition[] | null
+  /** the round's own rating form; only used when kind is CUSTOM */
+  customForm?: CustomFormSchema | null
   initial: any
   submitted: boolean
   canEvaluate: boolean
@@ -34,6 +42,9 @@ interface Props {
 const AUTOSAVE_MS = 20_000
 
 function emptyForm(kind: FormKind, behaviors: BehaviorDefinition[] | null) {
+  if (kind === "CUSTOM") {
+    return { custom: {} as Record<string, unknown>, comments: "", recommendedToHire: "" }
+  }
   if (kind === "PANEL") {
     return {
       focusGroup: { panel: { behaviors: (behaviors ?? []).map((b) => ({ name: b.name, rating: undefined as number | undefined, feedback: "" })) } },
@@ -44,7 +55,8 @@ function emptyForm(kind: FormKind, behaviors: BehaviorDefinition[] | null) {
   return { skills: {} as Record<string, { rating?: number; max: number }>, comments: "", recommendedToHire: "" }
 }
 
-export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canEvaluate, onSubmitted }: Props) {
+export function Scorecard({ bookingId, kind, behaviors, customForm, initial, submitted, canEvaluate, onSubmitted }: Props) {
+  const customDefinition = customForm ?? DEFAULT_CUSTOM_FORM
   const [form, setForm] = useState<any>(() => initial ?? emptyForm(kind, behaviors))
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,8 +68,20 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
   formRef.current = form
 
   const readOnly = submitted || !canEvaluate
-  const problem = useMemo(() => (kind === "PANEL" ? validatePanelForm(form) : validateSkillsForm(form)), [form, kind])
-  const score = useMemo(() => scoreFormData(form), [form])
+  const problem = useMemo(
+    () =>
+      kind === "CUSTOM"
+        ? validateCustomForm(customDefinition, form)
+        : kind === "PANEL"
+          ? validatePanelForm(form)
+          : validateSkillsForm(form),
+    [form, kind, customDefinition]
+  )
+  const score = useMemo(() => {
+    if (kind !== "CUSTOM") return scoreFormData(form)
+    const { total, max } = scoreCustomForm(customDefinition, form)
+    return max > 0 ? { total, max, percentage: Math.round((total / max) * 100) } : null
+  }, [form, kind, customDefinition])
 
   const update = (next: any) => {
     setForm(next)
@@ -113,6 +137,8 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
     }
   }
 
+  const setCustomValue = (key: string, value: unknown) =>
+    update({ ...form, custom: { ...(form.custom ?? {}), [key]: value } })
   const setSkill = (key: string, max: number, rating: number) =>
     update({ ...form, skills: { ...form.skills, [key]: { rating, max } } })
   const setBehavior = (index: number, patch: Record<string, unknown>) =>
@@ -162,6 +188,100 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
                   aria-label={skill.label}
                   className={cn("w-full accent-primary", rating === undefined && "opacity-50")}
                 />
+              </div>
+            )
+          })}
+
+        {kind === "CUSTOM" &&
+          customDefinition.fields.map((field) => {
+            const value = form.custom?.[field.key]
+            return (
+              <div key={field.key} className="space-y-2">
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-sm font-medium">
+                    {field.label}
+                    {field.required && <span className="text-destructive"> *</span>}
+                  </p>
+                  {(field.type === "RATING" || field.type === "NUMBER") && (
+                    <span className="shrink-0 rounded-md bg-muted px-2 py-1 text-sm font-semibold tabular-nums">
+                      {value ?? "–"} / {field.max}
+                    </span>
+                  )}
+                </div>
+                {field.type === "RATING" && (
+                  <input
+                    type="range"
+                    min={1}
+                    max={field.max}
+                    step={1}
+                    disabled={readOnly}
+                    value={typeof value === "number" ? value : 1}
+                    onChange={(e) => setCustomValue(field.key, Number(e.target.value))}
+                    onPointerDown={() => value === undefined && !readOnly && setCustomValue(field.key, 1)}
+                    aria-label={field.label}
+                    className={cn("w-full accent-primary", value === undefined && "opacity-50")}
+                  />
+                )}
+                {field.type === "NUMBER" && (
+                  <input
+                    type="number"
+                    min={0}
+                    max={field.max}
+                    disabled={readOnly}
+                    value={typeof value === "number" ? value : ""}
+                    onChange={(e) => setCustomValue(field.key, e.target.value === "" ? undefined : Number(e.target.value))}
+                    aria-label={field.label}
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                )}
+                {field.type === "SELECT" && (
+                  <div className="flex flex-wrap gap-2">
+                    {(field.options ?? []).map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => setCustomValue(field.key, option)}
+                        className={cn(
+                          "rounded-md border px-3 py-1.5 text-sm transition-colors disabled:opacity-60",
+                          value === option ? "border-primary bg-primary/10 font-medium" : "hover:bg-accent"
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {field.type === "BOOLEAN" && (
+                  <div className="flex gap-2">
+                    {[
+                      { v: true, label: "Yes" },
+                      { v: false, label: "No" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.label}
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => setCustomValue(field.key, opt.v)}
+                        className={cn(
+                          "rounded-md border px-4 py-1.5 text-sm transition-colors disabled:opacity-60",
+                          value === opt.v ? "border-primary bg-primary/10 font-medium" : "hover:bg-accent"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {field.type === "TEXT" && (
+                  <Textarea
+                    rows={3}
+                    disabled={readOnly}
+                    maxLength={2000}
+                    value={typeof value === "string" ? value : ""}
+                    onChange={(e) => setCustomValue(field.key, e.target.value)}
+                  />
+                )}
               </div>
             )
           })}
@@ -226,6 +346,8 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
           })}
 
         <div className="space-y-3">
+          {(kind !== "CUSTOM" || customDefinition.recommendationEnabled) && (
+            <>
           <p className="text-sm font-medium">Your recommendation</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
@@ -247,6 +369,8 @@ export function Scorecard({ bookingId, kind, behaviors, initial, submitted, canE
               </button>
             ))}
           </div>
+            </>
+          )}
           <Textarea
             rows={4}
             disabled={readOnly}

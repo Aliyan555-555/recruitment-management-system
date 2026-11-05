@@ -6,6 +6,7 @@ import { readStepConfig } from "@/lib/workflow/step-config"
 import { INTERNAL_BEHAVIORS } from "@/lib/constants/focus-group-behaviors"
 import { buildCandidateDossier } from "./candidate-dossier"
 import { isRecommended, scoreFormData, validatePanelForm, validateSkillsForm } from "./scoring"
+import { DEFAULT_CUSTOM_FORM, normalizeCustomFormData, parseCustomFormSchema, validateCustomForm } from "./custom-form"
 
 export class EvaluationError extends Error {
   constructor(message: string, public status: number = 400) {
@@ -91,7 +92,14 @@ export async function getInterviewDetail(interviewerId: bigint, bookingId: bigin
       name: booking.slot.step.stepName,
       type: config.stepType,
       notesForInterviewers: config.interviewerInstructions,
-      formKind: config.stepType === "FOCUS_GROUP" ? ("PANEL" as const) : ("SKILLS" as const),
+      formKind:
+        config.stepType === "FOCUS_GROUP"
+          ? ("PANEL" as const)
+          : config.stepType === "CUSTOM"
+            ? ("CUSTOM" as const)
+            : ("SKILLS" as const),
+      // The round's own rating form (custom rounds only)
+      customForm: config.stepType === "CUSTOM" ? (parseCustomFormSchema(booking.slot.step.evaluationSchema) ?? DEFAULT_CUSTOM_FORM) : null,
     },
     job: {
       title: booking.slot.step.workflow.job.title,
@@ -157,7 +165,15 @@ export async function submitEvaluation(interviewerId: bigint, bookingId: bigint,
   const booking = await loadOwnedBooking(interviewerId, bookingId)
   assertCanEvaluate(booking)
   const config = readStepConfig(booking.slot.step)
-  const problem = config.stepType === "FOCUS_GROUP" ? validatePanelForm(formData) : validateSkillsForm(formData)
+  let problem: string | null
+  if (config.stepType === "CUSTOM") {
+    const form = parseCustomFormSchema(booking.slot.step.evaluationSchema) ?? DEFAULT_CUSTOM_FORM
+    problem = validateCustomForm(form, formData)
+    // Store only what the form declares, plus its computed score, so aggregation needs no schema.
+    if (!problem) formData = normalizeCustomFormData(form, formData)
+  } else {
+    problem = config.stepType === "FOCUS_GROUP" ? validatePanelForm(formData) : validateSkillsForm(formData)
+  }
   if (problem) throw new EvaluationError(problem)
 
   const pipelineStepId = await resolvePipelineStepId(booking)

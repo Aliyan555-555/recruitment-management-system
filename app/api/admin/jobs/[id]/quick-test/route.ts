@@ -6,7 +6,11 @@ import {
   parseQuickTestConfigInput,
   upsertJobQuickTest,
 } from "@/lib/services/quick-test-service"
-import { serializeAdminAttemptRow, serializeQuickTestConfig } from "@/lib/quick-test/serializers"
+import {
+  serializeAdminAttemptRow,
+  serializeAdminCustomQuestion,
+  serializeQuickTestConfig,
+} from "@/lib/quick-test/serializers"
 import { isFinalStatus } from "@/lib/quick-test/rules"
 
 export const runtime = "nodejs"
@@ -28,7 +32,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
     const [job, config, rawAttempts] = await Promise.all([
       prisma.job.findUnique({ where: { id: jobId }, select: { id: true, title: true } }),
-      prisma.jobQuickTest.findUnique({ where: { jobId } }),
+      prisma.jobQuickTest.findUnique({
+        where: { jobId },
+        include: { customQuestions: { orderBy: { order: "asc" } } },
+      }),
       prisma.quickTestAttempt.findMany({
         where: { jobId },
         orderBy: { startedAt: "desc" },
@@ -85,8 +92,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({
       job: { id: job.id.toString(), title: job.title },
       config: config
-        ? serializeQuickTestConfig(config)
-        : { enabled: false, questionCount: 10, timeLimitMinutes: 15 },
+        ? {
+            ...serializeQuickTestConfig(config),
+            questions: config.customQuestions.map(serializeAdminCustomQuestion),
+          }
+        : { enabled: false, questionCount: 10, timeLimitMinutes: 15, source: "AI", questions: [] },
       stats: {
         started: attempts.length,
         completed: completed.length,
@@ -135,12 +145,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
     await prisma.$transaction((tx) => upsertJobQuickTest(tx, jobId, parsed.value!))
 
-    const config = await prisma.jobQuickTest.findUnique({ where: { jobId } })
+    const config = await prisma.jobQuickTest.findUnique({
+      where: { jobId },
+      include: { customQuestions: { orderBy: { order: "asc" } } },
+    })
     return NextResponse.json({
       success: true,
       config: config
-        ? serializeQuickTestConfig(config)
-        : { enabled: false, questionCount: 10, timeLimitMinutes: 15 },
+        ? {
+            ...serializeQuickTestConfig(config),
+            questions: config.customQuestions.map(serializeAdminCustomQuestion),
+          }
+        : { enabled: false, questionCount: 10, timeLimitMinutes: 15, source: "AI", questions: [] },
     })
   } catch (error) {
     console.error("[Quick Test] Admin update failed:", error)

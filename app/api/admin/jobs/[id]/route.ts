@@ -3,6 +3,7 @@ import {
   buildStepColumns,
   buildStepMetadata,
   normalizeStep,
+  resolveCustomRounds,
   syncStepInterviewers,
   validateWorkflow,
   type WorkflowStepPayload,
@@ -13,6 +14,7 @@ import { prisma } from "@/lib/prisma"
 import { parseAndValidateSkillNames } from "@/lib/skills"
 import { HiringCriteriaInput, parseHiringCriteria } from "@/lib/job-criteria"
 import { parseQuickTestConfigInput, upsertJobQuickTest } from "@/lib/services/quick-test-service"
+import { serializeAdminCustomQuestion } from "@/lib/quick-test/serializers"
 
 interface JobLocationInput {
   city: string
@@ -99,7 +101,7 @@ export async function GET(
         allowedInstitutes: {
           select: { institute: { select: { id: true, name: true } } }
         },
-        quickTest: true,
+        quickTest: { include: { customQuestions: { orderBy: { order: 'asc' } } } },
         workflow: {
           include: {
             steps: {
@@ -187,9 +189,11 @@ export async function GET(
           ? {
               enabled: job.quickTest.isEnabled,
               questionCount: job.quickTest.questionCount,
-              timeLimitMinutes: job.quickTest.timeLimitMinutes
+              timeLimitMinutes: job.quickTest.timeLimitMinutes,
+              source: job.quickTest.useCustomQuestions ? 'CUSTOM' : 'AI',
+              questions: job.quickTest.customQuestions.map(serializeAdminCustomQuestion)
             }
-          : { enabled: false, questionCount: 10, timeLimitMinutes: 15 },
+          : { enabled: false, questionCount: 10, timeLimitMinutes: 15, source: 'AI', questions: [] },
         workflow: job.workflow ? {
           id: job.workflow.id.toString(),
           jobId: job.workflow.jobId.toString(),
@@ -209,6 +213,7 @@ export async function GET(
               createdAt: s.createdAt.toString(),
               updatedAt: s.updatedAt.toString(),
               stepType: cfg.stepType,
+              customRoundTemplateId: s.customRoundTemplateId?.toString() ?? null,
               skipReason: metadata.skipReason,
               durationMins: cfg.isInterview ? cfg.durationMins : undefined,
               interviewMode: cfg.interviewMode,
@@ -224,6 +229,7 @@ export async function GET(
               evaluationCriteria: metadata.evaluationCriteria || [],
               candidateInstructions: cfg.candidateInstructions,
               interviewerInstructions: cfg.interviewerInstructions,
+              showName: cfg.showName,
               attachments: metadata.attachments || []
             }
           })
@@ -318,9 +324,12 @@ export async function PUT(
             steps: {
               select: {
                 id: true,
+                stepName: true,
                 stepType: true,
                 stepOrder: true,
-                stepMetadata: true
+                stepMetadata: true,
+                customRoundTemplateId: true,
+                evaluationSchema: true
               }
             }
           }
@@ -343,6 +352,18 @@ export async function PUT(
     // Workflow validation. Candidates already in the pipeline => settings may change, structure may not.
     let workflowStructureLocked = false
     if (body.workflowSteps && existingJob.workflow) {
+      // Attach templates to custom rounds; a round already on this job stays usable if its template was deactivated
+      const keepTemplateIds = new Set(
+        existingJob.workflow.steps.flatMap(s => (s.customRoundTemplateId ? [s.customRoundTemplateId.toString()] : []))
+      )
+      const customRoundError = await resolveCustomRounds(
+        prisma,
+        body.workflowSteps as WorkflowStepPayload[],
+        keepTemplateIds
+      )
+      if (customRoundError) {
+        return NextResponse.json({ error: customRoundError }, { status: 400 })
+      }
       const workflowError = validateWorkflow(body.workflowSteps as WorkflowStepPayload[])
       if (workflowError) {
         return NextResponse.json({ error: workflowError }, { status: 400 })
@@ -362,7 +383,12 @@ export async function PUT(
           incoming.length === existingById.size &&
           incoming.every(step => {
             const current = step.id ? existingById.get(String(step.id)) : undefined
-            return !!current && (current.stepType ?? parseStepMetadata(current.stepMetadata).stepType) === step.stepType && current.stepOrder === step.stepOrder
+            return (
+              !!current &&
+              (current.stepType ?? parseStepMetadata(current.stepMetadata).stepType) === step.stepType &&
+              current.stepOrder === step.stepOrder &&
+              (current.customRoundTemplateId?.toString() ?? null) === (step.customRound?.templateId ?? null)
+            )
           })
         if (!sameStructure) {
           return NextResponse.json(
@@ -568,7 +594,7 @@ export async function PUT(
         for (const raw of incoming) {
           const step = normalizeStep(raw)
           const current = raw.id ? existingSteps.get(String(raw.id)) : undefined
-          const columns = buildStepColumns(step)
+          const columns = buildStepColumns(step, current)
           let stepId: bigint
           if (current) {
             keepIds.add(current.id.toString())
