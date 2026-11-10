@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { ArrowLeft, ChevronDown, Layers, Loader2, Search } from "lucide-react"
 import { JobPipelineHeaderLoader } from "@/components/admin/useJobPipeline"
 import { ShortlistFilterBar } from "@/components/admin/ShortlistFilterBar"
+import { SheetActions } from "@/components/admin/sheets/SheetActions"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApplicantCard } from "@/components/admin/applicants/ApplicantCard"
 import { CandidateProfilePanel } from "@/components/admin/applicants/CandidateProfilePanel"
@@ -283,6 +284,8 @@ export default function ApplicantsPage() {
           )}
         </div>
       </div>
+
+      <SheetActions type="SHORTLIST" scope={{ jobId }} onApplied={refresh} />
 
       <AiScreeningPanel
         jobId={jobId}

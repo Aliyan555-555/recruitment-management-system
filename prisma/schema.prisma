@@ -81,6 +81,7 @@ model User {
   skillAssessments    SkillAssessment[]
   aiShortlistRunsTriggered AiShortlistRun[]            @relation("AiShortlistRunTriggeredBy")
   aiShortlistResults       AiCandidateShortlistResult[] @relation("AiShortlistCandidateResults")
+  importBatches            ImportBatch[]               @relation("ImportBatchCreator")
 
   @@index([role])
   @@index([userStatus])
@@ -927,6 +928,7 @@ model CandidatePipelineStep {
   @@index([pipelineId])
   @@index([workflowStepId])
   @@index([status])
+  @@unique([pipelineId, workflowStepId])
   @@index([batchId])
   @@map("candidate_pipeline_step")
 }
@@ -1378,4 +1380,94 @@ model QuickTestAnswer {
   @@unique([attemptId, questionId])
   @@index([attemptId])
   @@map("quick_test_answer")
+}
+
+// ============================================
+// Spreadsheet (.xlsx) import
+// ============================================
+
+enum ImportStatus {
+  VALIDATED
+  COMMITTING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ImportRowStatus {
+  READY
+  WARNING
+  ERROR
+  NO_CHANGE
+  DUPLICATE_REVIEW
+  /// claimed by a running commit chunk; rows left here after a crash are re-checked, never blindly re-applied
+  APPLYING
+  APPLIED
+  SKIPPED
+  FAILED
+}
+
+/// One uploaded sheet. Nothing is written to the target tables until the admin confirms (COMMITTING).
+model ImportBatch {
+  id            BigInt       @id @default(autoincrement())
+  /// template key, e.g. SHORTLIST (see lib/spreadsheet/registry.ts)
+  type          String       @db.VarChar(40)
+  jobId         BigInt?      @map("job_id")
+  workflowStepId BigInt?     @map("workflow_step_id")
+  fileName      String       @map("file_name") @db.VarChar(255)
+  /// SHA-256 of the uploaded file: the same file is never applied twice
+  fileHash      String       @map("file_hash") @db.VarChar(64)
+  fileSize      Int          @map("file_size")
+  status        ImportStatus @default(VALIDATED)
+  /// "<type>:<jobId>:<stepId>" while VALIDATED/COMMITTING, NULL afterwards: one open import per screen
+  activeKey     String?      @unique @map("active_key") @db.VarChar(120)
+  totalRows     Int          @default(0) @map("total_rows")
+  readyRows     Int          @default(0) @map("ready_rows")
+  warningRows   Int          @default(0) @map("warning_rows")
+  errorRows     Int          @default(0) @map("error_rows")
+  noChangeRows  Int          @default(0) @map("no_change_rows")
+  appliedRows   Int          @default(0) @map("applied_rows")
+  failedRows    Int          @default(0) @map("failed_rows")
+  /// admin choices made at confirm time (e.g. sendEmails)
+  options       Json?
+  createdBy     BigInt       @map("created_by")
+  createdAt     BigInt       @map("created_at")
+  updatedAt     BigInt       @map("updated_at")
+  committedAt   BigInt?      @map("committed_at")
+
+  creator User        @relation("ImportBatchCreator", fields: [createdBy], references: [id])
+  rows    ImportRow[]
+
+  @@index([type, jobId, fileHash])
+  @@index([createdBy])
+  @@index([createdAt])
+  @@map("import_batch")
+}
+
+model ImportRow {
+  id          BigInt          @id @default(autoincrement())
+  batchId     BigInt          @map("batch_id")
+  /// 1-based Excel row number, so errors point at the cell the admin sees
+  rowNumber   Int             @map("row_number")
+  /// natural key of the target record (candidate id, email, job code ...)
+  entityKey   String?         @map("entity_key") @db.VarChar(255)
+  status      ImportRowStatus
+  action      String?         @db.VarChar(40)
+  raw         Json
+  normalized  Json?
+  /// [{ severity, code, column?, message }]
+  issues      Json?
+  /// state of the target when the sheet was validated; compared again at commit to catch stale rows
+  snapshot    Json?
+  /// admin answer for POSSIBLE_DUPLICATE rows, e.g. { use: "existing", userId: "12" }
+  resolution  Json?
+  result      String?         @db.VarChar(500)
+  appliedAt   BigInt?         @map("applied_at")
+
+  batch ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, rowNumber])
+  @@index([batchId, status])
+  @@index([batchId, entityKey])
+  @@map("import_row")
 }
