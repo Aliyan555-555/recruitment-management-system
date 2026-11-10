@@ -168,7 +168,8 @@ export async function shortlistCandidates(
           data: { status: newStatus, statusUpdatedAt: now },
         })
       }
-    })
+    // one query per applicant to heal pipelines: Prisma's 5s default is too short for a dozen applicants on a remote database
+    }, { timeout: 30_000, maxWait: 10_000 })
     await afterDecision()
     return
   }
